@@ -5,6 +5,7 @@ export interface IValueObservable<TEvtArgs> {
 }
 export declare function valueObservable<TEvtArgs>(target: any): IValueObservable<TEvtArgs>;
 export declare class ValueObservable<TEvtArgs> implements IValueObservable<TEvtArgs> {
+    $_listeners: Function[];
     $subscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
     $unsubscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
     $notify: (evt: TEvtArgs) => IValueObservable<TEvtArgs>;
@@ -34,7 +35,8 @@ export interface IChangeEventArgs {
 }
 export interface IValueProxy extends IValueObservable<IChangeEventArgs> {
     $type: ValueTypes;
-    $extras: any;
+    $target: any;
+    $extras?: any;
     $owner?: IValueProxy;
     $raw: (value?: any) => any;
     $get(): any;
@@ -42,6 +44,9 @@ export interface IValueProxy extends IValueObservable<IChangeEventArgs> {
     $update(): boolean;
 }
 export interface IObjectProxy extends IValueProxy {
+    $props: {
+        [name: string]: IValueProxy;
+    };
 }
 export interface IArrayProxy extends IValueProxy {
     length: number;
@@ -53,11 +58,12 @@ export interface IArrayProxy extends IValueProxy {
 }
 export declare class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy {
     $type: ValueTypes;
+    $target: any;
     $modifiedValue: any;
-    $extras: any;
+    $extras?: any;
     $owner?: IValueProxy;
     $raw: (value?: any) => any;
-    constructor(raw: (val?: any) => any, owner?: IValueProxy);
+    constructor(raw: (val?: any) => any);
     $get(): any;
     $set(newValue: any): IValueProxy;
     $update(): boolean;
@@ -65,17 +71,16 @@ export declare class ValueProxy extends ValueObservable<IChangeEventArgs> implem
     static gettingProxy: boolean;
 }
 export interface IObjectMeta {
-    propBuilder?: (proxy: IObjectProxy, props: {
-        [name: string]: ValueProxy;
-    }) => any;
+    propBuilder?: (define: (name: string, prop?: IValueProxy) => any) => any;
     fieldnames?: string[];
     methodnames?: string[];
 }
 export declare class ObjectProxy extends ValueProxy implements IObjectProxy {
     $props: {
-        [name: string]: ValueProxy;
+        [name: string]: IValueProxy;
     };
-    constructor(raw: () => any, meta: IObjectMeta);
+    $target: any;
+    constructor(raw: (val?: any) => any, meta: IObjectMeta);
     $get(): any;
     $set(newValue: any): IValueProxy;
     $update(): boolean;

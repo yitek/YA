@@ -53,7 +53,7 @@ export class Unittest{
         if(typeof target==="function") target = new target();
         let count = 0;
         this._$logger.beginGroup(`{${this.$NAME}}`);
-        let assert =(actual?:any,expected?:any,msg?:string,paths?:string[])=>{
+        let assert =(expected?:any,actual?:any,msg?:string,paths?:string[])=>{
             if(!paths && msg) msg = msg.replace(/\{actual\}/g,JSON.stringify(actual)).replace(/\{expected\}/g,JSON.stringify(expected));
             if(actual===expected) {
                 if(!Unittest.hiddenSteps && msg && !paths){
