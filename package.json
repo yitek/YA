@@ -1,0 +1,29 @@
+{
+  "name": "YA",
+  "version": "1.0.0",
+  "description": "YA",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    
+  },
+  "devDependencies": {
+    
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yitek/YA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yitek/YA/issues"
+  },
+  "homepage": "https://github.com/yitek/YA#readme"
+}
