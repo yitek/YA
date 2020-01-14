@@ -1,5 +1,5 @@
 import {Unittest} from '../Unittest'
-import {ValueObservable, ValueProxy,ObjectProxy}  from '../YA.core'
+import {ValueObservable, ValueProxy,ObjectProxy,ArrayProxy, ValueTypes}  from '../YA.core'
 
 Unittest.Test("YA.Core",{ 
     "ValueObservable":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
@@ -112,7 +112,7 @@ Unittest.Test("YA.Core",{
         evtArgs=undefined;
         proxy.$set(newTarget);
         assert(newTarget,proxy.$modifiedValue,"更换目标对象后，代理对象上的$modifiedValue变更为新对象");
-        assert(target,proxy.$target,"更换目标对象后，代理对象上的$target还保持为原先的对象");
+        //assert(target,proxy.$target,"更换目标对象后，代理对象上的$target还保持为原先的对象");
         assert("yanyi",proxy.name,"更换目标对象后，代理上的字段的值是新的对象的字段值");
         assert(2,proxy.gender,"更换目标对象后，属性值是新的对象的字段值");
         assert(28,proxy.age,"更换目标对象后，属性值是新的对象的字段值");
@@ -123,7 +123,7 @@ Unittest.Test("YA.Core",{
 
         proxy.$update();
         assert(newTarget,target,"$update后，原始对象应该更换为新的对象");
-        assert(28,proxy.age,"更换目标对象，且$update后，属性值u欧美广告是新的对象的字段值");
+        assert(28,proxy.age,"更换目标对象，且$update后，属性值是新的对象的字段值");
         assert(true,evtArgs!==undefined,"$update后，代理上的监听器应该被调用");
 
         let membernames={
@@ -139,5 +139,55 @@ Unittest.Test("YA.Core",{
             if(!membernames[n]) assert(n,false,"用for应该能获取到以下成员[name,age,gender]");
             
         }
+    }
+    ,"ArrayProxy":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+        let target = [14,24,38,40];
+        let proxy = new ArrayProxy((val?:any)=>val===undefined?target:target=val);
+        assert(4,proxy.length,"代理的length = array.length");
+        assert(14,proxy[0],"代理[0]=arr[0]");
+        assert(24,proxy[1],"代理[1]=arr[1]");
+        assert(38,proxy[2],"代理[2]=arr[2]");
+        assert(40,proxy[3],"代理[3]=arr[3]");
+
+        let idx1:any;
+        let idx2 :any;
+        try{
+            ValueProxy.gettingProxy=true;
+            idx2 = proxy[2];
+            idx1 = proxy[1];
+        }finally{
+            ValueProxy.gettingProxy=false;
+        }
+        assert(true,idx1 instanceof ValueProxy,"可以获取到item代理");
+        assert(true,idx2 instanceof ValueProxy,"可以获取到item代理");
+
+        let newTarget =[11,22,33];
+        proxy.$set(newTarget);
+        assert(3,proxy.length,"代理的length = newTarget.length");
+        assert(11,proxy[0],"更换target后，代理[0]=newTarget[0]");
+        assert(22,proxy[1],"更换target后，代理[1]=newTarget[1]");
+        assert(33,proxy[2],"更换target后，代理[2]=newTarget[2]");
+        
+    }
+
+    ,"ArrayProxy.push":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+        let target = [34,24,38];
+        let proxy = new ArrayProxy((val?:any)=>val===undefined?target:target=val);
+        
+
+        proxy.push(55);
+        assert(4,proxy.length,"push后，代理的length = array.length+1");
+        assert(34,proxy[0],"push后，代理[0]=arr[0]");
+        assert(24,proxy[1],"push后，代理[1]=arr[1]");
+        assert(38,proxy[2],"push后，代理[2]=arr[2]");
+        assert(55,proxy[3],"push后，代理[3]=push的值");
+        assert(3,target.length,"push后，target没有变化");
+        
+
+        let proxyEvtArgs:any;
+        proxy.$subscribe((evt)=>proxyEvtArgs);
+        proxy.$update();
+
+        assert(4,target.length,"更新后，arr的length+1");
     }
 });

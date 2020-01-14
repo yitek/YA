@@ -18,25 +18,28 @@ export declare enum ValueTypes {
 }
 export declare enum ChangeTypes {
     Value = 0,
-    Item = 1,
-    Push = 2,
-    Pop = 3,
-    Shift = 4,
-    Unshift = 5,
-    Clear = 6,
+    Replace = 1,
+    Append = 2,
+    Push = 3,
+    Pop = 4,
+    Shift = 5,
+    Unshift = 6,
+    Remove = 7,
 }
 export interface IChangeEventArgs {
     type: ChangeTypes;
     index?: string | number;
-    value: any;
+    target?: any;
+    value?: any;
     old?: any;
     sender?: any;
     cancel?: boolean;
 }
 export interface IValueProxy extends IValueObservable<IChangeEventArgs> {
     $type: ValueTypes;
-    $target: any;
     $extras?: any;
+    $target?: any;
+    $index?: string | number;
     $owner?: IValueProxy;
     $raw: (value?: any) => any;
     $get(): any;
@@ -55,10 +58,12 @@ export interface IArrayProxy extends IValueProxy {
     push(item_value: any): IArrayProxy;
     shift(): any;
     unshift(item_value: any): IArrayProxy;
+    $item_convertor?: IValueProxy;
 }
 export declare class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy {
     $type: ValueTypes;
     $target: any;
+    $index: number | string;
     $modifiedValue: any;
     $extras?: any;
     $owner?: IValueProxy;
@@ -86,14 +91,17 @@ export declare class ObjectProxy extends ValueProxy implements IObjectProxy {
     $update(): boolean;
 }
 export interface IArrayChangeEventArgs extends IChangeEventArgs {
-    item_value?: any;
+    item?: IValueProxy;
 }
 export declare class ArrayProxy extends ValueProxy {
-    $itemConvertor: (item_value: any, proxy: IArrayProxy) => any;
+    $itemConvertor: (index: number, item_value: any, proxy: IArrayProxy) => IValueProxy;
     $changes: IArrayChangeEventArgs[];
     $length: number;
     length: number;
-    constructor(raw: () => any, item_convertor?: (item_value: any, proxy: IArrayProxy) => any);
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IArrayProxy) => IValueProxy);
+    clear(): IArrayProxy;
+    resize(newLength: number): IArrayProxy;
+    $set(newValue: any): IValueProxy;
     item(index: number, item_value?: any): any;
     push(item_value: any): ArrayProxy;
     pop(): any;

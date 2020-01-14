@@ -34,7 +34,15 @@
     <body>
         <div id="demo"></div>
         <script type="text/javascript">
- 
+ var obj={_x:5};
+ Object.defineProperty(obj,0,{
+     get:function(){return this._x;},
+     set:function(val){this._x = val;}
+ });
+
+console.log(obj["x"]);
+obj["x"] = 10;
+console.log(obj.x);
         </script>
     </body>
 </html>

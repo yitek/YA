@@ -85,18 +85,20 @@ export enum ValueTypes{
 
 export enum ChangeTypes{
     Value,
-    Item,
+    Replace,
+    Append,
     Push,
     Pop,
     Shift,
     Unshift,
-    Clear
+    Remove
 }
 
 export interface IChangeEventArgs{
     type:ChangeTypes,
     index?:string|number;
-    value:any,
+    target?:any;
+    value?:any,
     old?:any,
     sender?:any,
     cancel?:boolean
@@ -105,8 +107,9 @@ export interface IChangeEventArgs{
 
 export interface IValueProxy extends IValueObservable<IChangeEventArgs>{
     $type:ValueTypes;
-    $target:any;
     $extras?:any;
+    $target?:any;
+    $index?:string|number;
     $owner?:IValueProxy;
     $raw:(value?:any)=>any;
     $get():any;
@@ -124,6 +127,7 @@ export interface IArrayProxy extends IValueProxy{
     push(item_value:any):IArrayProxy;
     shift():any;
     unshift(item_value:any):IArrayProxy;
+    $item_convertor?:IValueProxy;
 }
 
 
@@ -133,6 +137,7 @@ let Null={};
 export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy{
     $type:ValueTypes;
     $target:any;
+    $index:number|string;
     $modifiedValue:any;
     $extras?:any;
     $owner?:IValueProxy;
@@ -141,8 +146,9 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
         super();
         buildHiddenMembers(this,{
             $raw:raw,
-            $target:raw(),
+            $target:raw?raw.call(this):undefined,
             $owner:undefined,
+            $index:undefined,
             $modifiedValue:undefined,
             $type :ValueTypes.Value
         });
@@ -192,11 +198,12 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
     $target:any;
     constructor(raw:(val?:any)=>any,meta:IObjectMeta){
         super(raw);
-        let target = raw();
-        if(!target) raw(target={});
+        let target = this.$target;
+        if(!target) raw(target=this.$target={});
         buildHiddenMembers(this,{
             "$target":target,
-            "$props":{}
+            "$props":{},
+            "$type":ValueTypes.Object
         });
 
         this.$type = ValueTypes.Object;
@@ -259,96 +266,237 @@ buildHiddenMembers(ObjectProxy.prototype,ObjectProxy.prototype);
 
 
 export interface IArrayChangeEventArgs extends IChangeEventArgs{
-    
-    item_value?:any;
+    item?:IValueProxy;
 }
 
 export class ArrayProxy extends ValueProxy{
-    $itemConvertor:(item_value:any,proxy:IArrayProxy)=>any;
+    $itemConvertor:(index:number,item_value:any,proxy:IArrayProxy)=>IValueProxy;
     $changes:IArrayChangeEventArgs[];
     $length:number;
     length:number;
-    constructor(raw:()=>any,item_convertor?:(item_value:any,proxy:IArrayProxy)=>any){
+    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IArrayProxy)=>IValueProxy){
+        let target:any;
         super(raw);
-        this.$type = ValueTypes.Array;
-        this.$itemConvertor = item_convertor;
+        target = this.$target;
+        if(Object.prototype.toString.call(target)!=="[object Array]") raw(target=this.$target=[]);
+        
+        item_convertor ||(item_convertor=(index,item_value,proxy)=>{
+            let item = new ValueProxy(null);
+            item.$index = index;
+            item.$raw = function(val?:any){return val===undefined?proxy.$get()[this.$index]:proxy.$get()[this.$index]=val;};
+            item.$target = item_value;
+            return item;
+        });
+        for(let i in target)((index)=>{
+            let item =  item_convertor.call(this,i as any as number,target[index],this);
+            
+            if(item!==Undefined){
+                item.$index = index;
+                item.$owner = this;
+                Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)}); 
+            }
+        })(i);
+
+        buildHiddenMembers(this,{
+            "$type":ValueTypes.Array,
+            "$target":target,
+            "$length":target.length,
+            "$itemConvertor":item_convertor,
+            "$changes":undefined
+        });
     }
+
+    clear():IArrayProxy{
+        let old = this.$get();
+        let changes = this.$changes|| (this.$changes=[]);
+        let len = old.length;
+        if(changes)for(let i in changes){
+            let change = changes[i];
+            if(change.type ===ChangeTypes.Push || change.type===ChangeTypes.Unshift){
+                len++;
+            }
+        }
+        let swicherValue = ValueProxy.gettingProxy;
+        try{
+            ValueProxy.gettingProxy=true;
+            for(let i = 0;i<len;i++){
+                let removeItem = this[i];
+                if(removeItem){
+                    delete this[i];
+                    changes.push({
+                        type:ChangeTypes.Remove,
+                        index:i,
+                        target:old,
+                        item:removeItem,
+                        value:removeItem.$get(),
+                        sender:removeItem
+                    });
+                }
+            }
+        }finally{
+            ValueProxy.gettingProxy = swicherValue;
+        }
+        
+
+        return this;
+    }
+
+    resize(newLength:number):IArrayProxy{
+        let arr = this.$get();
+        let len = arr.length;
+        if(len===newLength) return this;
+        let changes = this.$changes ||(this.$changes=[]);
+        if(len>newLength){
+            for(let i =newLength;i<len;i++){
+                let removeItem = this[i];
+                delete this[i];
+                changes.push({
+                    type:ChangeTypes.Remove,
+                    index:i,
+                    item:removeItem,
+                    target:arr,
+                    value:arr[i]
+                });
+            }
+            this.$length = newLength;
+        }else if(len<newLength){
+            for(let i =len;i<newLength;i++)((idx)=>{
+                let appendItem = this.$itemConvertor(idx,undefined,this);
+                Object.defineProperty(this,i,{enumerable:true,configurable:true,get:()=>appendItem.$get(),set:(val:any)=>appendItem.$set(val)});
+                changes.push({
+                    type:ChangeTypes.Append,
+                    index:i,
+                    item:appendItem,
+                    target:arr
+                });
+            })(i);
+            this.$length = newLength;
+        }
+        return this;
+    }
+
+    $set(newValue:any):IValueProxy{
+        newValue || (newValue=[]);
+        this.clear();
+        super.$set(newValue);
+        
+        for(let i in newValue)((idx)=>{
+            let item =  this.$itemConvertor(idx as any as number,newValue[idx],this);
+            if(item!==Undefined){
+                item.$owner = this;
+                Object.defineProperty(this,i.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)}); 
+            }
+        })(i);
+        this.$length = newValue.length;
+        
+        return this;
+    }
+
     
     item(index:number,item_value?:any):any{
         if(item_value===undefined){
-            return (this as any)[index];
+            let item = (this as any)[index];
+            return ValueProxy.gettingProxy?item:item.$get();
         }
         let len = this.length;
-        let item = this.$itemConvertor?this.$itemConvertor(item_value,this):item_value;
+        let size = index>=len?index+1:len;
+        let item = this.$itemConvertor(index,item_value,this);
+        item.$owner = this;
         let oldItem :any;
-        if(len-1<index)  {
-            this.$length = index+1;
-            Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,value:item});
+        if(size>len){
+            for(let i = len;i<size;i++)((idx:number)=>{
+                let insertedItem = this.$itemConvertor(idx,undefined,this);
+                insertedItem.$owner = this;
+                Object.defineProperty(this,idx.toString(),{enumerable:true,configurable:true,get:()=>insertedItem.$get(),set:(val)=>insertedItem.$set(val)});
+                (this.$changes || (this.$changes=[])).push({
+                    sender:this,
+                    type:ChangeTypes.Append,
+                    index:idx,
+                    value:insertedItem,
+                    old:undefined
+                });
+            })(i);
+            this.$length = size;
         }else {
             oldItem = this[index];
-            this[index] = item;
+            
         }
+
+        Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)});
         (this.$changes || (this.$changes=[])).push({
             sender:this,
-            type:ChangeTypes.Push,
+            type:ChangeTypes.Replace,
             index:index,
-            value:item,
+            item:item,
+            target:this.$get(),
             old:oldItem,
-            item_value:item_value
+            value:item_value
         });
+
+        return this;
     }
 
     push(item_value:any):ArrayProxy{
         let index = this.length;
-        let item = this.$itemConvertor?this.$itemConvertor(item_value,this):item_value;
-        Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,value:item});
+        let item = this.$itemConvertor(index,item_value,this);
+        (item as any).$index = index;
+        item.$owner = this;
+        Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)});
         this.$length++;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
             type:ChangeTypes.Push,
             index:index,
-            value:item
+            item:item,
+            value:item_value,
+            target:this.$get()
         });
         return this;
     }
 
     pop():any{
         let len = this.length;
-        if(len===undefined)return;
-        let removeItem = this[len];
-        delete (this as any)[len];
+        if(!len)return this;
+        let index = len-1;
+        let removeItem = this[index];
+        delete (this as any)[index];
         this.$length--;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
             type:ChangeTypes.Pop,
-            value:removeItem,
-            index:len
+            item:removeItem,
+            index:index,
+            target:this.$get(),
+            value:removeItem.$get()
         });
         
-        return removeItem;
+        return removeItem.$get();
     }
 
     unshift(item_value:any):ArrayProxy{
-        let item = this.$itemConvertor?this.$itemConvertor(item_value,this):item_value;
+        let item = this.$itemConvertor(0,item_value,this);
+        item.$owner = this;
         //let changes = ;
         let len = this.length;
-       
-        Object.defineProperty(this,len.toString(),{
-            enumerable:true,configurable:true,value:(this as any)[len]
-        });
-        for(let i =len-1,j=1;i>=j;i--){
-            (this as any)[i]=(this as any)[i];
-        }
-        Object.defineProperty(this,len.toString(),{
-            enumerable:true,configurable:true,value:(this as any)[0]
+        for(let i =0;i<len;i++)((index)=>{
+            let movedItem = this[index];
+            let newIndex = index+1;
+            movedItem.$index = newIndex;
+            Object.defineProperty(this,newIndex as any as string,{
+                enumerable:true,configurable:true,get:()=>movedItem.$get(),set:(val)=>movedItem.$set(val)
+            });
+        })(i);
+        Object.defineProperty(this,0,{
+            enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)
         });
         this.$length++;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
             type:ChangeTypes.Unshift,
             index:0,
-            value:item,
-            item_value:item_value
+            item:item,
+            value:item_value,
+            target:this.$get()
         });
         return this;
     }
@@ -356,51 +504,69 @@ export class ArrayProxy extends ValueProxy{
         let len = this.length;
         if(len===undefined)return;
         let removeItem = this[0];
-        for(let i =1,j=len;i<j;i++){
-            (this as any)[i-1] = (this as any)[i];
-        }
-        delete (this as any)[len];
+        for(let i =1;i<len;i++)((idx)=>{
+            let movedItem = this[idx];
+            movedItem.$index = idx-1;
+            Object.defineProperty(this,(idx-1),{
+                enumerable:true,configurable:true,get:()=>movedItem.$get(),set:(val)=>movedItem.$set(val)
+            });
+        })(i);
+        delete (this as any)[len-1];
         this.$length--;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
             type:ChangeTypes.Shift,
-            value:removeItem,
-            index:0
+            item:removeItem,
+            index:0,
+            //value:removeItem.$get(),
+            target:this.$get()
         });
-        return removeItem;
+        return removeItem.$get();
     }
     $update():boolean{
         if(!super.$update()) return true;
-        if(!this.$changes) return true;
-        
-        let arr = this.$raw();
-        for(let i in this.$changes){
-            let change = this.$changes[i];
+        let changes = this.$changes;
+        if(!changes || this.$changes.length===0) return true;
+        this.$changes = undefined;
+
+        let arr = this.$target;
+        for(let i in changes){
+            let change = changes[i];
             switch(change.type){
                 case ChangeTypes.Push:
-                    arr.push(change);
+                    arr.push(change.value);
                     this.$notify(change);
-                    if(change.cancel!==true && change.value && change.value.$notify) change.value.$notify(change);
+                    //if(change.cancel!==true && change.item) change.item.$notify(change);
                     break;
                 case ChangeTypes.Pop:
-                    arr.pop(change);
+                    arr.pop();
                     this.$notify(change);
-                    if(change.cancel!==true && change.value && change.value.$notify) change.value.$notify(change);
+                    if(change.cancel!==true && change.item) {
+                        change.sender = change.item;
+                        change.item.$notify(change);
+                    }
                     break;
                 case ChangeTypes.Unshift:
-                    arr.unshift(change);
+                    arr.unshift(change.value);
                     this.$notify(change);
-                    if(change.cancel!==true && change.value && change.value.$notify) change.value.$notify(change);
                     break;
                 case ChangeTypes.Shift:
-                    arr.shift(change);
+                    arr.shift();
                     this.$notify(change);
-                    if(change.cancel!==true && change.value && change.value.$notify) change.value.$notify(change);
+                    if(change.cancel!==true && change.item) {
+                        change.sender = change.item;
+                        change.item.$notify(change);
+                    }
                     break;
-                case ChangeTypes.Item:
-                    arr.shift(change);
+                case ChangeTypes.Replace:
+                    arr[change.index] = change.value;
                     this.$notify(change);
-                    if(change.cancel!==true && change.value && change.value.$notify) change.value.$notify(change);
+                    if(change.cancel!==true && change.old){
+                        change.sender =change.item = change.old;
+                        change.value = change.old.$get();
+                        change.old = undefined;
+                        change.sender.$notify(change);
+                    } 
                     break;
             }
         }
@@ -408,24 +574,18 @@ export class ArrayProxy extends ValueProxy{
     }
     
 }
-buildNotPublics(ArrayProxy,["push","pop","unshift","shift","item","$changes","$update"]);
-buildNotPublics(ArrayProxy,{
-    length:{
-        get:function():number{
-            if(this.$length===undefined) {
-                let raw = this.$raw();
-                this.$length = raw.length;
-                for(let i =0,j=raw.length;i<j;i++){
-                    Object.defineProperty(this,i.toString(),{
-                        enumerable:true,configurable:true,value:this.$itemConvertor?this.$itemConvertor(raw[i]):raw[i]
-                    });
-                }
-            }
-            return this.$length;
+buildHiddenMembers(ArrayProxy.prototype,ArrayProxy.prototype);
+Object.defineProperty(ArrayProxy.prototype,"length",{
+    enumerable:false,
+    configurable:false,
+    get:function():number{
+        if(this.$length===undefined) {
+            this.$length = this.$target.length;
         }
-        ,set:function(newLen:number){
-            throw new Error("Not implement");
-        }
+        return this.$length;
+    }
+    ,set:function(newLen:number){
+        this.resize(newLen);
     }
 });
  
