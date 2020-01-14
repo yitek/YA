@@ -110,6 +110,7 @@ export interface IValueProxy extends IValueObservable<IChangeEventArgs>{
     $extras?:any;
     $target?:any;
     $index?:string|number;
+    $modifiedValue?:any;
     $owner?:IValueProxy;
     $raw:(value?:any)=>any;
     $get():any;
@@ -161,7 +162,7 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
     }
 
     $set(newValue:any):IValueProxy{
-        if(ValueProxy.gettingProxy) throw new Error("ValueProxy.gettingProxy=true,不可以给对象属性赋值");
+        //if(ValueProxy.gettingProxy) throw new Error("ValueProxy.gettingProxy=true,不可以给对象属性赋值");
         this.$modifiedValue=newValue===undefined?Undefined:newValue;
         return this;
     }
@@ -193,6 +194,15 @@ export interface IObjectMeta{
     methodnames?:string[];
 }
 
+function buildNotProperty(name:string,proxy:IObjectProxy,enumerable:boolean){
+    
+    Object.defineProperty(proxy,name,{
+        enumerable:enumerable,configurable:false,
+        get:()=>(proxy.$modifiedValue===undefined?proxy.$target:(proxy.$modifiedValue===Undefined?null:proxy.$modifiedValue))[name],
+        set:(newValue:any)=>(proxy.$modifiedValue===undefined?proxy.$target:(proxy.$modifiedValue===Undefined?null:proxy.$modifiedValue))[name]=newValue
+    });
+}
+
 export class ObjectProxy extends ValueProxy implements IObjectProxy{
     $props:{[name:string]:IValueProxy};
     $target:any;
@@ -209,18 +219,12 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
         this.$type = ValueTypes.Object;
         let props = this.$props;
         if(meta.fieldnames)
-            for(let i in meta.fieldnames)((name:string,proxy:IObjectProxy)=>{
-                Object.defineProperty(this,name,{
-                    enumerable:true,configurable:false,get:()=>proxy.$get()[name],set:(newValue:any)=>proxy.$get()[name]=newValue
-                });
-            })(meta.fieldnames[i],this);
+            for(let i in meta.fieldnames)
+                buildNotProperty(meta.fieldnames[i],this,true);
         
         if(meta.methodnames)    
-            for(let i in meta.methodnames)((name:string,proxy:IObjectProxy)=>{
-                Object.defineProperty(this,name,{
-                    enumerable:false,configurable:false,get:()=>proxy.$get()[name],set:(newValue:any)=>proxy.$get()[name]=newValue
-                });
-            })(meta.methodnames[i],this);
+            for(let i in meta.methodnames)
+            buildNotProperty(meta.methodnames[i],this,false);
 
         if(meta.propBuilder){
             let define = (name:string,prop:IValueProxy)=>{
@@ -283,7 +287,7 @@ export class ArrayProxy extends ValueProxy{
         item_convertor ||(item_convertor=(index,item_value,proxy)=>{
             let item = new ValueProxy(null);
             item.$index = index;
-            item.$raw = function(val?:any){return val===undefined?proxy.$get()[this.$index]:proxy.$get()[this.$index]=val;};
+            item.$raw = function(val?:any){return val===undefined?proxy.$target[this.$index]:proxy.$target[this.$index]=val;};
             item.$target = item_value;
             return item;
         });

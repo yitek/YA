@@ -40,6 +40,7 @@ export interface IValueProxy extends IValueObservable<IChangeEventArgs> {
     $extras?: any;
     $target?: any;
     $index?: string | number;
+    $modifiedValue?: any;
     $owner?: IValueProxy;
     $raw: (value?: any) => any;
     $get(): any;
