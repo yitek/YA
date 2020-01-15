@@ -13,6 +13,7 @@ function defineMembers(target:any,props?:any,des?:any){
 //===============================================================================
 
 export interface IObservable<TEvtArgs>{
+    $_listeners:Function[];
     $subscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
     $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
     $notify:(evt:TEvtArgs)=>IObservable<TEvtArgs>;
@@ -58,7 +59,7 @@ valueObservable(Observable.prototype);
 
 //================================================================
 
-export enum ValueTypes{
+export enum MemberTypes{
     Value,
     Object,
     Array
@@ -87,7 +88,7 @@ export interface IChangeEventArgs{
 
 
 export interface IObservableProxy extends IObservable<IChangeEventArgs>{
-    $type:ValueTypes;
+    $type:MemberTypes;
     $extras?:any;
     $target?:any;
     $index?:string|number;
@@ -111,7 +112,7 @@ export enum ProxyAccessModes{
 }
 
 export class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy{
-    $type:ValueTypes;
+    $type:MemberTypes;
     $target:any;
     $index:number|string;
     $modifiedValue:any;
@@ -126,7 +127,7 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
             $owner:undefined,
             $index:undefined,
             $modifiedValue:undefined,
-            $type :ValueTypes.Value
+            $type :MemberTypes.Value
         });
     }
 
@@ -182,6 +183,20 @@ function buildNotProperty(name:string,proxy:IObservableObject,enumerable:boolean
     });
 }
 
+function prop_raw(name:string,objProxy:IObservableObject):{(val?:any):any}{
+    return function(val?:any){
+        return val===undefined
+            ?(objProxy.$modifiedValue===undefined
+                ?objProxy.$target
+                :(objProxy.$modifiedValue===Undefined?null:objProxy.$modifiedValue)
+            )[name]
+            :(objProxy.$modifiedValue===undefined
+                ?objProxy.$target
+                :(objProxy.$modifiedValue===Undefined?null:objProxy.$modifiedValue)
+            )[name]=val;   
+    }      
+}
+
 export class ObservableObject extends ObservableProxy implements IObservableObject{
     $target:any;
     [index:string]:any;
@@ -191,10 +206,15 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
         if(!target) raw(target=this.$target={});
         defineMembers(this,{
             "$target":target,
-            "$type":ValueTypes.Object
+            "$type":MemberTypes.Object
         });
 
-        this.$type = ValueTypes.Object;
+        this.$type = MemberTypes.Object;
+
+        if(!meta){
+
+            return;
+        }
         if(meta.fieldnames)
             for(let i in meta.fieldnames)
                 buildNotProperty(meta.fieldnames[i],this,true);
@@ -205,17 +225,7 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
 
         if(meta.propBuilder){
             let define = (name:string,prop:IObservableProxy)=>{
-                prop ||(prop = new ObservableProxy((val?:any)=>
-                    val===undefined
-                        ?(this.$modifiedValue===undefined
-                            ?this.$target
-                            :(this.$modifiedValue===Undefined?null:this.$modifiedValue)
-                        )[name]
-                        :(this.$modifiedValue===undefined
-                            ?this.$target
-                            :(this.$modifiedValue===Undefined?null:this.$modifiedValue)
-                        )[name]=val
-                ));
+                prop ||(prop = new ObservableProxy(prop_raw(name,this)));
                 prop.$owner = this;
                 Object.defineProperty(this,name,{
                     enumerable:true,configurable:false,get:()=>prop.$get(),set:(val:any)=>prop.$set(val)
@@ -305,18 +315,20 @@ export class ObservableArray extends ObservableProxy{
             item.$target = item_value;
             return item;
         });
-        for(let i in target)((index)=>{
-            let item =  item_convertor.call(this,i as any as number,target[index],this);
+        for(let i =0,j=target.length;i<j;i++)((index,item_value)=>{
+            if(item_value && item_value[ObservableArray.structToken]!==undefined) return;
+            target.push(item_value);
+            let item =  item_convertor.call(this,i as any as number,item_value,this);
             
             if(item!==Undefined){
                 item.$index = index;
                 item.$owner = this;
                 Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)}); 
             }
-        })(i);
+        })(i,target.shift());
 
         defineMembers(this,{
-            "$type":ValueTypes.Array,
+            "$type":MemberTypes.Array,
             "$target":target,
             "$length":target.length,
             "$itemConvertor":item_convertor,
@@ -590,7 +602,7 @@ export class ObservableArray extends ObservableProxy{
         }
         return true;
     }
-    
+    static structToken:string = "__STRUCT";
 }
 defineMembers(ObservableArray.prototype,ObservableArray.prototype);
 Object.defineProperty(ObservableArray.prototype,"length",{
@@ -607,6 +619,73 @@ Object.defineProperty(ObservableArray.prototype,"length",{
     }
 });
  
+//=====================================
+export function observable(target?:any):IObservable<any>{
+    if(target===undefined)return new Observable();
+    let t = Object.prototype.toString.call(target);
+    if(t==="[object Object]") return new ObservableObject((val?:any)=>target,null);
+    else if(t==="[object Array]") return new ObservableArray((val?:any)=>target);
+    else return new ObservableProxy((val?:any)=>target);
+}
  
 //=======================================================================
+
+export class Model{
+    type:MemberTypes;
+    index:string|number;
+    item_model:Model;
+    prop_models:{[index:string]:Model};
+    owner_model:Model;
+    constructor(data:any,index:string|number,owner:Model){
+        this.index = index;
+        this.owner_model = owner;
+        let t = Object.prototype.toString.call(data);
+        if(t==="[object Object]") {
+            this.type = MemberTypes.Object;
+            this.prop_models = {};
+            for(let n in data){
+                if(n===ObservableArray.structToken) continue;
+                this.prop_models[n] = new Model(data[n],n,this);
+            }
+        }
+        else if(t==="[object Array]"){
+            this.type = MemberTypes.Array;
+            for(let i in data){
+                let item = data[i];
+                this.item_model = new Model(item,-1,this);
+                break;
+            }
+        }
+        else{
+            this.type = MemberTypes.Value;
+
+        }
+    }
+
+    createProxy(data:any):IObservableProxy{
+        let raw :(val?:any)=>any;
+        if(this.index!==undefined) raw = prop_raw(this.index as string);
+        else raw = (val?:any)=>val===undefined?data:data=val;        
+        if(this.type===MemberTypes.Value) {
+            return new ObservableProxy(raw);
+        }else if(this.type === MemberTypes.Object){
+            return new ObservableObject(raw,{
+                propBuilder:(define:(name,proxy)=>any)=>{
+                    for(let n in this.prop_models){
+                        let prop_model = this.prop_models[n];
+                        let prop_proxy = prop_model.createProxy(data[n]);
+                        define(n,prop_proxy);
+                    }
+                }
+            });
+        }else if(this.type===MemberTypes.Array){
+            let item_convertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
+            if(this.item_model){
+                item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>this.item_model.createProxy(item_value);
+                
+            }
+            return new ObservableArray(raw,item_convertor);
+        }
+    }
+}
 

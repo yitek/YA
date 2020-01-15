@@ -1,4 +1,5 @@
 export interface IObservable<TEvtArgs> {
+    $_listeners: Function[];
     $subscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
     $unsubscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
     $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
@@ -11,7 +12,7 @@ export declare class Observable<TEvtArgs> implements IObservable<TEvtArgs> {
     $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
     constructor();
 }
-export declare enum ValueTypes {
+export declare enum MemberTypes {
     Value = 0,
     Object = 1,
     Array = 2,
@@ -36,7 +37,7 @@ export interface IChangeEventArgs {
     cancel?: boolean;
 }
 export interface IObservableProxy extends IObservable<IChangeEventArgs> {
-    $type: ValueTypes;
+    $type: MemberTypes;
     $extras?: any;
     $target?: any;
     $index?: string | number;
@@ -52,7 +53,7 @@ export declare enum ProxyAccessModes {
     Proxy = 1,
 }
 export declare class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy {
-    $type: ValueTypes;
+    $type: MemberTypes;
     $target: any;
     $index: number | string;
     $modifiedValue: any;
@@ -111,4 +112,17 @@ export declare class ObservableArray extends ObservableProxy {
     unshift(item_value: any): ObservableArray;
     shift(): any;
     $update(): boolean;
+    static structToken: string;
+}
+export declare function observable(target?: any): IObservable<any>;
+export declare class Model {
+    type: MemberTypes;
+    index: string | number;
+    item_model: Model;
+    prop_models: {
+        [index: string]: Model;
+    };
+    owner_model: Model;
+    constructor(data: any, index: string | number, owner: Model);
+    createProxy(data: any): IObservableProxy;
 }
