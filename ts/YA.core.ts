@@ -1,19 +1,8 @@
 
-function buildNotPublics(ctor:Function|object,members:{[name:string]:any}|string[]):Function|object{
-    let proto = typeof ctor ==="function" ? (ctor as Function).prototype as object:ctor as object;
-
-    if(Object.prototype.toString.call(members)==="[object Array]")
-        for(let i in members)
-            Object.defineProperty(proto,members[i],{enumerable:false,writable:true,configurable:false});
-    else 
-        for(let n in members)
-            Object.defineProperty(proto,n,{enumerable:false,writable:true,configurable:false,value:members[n]});
-        
-    return ctor;
-} 
-
-function buildHiddenMembers(target:any,props:any){
+function defineMembers(target:any,props?:any,des?:any){
+    props ||(props=target);
     let descriptor = {enumerable:false,writable:true,configurable:false,value:undefined};
+    if(des) for(let n in descriptor) descriptor[n] = des[n];
     for(let n in props){
         descriptor.value = props[n];
         Object.defineProperty(target,n,descriptor);
@@ -52,12 +41,7 @@ export function valueObservable<TEvtArgs>(target:any):IValueObservable<TEvtArgs>
         }
         return this;
     }
-    return buildNotPublics(target,[
-        "$_listeners"
-        ,"$subscribe"
-        ,"$unsubscribe"
-        ,"$notify"
-    ]) as IValueObservable<TEvtArgs>;
+    return defineMembers(target) as IValueObservable<TEvtArgs>;
 }
 export class ValueObservable<TEvtArgs> implements IValueObservable<TEvtArgs>{
     $_listeners:Function[];
@@ -142,7 +126,7 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
     $raw:(value?:any)=>any;
     constructor(raw:(val?:any)=>any){
         super();
-        buildHiddenMembers(this,{
+        defineMembers(this,{
             $raw:raw,
             $target:raw?raw.call(this):undefined,
             $owner:undefined,
@@ -183,7 +167,7 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
     static gettingProxy:boolean;
 }
 //let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
-buildHiddenMembers(ValueProxy.prototype,ValueProxy.prototype);
+defineMembers(ValueProxy.prototype,ValueProxy.prototype);
 
 export interface IObjectMeta{
     propBuilder?:(define:(name:string,prop?:IValueProxy)=>any)=>any;
@@ -206,7 +190,7 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
         super(raw);
         let target = this.$target;
         if(!target) raw(target=this.$target={});
-        buildHiddenMembers(this,{
+        defineMembers(this,{
             "$target":target,
             "$type":ValueTypes.Object
         });
@@ -283,7 +267,7 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
     }
 }
 
-buildHiddenMembers(ObjectProxy.prototype,ObjectProxy.prototype);
+defineMembers(ObjectProxy.prototype,ObjectProxy.prototype);
 
 
 export interface IArrayChangeEventArgs extends IChangeEventArgs{
@@ -318,7 +302,7 @@ export class ArrayProxy extends ValueProxy{
             }
         })(i);
 
-        buildHiddenMembers(this,{
+        defineMembers(this,{
             "$type":ValueTypes.Array,
             "$target":target,
             "$length":target.length,
@@ -595,7 +579,7 @@ export class ArrayProxy extends ValueProxy{
     }
     
 }
-buildHiddenMembers(ArrayProxy.prototype,ArrayProxy.prototype);
+defineMembers(ArrayProxy.prototype,ArrayProxy.prototype);
 Object.defineProperty(ArrayProxy.prototype,"length",{
     enumerable:false,
     configurable:false,
