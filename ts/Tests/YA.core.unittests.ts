@@ -1,10 +1,10 @@
 import {Unittest} from '../Unittest'
-import {ValueObservable, ValueProxy,ObjectProxy,ArrayProxy, ValueTypes}  from '../YA.core'
+import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray}  from '../YA.core'
 
 Unittest.Test("YA.Core",{ 
-    "ValueObservable":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
-        let ob = new ValueObservable<any>();
-        
+    "Observable":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+        let ob = new Observable<any>();
+         
 
         let evtArgs = {lisenter1Invoked:false,lisenter2Invoked:false};
         let lisenter1 = (evt)=>evt.lisenter1Invoked=true;
@@ -25,9 +25,9 @@ Unittest.Test("YA.Core",{
         assert(membername,undefined,"用for不能获取到任何的成员");
 
     }
-    ,"ValueProxy":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+    ,"ObservableProxy":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
         let target = {x:1};
-        let proxy = new ValueProxy((value?:any)=>(value===undefined) ?target.x:target.x=value);
+        let proxy = new ObservableProxy((value?:any)=>(value===undefined) ?target.x:target.x=value);
 
         
 
@@ -61,7 +61,7 @@ Unittest.Test("YA.Core",{
         assert(membername,undefined,"用for不能获取到任何的成员");
 
     }
-    ,"ObjectProxy":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+    ,"ObservableObject":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
         let target = {
             name:"yiy",
             gender:1,
@@ -69,7 +69,7 @@ Unittest.Test("YA.Core",{
             nick:"yy",
             changeNick:function(val){this.nick = val;}
         };
-        let proxy:any = new ObjectProxy((val)=>val===undefined?target:target=val,{
+        let proxy:any = new ObservableObject((val)=>val===undefined?target:target=val,{
             fieldnames:["name"],
             methodnames:["changeNick"],
             propBuilder:(define)=>{
@@ -81,13 +81,13 @@ Unittest.Test("YA.Core",{
         assert(38,proxy.age,"代理的属性的值应该跟目标对象的值一样");
         let propAge;
         try{
-            ValueProxy.gettingProxy=true;
+            ObservableProxy.accessMode=ProxyAccessModes.Proxy;
             propAge = proxy.age;
             
         }finally{
-            ValueProxy.gettingProxy=false;
+            ObservableProxy.accessMode=ProxyAccessModes.Raw;
         }
-        assert(true,propAge instanceof ValueProxy,"当ValueProxy.gettingProxy开关打开时，属性返回的的是代理对象本身");
+        assert(true,propAge instanceof ObservableProxy,"当ValueProxy.gettingProxy开关打开时，属性返回的的是代理对象本身");
         let evtArgs;
         propAge.$subscribe((evt)=>evtArgs = evt);
         assert(proxy,propAge.$owner,"属性上的$owner应该是对象代理");
@@ -140,9 +140,9 @@ Unittest.Test("YA.Core",{
             
         }
     }
-    ,"ArrayProxy":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+    ,"ObservableArray":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
         let target = [14,24,38,40];
-        let proxy = new ArrayProxy((val?:any)=>val===undefined?target:target=val);
+        let proxy = new ObservableArray((val?:any)=>val===undefined?target:target=val);
         assert(4,proxy.length,"代理的length = array.length");
         assert(14,proxy[0],"代理[0]=arr[0]");
         assert(24,proxy[1],"代理[1]=arr[1]");
@@ -152,14 +152,14 @@ Unittest.Test("YA.Core",{
         let idx1:any;
         let idx2 :any;
         try{
-            ValueProxy.gettingProxy=true;
+            ObservableProxy.accessMode=ProxyAccessModes.Proxy;
             idx2 = proxy[2];
             idx1 = proxy[1];
         }finally{
-            ValueProxy.gettingProxy=false;
+            ObservableProxy.accessMode=ProxyAccessModes.Raw;
         }
-        assert(true,idx1 instanceof ValueProxy,"可以获取到item代理");
-        assert(true,idx2 instanceof ValueProxy,"可以获取到item代理");
+        assert(true,idx1 instanceof ObservableProxy,"可以获取到item代理");
+        assert(true,idx2 instanceof ObservableProxy,"可以获取到item代理");
 
         let newTarget =[11,22,33];
         proxy.$set(newTarget);
@@ -172,7 +172,7 @@ Unittest.Test("YA.Core",{
 
     ,"ArrayProxy.push":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
         let target = [34,24,38];
-        let proxy = new ArrayProxy((val?:any)=>val===undefined?target:target=val);
+        let proxy = new ObservableArray((val?:any)=>val===undefined?target:target=val);
         
 
         proxy.push(55);

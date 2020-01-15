@@ -1,14 +1,14 @@
-export interface IValueObservable<TEvtArgs> {
-    $subscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
-    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
-    $notify: (evt: TEvtArgs) => IValueObservable<TEvtArgs>;
+export interface IObservable<TEvtArgs> {
+    $subscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
+    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
+    $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
 }
-export declare function valueObservable<TEvtArgs>(target: any): IValueObservable<TEvtArgs>;
-export declare class ValueObservable<TEvtArgs> implements IValueObservable<TEvtArgs> {
+export declare function valueObservable<TEvtArgs>(target: any): IObservable<TEvtArgs>;
+export declare class Observable<TEvtArgs> implements IObservable<TEvtArgs> {
     $_listeners: Function[];
-    $subscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
-    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IValueObservable<TEvtArgs>;
-    $notify: (evt: TEvtArgs) => IValueObservable<TEvtArgs>;
+    $subscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
+    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
+    $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
     constructor();
 }
 export declare enum ValueTypes {
@@ -35,99 +35,80 @@ export interface IChangeEventArgs {
     sender?: any;
     cancel?: boolean;
 }
-export interface IValueProxy extends IValueObservable<IChangeEventArgs> {
+export interface IObservableProxy extends IObservable<IChangeEventArgs> {
     $type: ValueTypes;
     $extras?: any;
     $target?: any;
     $index?: string | number;
     $modifiedValue?: any;
-    $owner?: IValueProxy;
+    $owner?: IObservableProxy;
     $raw: (value?: any) => any;
     $get(): any;
-    $set(newValue: any): IValueProxy;
+    $set(newValue: any): IObservableProxy;
     $update(): boolean;
 }
-export interface IObjectProxy extends IValueProxy {
-    $props: {
-        [name: string]: IValueProxy;
-    };
+export declare enum ProxyAccessModes {
+    Raw = 0,
+    Proxy = 1,
 }
-export interface IArrayProxy extends IValueProxy {
-    length: number;
-    item(index: number, item_value?: any): any;
-    pop(): any;
-    push(item_value: any): IArrayProxy;
-    shift(): any;
-    unshift(item_value: any): IArrayProxy;
-    $item_convertor?: IValueProxy;
-}
-export declare class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy {
+export declare class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy {
     $type: ValueTypes;
     $target: any;
     $index: number | string;
     $modifiedValue: any;
     $extras?: any;
-    $owner?: IValueProxy;
+    $owner?: IObservableProxy;
     $raw: (value?: any) => any;
     constructor(raw: (val?: any) => any);
     $get(): any;
-    $set(newValue: any): IValueProxy;
+    $set(newValue: any): IObservableProxy;
     $update(): boolean;
     toString(): any;
-    static gettingProxy: boolean;
+    static accessMode: ProxyAccessModes;
 }
 export interface IObjectMeta {
-    propBuilder?: (define: (name: string, prop?: IValueProxy) => any) => any;
+    propBuilder?: (define: (name: string, prop?: IObservableProxy) => any) => any;
     fieldnames?: string[];
     methodnames?: string[];
 }
-export declare class ObjectProxy extends ValueProxy implements IObjectProxy {
-    $props: {
-        [name: string]: IValueProxy;
-    };
+export interface IObservableObject extends IObservableProxy {
+    [index: string]: any;
+}
+export declare class ObservableObject extends ObservableProxy implements IObservableObject {
     $target: any;
+    [index: string]: any;
     constructor(raw: (val?: any) => any, meta: IObjectMeta);
     $get(): any;
-    $set(newValue: any): IValueProxy;
+    $set(newValue: any): IObservableProxy;
     $update(): boolean;
+}
+export interface IObservableArray extends IObservableProxy {
+    length: number;
+    [index: number]: any;
+    item(index: number, item_value?: any): any;
+    pop(): any;
+    push(item_value: any): IObservableArray;
+    shift(): any;
+    unshift(item_value: any): IObservableArray;
+    $item_convertor?: IObservableProxy;
 }
 export interface IArrayChangeEventArgs extends IChangeEventArgs {
-    item?: IValueProxy;
+    item?: IObservableProxy;
 }
-export declare class ArrayProxy extends ValueProxy {
-    $itemConvertor: (index: number, item_value: any, proxy: IArrayProxy) => IValueProxy;
+export declare class ObservableArray extends ObservableProxy {
+    $itemConvertor: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy;
     $changes: IArrayChangeEventArgs[];
+    [index: number]: any;
     $length: number;
     length: number;
-    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IArrayProxy) => IValueProxy);
-    clear(): IArrayProxy;
-    resize(newLength: number): IArrayProxy;
-    $set(newValue: any): IValueProxy;
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy);
+    clear(): IObservableArray;
+    resize(newLength: number): IObservableArray;
+    $set(newValue: any): IObservableProxy;
     item(index: number, item_value?: any): any;
-    push(item_value: any): ArrayProxy;
+    push(item_value: any): ObservableArray;
     pop(): any;
-    unshift(item_value: any): ArrayProxy;
+    unshift(item_value: any): ObservableArray;
     shift(): any;
     $update(): boolean;
-}
-export interface IModel {
-    parent?: IModel;
-    props: {
-        [propName: string]: IProperty;
-    };
-    path: string;
-    ref_prop?: IProperty;
-    prop: (name: string, sure?: boolean) => IProperty;
-    createProxy(raw: (value?: any) => any): IValueProxy;
-    asArray: () => IModel;
-}
-export interface IProperty {
-    name: string;
-    path: string;
-    model: IModel;
-    type: ValueTypes;
-    value_model?: IModel;
-    item_model?: IModel;
-    asObject(): IModel;
-    asArray(): IModel;
 }

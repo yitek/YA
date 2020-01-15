@@ -12,20 +12,20 @@ function defineMembers(target:any,props?:any,des?:any){
 
 //===============================================================================
 
-export interface IValueObservable<TEvtArgs>{
-    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IValueObservable<TEvtArgs>;
-    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IValueObservable<TEvtArgs>;
-    $notify:(evt:TEvtArgs)=>IValueObservable<TEvtArgs>;
+export interface IObservable<TEvtArgs>{
+    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
+    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
+    $notify:(evt:TEvtArgs)=>IObservable<TEvtArgs>;
 }
 
 
 
-export function valueObservable<TEvtArgs>(target:any):IValueObservable<TEvtArgs>{
-    target.$subscribe = function(listener:(evt:IChangeEventArgs)=>any):IValueObservable<TEvtArgs>{
+export function valueObservable<TEvtArgs>(target:any):IObservable<TEvtArgs>{
+    target.$subscribe = function(listener:(evt:IChangeEventArgs)=>any):IObservable<TEvtArgs>{
         (this.$_listeners||(this.$_listeners=[])).push(listener);
         return this;
     }
-    target.$unsubscribe = function(listener:(evt:IChangeEventArgs)=>any):IValueObservable<TEvtArgs>{
+    target.$unsubscribe = function(listener:(evt:IChangeEventArgs)=>any):IObservable<TEvtArgs>{
         if(!this.$_listeners)return this;
         for(let i =0,j=this.$_listeners.length;i<j;i++){
             let existed = this.$_listeners.shift();
@@ -33,7 +33,7 @@ export function valueObservable<TEvtArgs>(target:any):IValueObservable<TEvtArgs>
         }
         return this;
     } 
-    target.$notify = function(evt:IChangeEventArgs):IValueObservable<TEvtArgs>{
+    target.$notify = function(evt:IChangeEventArgs):IObservable<TEvtArgs>{
         let listeners = this.$_listeners;
         if(!listeners|| listeners.length===0) return this;
         for(let i in listeners){
@@ -41,20 +41,20 @@ export function valueObservable<TEvtArgs>(target:any):IValueObservable<TEvtArgs>
         }
         return this;
     }
-    return defineMembers(target) as IValueObservable<TEvtArgs>;
+    return defineMembers(target) as IObservable<TEvtArgs>;
 }
-export class ValueObservable<TEvtArgs> implements IValueObservable<TEvtArgs>{
+export class Observable<TEvtArgs> implements IObservable<TEvtArgs>{
     $_listeners:Function[];
-    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IValueObservable<TEvtArgs>;
-    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IValueObservable<TEvtArgs>;
-    $notify:(evt:TEvtArgs)=>IValueObservable<TEvtArgs>;
+    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
+    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
+    $notify:(evt:TEvtArgs)=>IObservable<TEvtArgs>;
 
     constructor(){
         Object.defineProperty(this,"$_listeners",{enumerable:false,writable:true,configurable:false});
     }
 }
 
-valueObservable(ValueObservable.prototype);
+valueObservable(Observable.prototype);
 
 //================================================================
 
@@ -86,43 +86,37 @@ export interface IChangeEventArgs{
 }
 
 
-export interface IValueProxy extends IValueObservable<IChangeEventArgs>{
+export interface IObservableProxy extends IObservable<IChangeEventArgs>{
     $type:ValueTypes;
     $extras?:any;
     $target?:any;
     $index?:string|number;
     $modifiedValue?:any;
-    $owner?:IValueProxy;
+    $owner?:IObservableProxy;
     $raw:(value?:any)=>any;
     $get():any;
-    $set(newValue:any):IValueProxy;
+    $set(newValue:any):IObservableProxy;
     $update():boolean;
 }
 
-export interface IObjectProxy extends IValueProxy{
-    [index:string]:any;   
-}
-export interface IArrayProxy extends IValueProxy{
-    length:number;
-    [index:number]:any;
-    item(index:number,item_value?:any):any;
-    pop():any;
-    push(item_value:any):IArrayProxy;
-    shift():any;
-    unshift(item_value:any):IArrayProxy;
-    $item_convertor?:IValueProxy;
-}
+
+
 
 
 let Undefined = {};
 
-export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy{
+export enum ProxyAccessModes{
+    Raw,
+    Proxy
+}
+
+export class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy{
     $type:ValueTypes;
     $target:any;
     $index:number|string;
     $modifiedValue:any;
     $extras?:any;
-    $owner?:IValueProxy;
+    $owner?:IObservableProxy;
     $raw:(value?:any)=>any;
     constructor(raw:(val?:any)=>any){
         super();
@@ -137,12 +131,12 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
     }
 
     $get():any{
-        if(ValueProxy.gettingProxy) return this;
+        if(ObservableProxy.accessMode) return this;
         
         return (this.$modifiedValue===undefined)?this.$target:(this.$modifiedValue===Undefined?undefined:this.$modifiedValue);
     }
 
-    $set(newValue:any):IValueProxy{
+    $set(newValue:any):IObservableProxy{
         //if(ValueProxy.gettingProxy) throw new Error("ValueProxy.gettingProxy=true,不可以给对象属性赋值");
         this.$modifiedValue=newValue===undefined?Undefined:newValue;
         return this;
@@ -164,18 +158,22 @@ export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IVa
     }
 
     toString(){return this.$raw().toString();}
-    static gettingProxy:boolean;
+    static accessMode:ProxyAccessModes = ProxyAccessModes.Raw; 
 }
 //let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
-defineMembers(ValueProxy.prototype,ValueProxy.prototype);
+defineMembers(ObservableProxy.prototype,ObservableProxy.prototype);
 
 export interface IObjectMeta{
-    propBuilder?:(define:(name:string,prop?:IValueProxy)=>any)=>any;
+    propBuilder?:(define:(name:string,prop?:IObservableProxy)=>any)=>any;
     fieldnames?:string[];
     methodnames?:string[];
 }
 
-function buildNotProperty(name:string,proxy:IObjectProxy,enumerable:boolean){
+export interface IObservableObject extends IObservableProxy{
+    [index:string]:any;   
+}
+
+function buildNotProperty(name:string,proxy:IObservableObject,enumerable:boolean){
     
     Object.defineProperty(proxy,name,{
         enumerable:enumerable,configurable:false,
@@ -184,8 +182,9 @@ function buildNotProperty(name:string,proxy:IObjectProxy,enumerable:boolean){
     });
 }
 
-export class ObjectProxy extends ValueProxy implements IObjectProxy{
+export class ObservableObject extends ObservableProxy implements IObservableObject{
     $target:any;
+    [index:string]:any;
     constructor(raw:(val?:any)=>any,meta:IObjectMeta){
         super(raw);
         let target = this.$target;
@@ -205,8 +204,8 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
             buildNotProperty(meta.methodnames[i],this,false);
 
         if(meta.propBuilder){
-            let define = (name:string,prop:IValueProxy)=>{
-                prop ||(prop = new ValueProxy((val?:any)=>
+            let define = (name:string,prop:IObservableProxy)=>{
+                prop ||(prop = new ObservableProxy((val?:any)=>
                     val===undefined
                         ?(this.$modifiedValue===undefined
                             ?this.$target
@@ -230,22 +229,23 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
     }
 
     $get():any{
-        if(ValueProxy.gettingProxy) return this;
+        if(ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
         return this.$modifiedValue===undefined?(this.$target||null):this.$modifiedValue;
         
     }
 
-    $set(newValue:any):IValueProxy{
+    $set(newValue:any):IObservableProxy{
         super.$set(newValue||null);
         if(!newValue) return;
-        let accessMode = ValueProxy.gettingProxy;
+        let accessMode = ObservableProxy.accessMode;
         try{
-            ValueProxy.gettingProxy = true;
+            ObservableProxy.accessMode = ProxyAccessModes.Proxy;
             for(let n in this){
-                (this[n] as any as IValueProxy).$set(newValue[n]);
+                let proxy :any= this[n];
+                if(proxy instanceof ObservableProxy) proxy.$set(newValue[n]);
             }
         }finally{
-            ValueProxy.gettingProxy=accessMode;
+            ObservableProxy.accessMode=accessMode;
         }
         
         
@@ -254,39 +254,52 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
     $update():boolean{
         let result = super.$update();
         if(result===false) return false;
-        let accessMode = ValueProxy.gettingProxy;
+        let accessMode = ObservableProxy.accessMode;
         try{
-            ValueProxy.gettingProxy = true;
+            ObservableProxy.accessMode = ProxyAccessModes.Proxy;
             for(let n in this){
-                (this[n] as any as IValueProxy).$update();
+                let proxy :any= this[n];
+                if(proxy instanceof ObservableProxy) proxy.$update();
             }
         }finally{
-            ValueProxy.gettingProxy=accessMode;
+            ObservableProxy.accessMode=accessMode;
         }
         return true;
     }
 }
 
-defineMembers(ObjectProxy.prototype,ObjectProxy.prototype);
+defineMembers(ObservableObject.prototype,ObservableObject.prototype);
 
 
-export interface IArrayChangeEventArgs extends IChangeEventArgs{
-    item?:IValueProxy;
+export interface IObservableArray extends IObservableProxy{
+    length:number;
+    [index:number]:any;
+    item(index:number,item_value?:any):any;
+    pop():any;
+    push(item_value:any):IObservableArray;
+    shift():any;
+    unshift(item_value:any):IObservableArray;
+    $item_convertor?:IObservableProxy;
 }
 
-export class ArrayProxy extends ValueProxy{
-    $itemConvertor:(index:number,item_value:any,proxy:IArrayProxy)=>IValueProxy;
+export interface IArrayChangeEventArgs extends IChangeEventArgs{
+    item?:IObservableProxy;
+}
+
+export class ObservableArray extends ObservableProxy{
+    $itemConvertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
     $changes:IArrayChangeEventArgs[];
+    [index:number]:any;
     $length:number;
     length:number;
-    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IArrayProxy)=>IValueProxy){
+    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy){
         let target:any;
         super(raw);
         target = this.$target;
         if(Object.prototype.toString.call(target)!=="[object Array]") raw(target=this.$target=[]);
         
         item_convertor ||(item_convertor=(index,item_value,proxy)=>{
-            let item = new ValueProxy(null);
+            let item = new ObservableProxy(null);
             item.$index = index;
             item.$raw = function(val?:any){return val===undefined?proxy.$target[this.$index]:proxy.$target[this.$index]=val;};
             item.$target = item_value;
@@ -311,7 +324,7 @@ export class ArrayProxy extends ValueProxy{
         });
     }
 
-    clear():IArrayProxy{
+    clear():IObservableArray{
         let old = this.$get();
         let changes = this.$changes|| (this.$changes=[]);
         let len = old.length;
@@ -321,9 +334,9 @@ export class ArrayProxy extends ValueProxy{
                 len++;
             }
         }
-        let swicherValue = ValueProxy.gettingProxy;
+        let swicherValue = ObservableProxy.accessMode;
         try{
-            ValueProxy.gettingProxy=true;
+            ObservableProxy.accessMode=ProxyAccessModes.Proxy;
             for(let i = 0;i<len;i++){
                 let removeItem = this[i];
                 if(removeItem){
@@ -339,14 +352,14 @@ export class ArrayProxy extends ValueProxy{
                 }
             }
         }finally{
-            ValueProxy.gettingProxy = swicherValue;
+            ObservableProxy.accessMode = swicherValue;
         }
         
 
         return this;
     }
 
-    resize(newLength:number):IArrayProxy{
+    resize(newLength:number):IObservableArray{
         let arr = this.$get();
         let len = arr.length;
         if(len===newLength) return this;
@@ -380,7 +393,7 @@ export class ArrayProxy extends ValueProxy{
         return this;
     }
 
-    $set(newValue:any):IValueProxy{
+    $set(newValue:any):IObservableProxy{
         newValue || (newValue=[]);
         this.clear();
         super.$set(newValue);
@@ -401,7 +414,7 @@ export class ArrayProxy extends ValueProxy{
     item(index:number,item_value?:any):any{
         if(item_value===undefined){
             let item = (this as any)[index];
-            return ValueProxy.gettingProxy?item:item.$get();
+            return ObservableProxy.accessMode?item:item.$get();
         }
         let len = this.length;
         let size = index>=len?index+1:len;
@@ -441,7 +454,7 @@ export class ArrayProxy extends ValueProxy{
         return this;
     }
 
-    push(item_value:any):ArrayProxy{
+    push(item_value:any):ObservableArray{
         let index = this.length;
         let item = this.$itemConvertor(index,item_value,this);
         (item as any).$index = index;
@@ -478,7 +491,7 @@ export class ArrayProxy extends ValueProxy{
         return removeItem.$get();
     }
 
-    unshift(item_value:any):ArrayProxy{
+    unshift(item_value:any):ObservableArray{
         let item = this.$itemConvertor(0,item_value,this);
         item.$owner = this;
         //let changes = ;
@@ -579,8 +592,8 @@ export class ArrayProxy extends ValueProxy{
     }
     
 }
-defineMembers(ArrayProxy.prototype,ArrayProxy.prototype);
-Object.defineProperty(ArrayProxy.prototype,"length",{
+defineMembers(ObservableArray.prototype,ObservableArray.prototype);
+Object.defineProperty(ObservableArray.prototype,"length",{
     enumerable:false,
     configurable:false,
     get:function():number{
