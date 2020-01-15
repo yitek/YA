@@ -29,5 +29,6 @@ export declare class Unittest {
         Name?: string;
     }[];
     static Test(name: string | object | Function, target?: object | Function): Unittest;
+    static debugging: boolean;
     static hiddenSteps: boolean;
 }

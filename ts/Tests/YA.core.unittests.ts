@@ -1,6 +1,6 @@
 import {Unittest} from '../Unittest'
-import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray}  from '../YA.core'
-
+import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model}  from '../YA.core'
+Unittest.debugging=true;
 Unittest.Test("YA.Core",{ 
     "Observable":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
         let ob = new Observable<any>();
@@ -72,7 +72,7 @@ Unittest.Test("YA.Core",{
         let proxy:any = new ObservableObject((val)=>val===undefined?target:target=val,{
             fieldnames:["name"],
             methodnames:["changeNick"],
-            propBuilder:(define)=>{
+            propBuilder:(ownerProxy,define)=>{
                 define("gender")("age");
             }
         });
@@ -189,5 +189,57 @@ Unittest.Test("YA.Core",{
         proxy.$update();
 
         assert(4,target.length,"更新后，arr的length+1");
+    }
+    ,"Model":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+        let initData = {
+            search:{
+                name:"k",
+                author:"y",
+                min_date:null,
+                max_date:null,
+            }
+            ,rows:[{
+                __STRUCT:true,
+                id:"",
+                name:"YA.core",
+                author:{
+                    id:"",
+                    name:"yiy",
+                    email:"yitek@outlook.com"
+                },
+                date:null
+            }]
+            ,pageSize:10
+            ,pageIndex:1
+            ,recordCount:48
+        };
+        let model = new Model(initData);
+        let proxy = model.createProxy(initData) as any;
+        assert("k",proxy.search.name,"模型创建的代理可以访问原始对象proxy.search.name");
+        assert("y",proxy.search.author,"模型创建的代理可以访问原始对象proxy.search.author");
+        assert(48,proxy.recordCount,"模型创建的代理可以访问原始对象proxy.recordCount");
+        assert(0,proxy.rows.length,"模型创建的代理可以访问原始对象proxy.rows.length");
+
+        proxy.search.name = "YA";
+        proxy.rows.push({
+            id:"",
+            name:"YA.core",
+            author:{
+                id:"",
+                name:"yiy",
+                email:"yitek@outlook.com"
+            },
+            date:null
+        });
+        assert("YA",proxy.search.name,"代理上修改值，应该变更为新值proxy.search.name");
+        assert(1,proxy.rows.length,"代理上修改值，应该变更为新值proxy.rows.length");
+        assert("YA.core",proxy.rows[0].name,"代理上修改值，应该变更为新值proxy.rows[0].name");
+        assert("yitek@outlook.com",proxy.rows[0].author.email,"代理上修改值，应该变更为新值proxy.rows[0].author.email");
+
+        assert("k",initData.search.name,"代理上修改值，原始的值未变化initData.search.name");
+        assert(0,initData.rows.length,"代理上修改值，原始的值未变化initData.rows.length");
+
+        //assert(4,proxy.length,"push后，代理的length = array.length+1");
+        
     }
 });

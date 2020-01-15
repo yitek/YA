@@ -12,7 +12,7 @@ export declare class Observable<TEvtArgs> implements IObservable<TEvtArgs> {
     $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
     constructor();
 }
-export declare enum MemberTypes {
+export declare enum TargetTypes {
     Value = 0,
     Object = 1,
     Array = 2,
@@ -37,7 +37,7 @@ export interface IChangeEventArgs {
     cancel?: boolean;
 }
 export interface IObservableProxy extends IObservable<IChangeEventArgs> {
-    $type: MemberTypes;
+    $type: TargetTypes;
     $extras?: any;
     $target?: any;
     $index?: string | number;
@@ -53,14 +53,14 @@ export declare enum ProxyAccessModes {
     Proxy = 1,
 }
 export declare class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy {
-    $type: MemberTypes;
+    $type: TargetTypes;
     $target: any;
     $index: number | string;
     $modifiedValue: any;
     $extras?: any;
     $owner?: IObservableProxy;
     $raw: (value?: any) => any;
-    constructor(raw: (val?: any) => any);
+    constructor(raw: (val?: any) => any, initValue?: any);
     $get(): any;
     $set(newValue: any): IObservableProxy;
     $update(): boolean;
@@ -68,7 +68,7 @@ export declare class ObservableProxy extends Observable<IChangeEventArgs> implem
     static accessMode: ProxyAccessModes;
 }
 export interface IObjectMeta {
-    propBuilder?: (define: (name: string, prop?: IObservableProxy) => any) => any;
+    propBuilder?: (ownerProxy: IObservableObject, define: (name: string, prop?: IObservableProxy) => any) => any;
     fieldnames?: string[];
     methodnames?: string[];
 }
@@ -78,7 +78,7 @@ export interface IObservableObject extends IObservableProxy {
 export declare class ObservableObject extends ObservableProxy implements IObservableObject {
     $target: any;
     [index: string]: any;
-    constructor(raw: (val?: any) => any, meta: IObjectMeta);
+    constructor(raw: (val?: any) => any, meta: IObjectMeta, initValue?: object);
     $get(): any;
     $set(newValue: any): IObservableProxy;
     $update(): boolean;
@@ -102,7 +102,7 @@ export declare class ObservableArray extends ObservableProxy {
     [index: number]: any;
     $length: number;
     length: number;
-    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy);
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy, initValue?: any[]);
     clear(): IObservableArray;
     resize(newLength: number): IObservableArray;
     $set(newValue: any): IObservableProxy;
@@ -116,13 +116,13 @@ export declare class ObservableArray extends ObservableProxy {
 }
 export declare function observable(target?: any): IObservable<any>;
 export declare class Model {
-    type: MemberTypes;
+    type: TargetTypes;
     index: string | number;
     item_model: Model;
     prop_models: {
         [index: string]: Model;
     };
     owner_model: Model;
-    constructor(data: any, index: string | number, owner: Model);
-    createProxy(data: any): IObservableProxy;
+    constructor(data: any, index?: string | number, owner?: Model);
+    createProxy(data: any, ownerProxy?: IObservableProxy): IObservableProxy;
 }

@@ -103,21 +103,28 @@ export class Unittest{
             this._$logger.beginGroup(`(${name})`);
                         
             let ex=undefined;
-            try{
+            if(Unittest.debugging){
                 count++;
                 fn.call(target,assert,info);
                 this._$members[name]=true;
-                
-            }catch(ex){
-                this._$members[name]=false;
-                let msg = ex.outerMessage || ex.toString();
-                this._$errors.push({
-                    Message:msg,
-                    Exception:ex,
-                    Name:name
-                });
-                this._$logger.error(msg,ex);
+            }else{
+                try{
+                    count++;
+                    fn.call(target,assert,info);
+                    this._$members[name]=true;
+                    
+                }catch(ex){
+                    this._$members[name]=false;
+                    let msg = ex.outerMessage || ex.toString();
+                    this._$errors.push({
+                        Message:msg,
+                        Exception:ex,
+                        Name:name
+                    });
+                    this._$logger.error(msg,ex);
+                }
             }
+            
             this._$logger.endGroup();
              
         }
@@ -135,6 +142,8 @@ export class Unittest{
         return utest;
 
     }
+
+    static debugging:boolean;
 
     static hiddenSteps:boolean;
    

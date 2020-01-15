@@ -59,7 +59,7 @@ valueObservable(Observable.prototype);
 
 //================================================================
 
-export enum MemberTypes{
+export enum TargetTypes{
     Value,
     Object,
     Array
@@ -88,7 +88,7 @@ export interface IChangeEventArgs{
 
 
 export interface IObservableProxy extends IObservable<IChangeEventArgs>{
-    $type:MemberTypes;
+    $type:TargetTypes;
     $extras?:any;
     $target?:any;
     $index?:string|number;
@@ -112,22 +112,27 @@ export enum ProxyAccessModes{
 }
 
 export class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy{
-    $type:MemberTypes;
+    $type:TargetTypes;
     $target:any;
     $index:number|string;
     $modifiedValue:any;
     $extras?:any;
     $owner?:IObservableProxy;
     $raw:(value?:any)=>any;
-    constructor(raw:(val?:any)=>any){
+    constructor(raw:(val?:any)=>any,initValue?:any){
         super();
+        let target:any;
+        if(initValue!==undefined){
+            target = initValue===Undefined?undefined:initValue;
+            if(raw) raw.call(this,this.$target);
+        }else if(raw) target = raw.call(this);
         defineMembers(this,{
             $raw:raw,
-            $target:raw?raw.call(this):undefined,
+            $target:target,
             $owner:undefined,
             $index:undefined,
             $modifiedValue:undefined,
-            $type :MemberTypes.Value
+            $type :TargetTypes.Value
         });
     }
 
@@ -165,7 +170,7 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
 defineMembers(ObservableProxy.prototype,ObservableProxy.prototype);
 
 export interface IObjectMeta{
-    propBuilder?:(define:(name:string,prop?:IObservableProxy)=>any)=>any;
+    propBuilder?:(ownerProxy:IObservableObject,define:(name:string,prop?:IObservableProxy)=>any)=>any;
     fieldnames?:string[];
     methodnames?:string[];
 }
@@ -200,16 +205,16 @@ function prop_raw(name:string,objProxy:IObservableObject):{(val?:any):any}{
 export class ObservableObject extends ObservableProxy implements IObservableObject{
     $target:any;
     [index:string]:any;
-    constructor(raw:(val?:any)=>any,meta:IObjectMeta){
-        super(raw);
+    constructor(raw:(val?:any)=>any,meta:IObjectMeta,initValue?:object){
+        super(raw,initValue);
         let target = this.$target;
-        if(!target) raw(target=this.$target={});
+        if(!target) raw.call(this,target=this.$target={});
         defineMembers(this,{
             "$target":target,
-            "$type":MemberTypes.Object
+            "$type":TargetTypes.Object
         });
 
-        this.$type = MemberTypes.Object;
+        this.$type = TargetTypes.Object;
 
         if(!meta){
 
@@ -227,13 +232,17 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
             let define = (name:string,prop:IObservableProxy)=>{
                 prop ||(prop = new ObservableProxy(prop_raw(name,this)));
                 prop.$owner = this;
+                prop.$index = name;
                 Object.defineProperty(this,name,{
-                    enumerable:true,configurable:false,get:()=>prop.$get(),set:(val:any)=>prop.$set(val)
-                });
-                //props[name] = prop;
+                    enumerable:true,
+                    configurable:false,
+                    get:prop.$type === TargetTypes.Value?()=>prop.$get():()=>prop,
+                    set:(val:any)=>prop.$set(val)
+                });                
+                
                 return define;
             };
-            meta.propBuilder(define);
+            meta.propBuilder.call(this,this,define);
         } 
         
     }
@@ -296,22 +305,40 @@ export interface IArrayChangeEventArgs extends IChangeEventArgs{
     item?:IObservableProxy;
 }
 
+function item_raw(ownerProxy:IObservableArray){
+    return function(val?:any){return val===undefined?ownerProxy.$target[this.$index]:ownerProxy.$target[this.$index]=val;}
+}
+
+function define_item(arrProxy:IObservableArray,index:number,item:IObservableProxy){
+    if(item!==Undefined){
+        item.$index = index;
+        item.$owner = arrProxy;
+        Object.defineProperty(arrProxy,index.toString(),{
+            enumerable:true,
+            configurable:true,
+            get:item.$type===TargetTypes.Value?()=>item.$get():()=>item,
+            set:(val)=>item.$set(val)
+        }); 
+        
+    }
+}
+
 export class ObservableArray extends ObservableProxy{
     $itemConvertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
     $changes:IArrayChangeEventArgs[];
     [index:number]:any;
     $length:number;
     length:number;
-    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy){
+    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy,initValue?:any[]){
         let target:any;
-        super(raw);
+        super(raw,initValue);
         target = this.$target;
-        if(Object.prototype.toString.call(target)!=="[object Array]") raw(target=this.$target=[]);
+        if(Object.prototype.toString.call(target)!=="[object Array]") raw.call(this,target=this.$target=[]);
         
         item_convertor ||(item_convertor=(index,item_value,proxy)=>{
             let item = new ObservableProxy(null);
             item.$index = index;
-            item.$raw = function(val?:any){return val===undefined?proxy.$target[this.$index]:proxy.$target[this.$index]=val;};
+            item.$raw = item_raw(this);
             item.$target = item_value;
             return item;
         });
@@ -319,16 +346,11 @@ export class ObservableArray extends ObservableProxy{
             if(item_value && item_value[ObservableArray.structToken]!==undefined) return;
             target.push(item_value);
             let item =  item_convertor.call(this,i as any as number,item_value,this);
-            
-            if(item!==Undefined){
-                item.$index = index;
-                item.$owner = this;
-                Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)}); 
-            }
+            define_item(this,i,item)
         })(i,target.shift());
 
         defineMembers(this,{
-            "$type":MemberTypes.Array,
+            "$type":TargetTypes.Array,
             "$target":target,
             "$length":target.length,
             "$itemConvertor":item_convertor,
@@ -358,7 +380,6 @@ export class ObservableArray extends ObservableProxy{
                         index:i,
                         target:old,
                         item:removeItem,
-                        value:removeItem.$get(),
                         sender:removeItem
                     });
                 }
@@ -392,7 +413,7 @@ export class ObservableArray extends ObservableProxy{
         }else if(len<newLength){
             for(let i =len;i<newLength;i++)((idx)=>{
                 let appendItem = this.$itemConvertor(idx,undefined,this);
-                Object.defineProperty(this,i,{enumerable:true,configurable:true,get:()=>appendItem.$get(),set:(val:any)=>appendItem.$set(val)});
+                define_item(this,i,appendItem);
                 changes.push({
                     type:ChangeTypes.Append,
                     index:i,
@@ -410,13 +431,10 @@ export class ObservableArray extends ObservableProxy{
         this.clear();
         super.$set(newValue);
         
-        for(let i in newValue)((idx)=>{
-            let item =  this.$itemConvertor(idx as any as number,newValue[idx],this);
-            if(item!==Undefined){
-                item.$owner = this;
-                Object.defineProperty(this,i.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)}); 
-            }
-        })(i);
+        for(let i in newValue)((idx:number)=>{
+            let item =  this.$itemConvertor(idx,newValue[idx],this);
+            define_item(this,idx,item);
+        })(i as any as number);
         this.$length = newValue.length;
         
         return this;
@@ -431,13 +449,12 @@ export class ObservableArray extends ObservableProxy{
         let len = this.length;
         let size = index>=len?index+1:len;
         let item = this.$itemConvertor(index,item_value,this);
-        item.$owner = this;
         let oldItem :any;
         if(size>len){
             for(let i = len;i<size;i++)((idx:number)=>{
                 let insertedItem = this.$itemConvertor(idx,undefined,this);
                 insertedItem.$owner = this;
-                Object.defineProperty(this,idx.toString(),{enumerable:true,configurable:true,get:()=>insertedItem.$get(),set:(val)=>insertedItem.$set(val)});
+                define_item(this,idx,insertedItem);
                 (this.$changes || (this.$changes=[])).push({
                     sender:this,
                     type:ChangeTypes.Append,
@@ -451,8 +468,7 @@ export class ObservableArray extends ObservableProxy{
             oldItem = this[index];
             
         }
-
-        Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)});
+        define_item(this,index,item);
         (this.$changes || (this.$changes=[])).push({
             sender:this,
             type:ChangeTypes.Replace,
@@ -469,9 +485,7 @@ export class ObservableArray extends ObservableProxy{
     push(item_value:any):ObservableArray{
         let index = this.length;
         let item = this.$itemConvertor(index,item_value,this);
-        (item as any).$index = index;
-        item.$owner = this;
-        Object.defineProperty(this,index.toString(),{enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)});
+        define_item(this,index,item);
         this.$length++;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
@@ -511,14 +525,10 @@ export class ObservableArray extends ObservableProxy{
         for(let i =0;i<len;i++)((index)=>{
             let movedItem = this[index];
             let newIndex = index+1;
-            movedItem.$index = newIndex;
-            Object.defineProperty(this,newIndex as any as string,{
-                enumerable:true,configurable:true,get:()=>movedItem.$get(),set:(val)=>movedItem.$set(val)
-            });
+            define_item(this,newIndex,movedItem);
         })(i);
-        Object.defineProperty(this,0,{
-            enumerable:true,configurable:true,get:()=>item.$get(),set:(val)=>item.$set(val)
-        });
+        define_item(this,0,item);
+        
         this.$length++;
         (this.$changes || (this.$changes=[])).push({
             sender:this,
@@ -536,10 +546,7 @@ export class ObservableArray extends ObservableProxy{
         let removeItem = this[0];
         for(let i =1;i<len;i++)((idx)=>{
             let movedItem = this[idx];
-            movedItem.$index = idx-1;
-            Object.defineProperty(this,(idx-1),{
-                enumerable:true,configurable:true,get:()=>movedItem.$get(),set:(val)=>movedItem.$set(val)
-            });
+            define_item(this,idx-1,movedItem);
         })(i);
         delete (this as any)[len-1];
         this.$length--;
@@ -631,17 +638,17 @@ export function observable(target?:any):IObservable<any>{
 //=======================================================================
 
 export class Model{
-    type:MemberTypes;
+    type:TargetTypes;
     index:string|number;
     item_model:Model;
     prop_models:{[index:string]:Model};
     owner_model:Model;
-    constructor(data:any,index:string|number,owner:Model){
+    constructor(data:any,index?:string|number,owner?:Model){
         this.index = index;
         this.owner_model = owner;
         let t = Object.prototype.toString.call(data);
         if(t==="[object Object]") {
-            this.type = MemberTypes.Object;
+            this.type = TargetTypes.Object;
             this.prop_models = {};
             for(let n in data){
                 if(n===ObservableArray.structToken) continue;
@@ -649,7 +656,7 @@ export class Model{
             }
         }
         else if(t==="[object Array]"){
-            this.type = MemberTypes.Array;
+            this.type = TargetTypes.Array;
             for(let i in data){
                 let item = data[i];
                 this.item_model = new Model(item,-1,this);
@@ -657,35 +664,46 @@ export class Model{
             }
         }
         else{
-            this.type = MemberTypes.Value;
+            this.type = TargetTypes.Value;
 
         }
     }
 
-    createProxy(data:any):IObservableProxy{
+    createProxy(data:any,ownerProxy?:IObservableProxy):IObservableProxy{
         let raw :(val?:any)=>any;
-        if(this.index!==undefined) raw = prop_raw(this.index as string);
-        else raw = (val?:any)=>val===undefined?data:data=val;        
-        if(this.type===MemberTypes.Value) {
-            return new ObservableProxy(raw);
-        }else if(this.type === MemberTypes.Object){
-            return new ObservableObject(raw,{
-                propBuilder:(define:(name,proxy)=>any)=>{
+        if(this.index!==undefined){
+            raw = this.owner_model.type=== TargetTypes.Object
+                ? prop_raw(this.index as string,ownerProxy)
+                : item_raw(ownerProxy as IObservableArray);
+        } 
+        else raw = (val?:any)=>val===undefined?data:data=val;    
+        
+        let proxy:IObservableProxy;
+        if(this.type===TargetTypes.Value) {
+            proxy = new ObservableProxy(raw);
+        }else if(this.type === TargetTypes.Object){
+            //let self:Model;
+            proxy = new ObservableObject(raw,{
+                propBuilder:(ownerProxy:IObservableObject,define:(name,proxy)=>any)=>{
                     for(let n in this.prop_models){
                         let prop_model = this.prop_models[n];
-                        let prop_proxy = prop_model.createProxy(data[n]);
+                        let prop_proxy = prop_model.createProxy(data[n],ownerProxy);
                         define(n,prop_proxy);
                     }
                 }
             });
-        }else if(this.type===MemberTypes.Array){
+        }else if(this.type===TargetTypes.Array){
             let item_convertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
             if(this.item_model){
-                item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>this.item_model.createProxy(item_value);
+                item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>
+                    this.item_model.createProxy(item_value,proxy);
                 
             }
-            return new ObservableArray(raw,item_convertor);
+            proxy = new ObservableArray(raw,item_convertor);
         }
+        
+        proxy.$target = data;
+        return proxy;
     }
 }
 
