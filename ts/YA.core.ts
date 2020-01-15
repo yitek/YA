@@ -680,7 +680,7 @@ export class Model{
         
         let proxy:IObservableProxy;
         if(this.type===TargetTypes.Value) {
-            proxy = new ObservableProxy(raw);
+            proxy = new ObservableProxy(raw,data);
         }else if(this.type === TargetTypes.Object){
             //let self:Model;
             proxy = new ObservableObject(raw,{
@@ -691,18 +691,15 @@ export class Model{
                         define(n,prop_proxy);
                     }
                 }
-            });
+            },data);
         }else if(this.type===TargetTypes.Array){
             let item_convertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
             if(this.item_model){
                 item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>
                     this.item_model.createProxy(item_value,proxy);
-                
             }
-            proxy = new ObservableArray(raw,item_convertor);
+            proxy = new ObservableArray(raw,item_convertor,data);
         }
-        
-        proxy.$target = data;
         return proxy;
     }
 }

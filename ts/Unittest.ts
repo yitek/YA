@@ -53,6 +53,7 @@ export class Unittest{
         if(typeof target==="function") target = new target();
         let count = 0;
         this._$logger.beginGroup(`{${this.$NAME}}`);
+        let startTime = (new Date()).valueOf();
         let assert =(expected?:any,actual?:any,msg?:string,paths?:string[])=>{
             if(!paths && msg) msg = msg.replace(/\{actual\}/g,JSON.stringify(actual)).replace(/\{expected\}/g,JSON.stringify(expected));
             if(actual===expected) {
@@ -100,8 +101,8 @@ export class Unittest{
             if(name==="$RUN" || name==="$NAME") continue;
             let fn = (target as any)[name];
             if(typeof fn !=="function") continue; 
-            this._$logger.beginGroup(`(${name})`);
-                        
+            this._$logger.beginGroup(`${name}()`);
+            let fnStartTime = (new Date()).valueOf();           
             let ex=undefined;
             if(Unittest.debugging){
                 count++;
@@ -124,11 +125,13 @@ export class Unittest{
                     this._$logger.error(msg,ex);
                 }
             }
-            
+            let fnEndTime = (new Date()).valueOf();
+            this._$logger.warn(`耗时=${fnEndTime - fnStartTime}`);
             this._$logger.endGroup();
              
         }
-        this._$errors.length?this._$logger.warn(`结束测试{${this.$NAME}},错误率:${this._$errors.length}/${count}=${this._$errors.length*100/count}%.`):this._$logger.info(`结束测试{${this.$NAME}},错误率:${this._$errors.length}/${count}=0%..`);
+        let endTime = (new Date()).valueOf();
+        this._$errors.length?this._$logger.warn(`{${this.$NAME}}]:耗时=${endTime-startTime}ms,正确率=${count-this._$errors.length}/${count}=${this._$errors.length*100/count}%.`):this._$logger.warn(`{${this.$NAME}}:耗时=${endTime-startTime}ms,无错误.`);
         this._$logger.endGroup();
         return this._$errors; 
     } 
