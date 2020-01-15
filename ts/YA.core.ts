@@ -116,10 +116,11 @@ export interface IValueProxy extends IValueObservable<IChangeEventArgs>{
 }
 
 export interface IObjectProxy extends IValueProxy{
-    $props:{[name:string]:IValueProxy};
+    [index:string]:any;   
 }
 export interface IArrayProxy extends IValueProxy{
     length:number;
+    [index:number]:any;
     item(index:number,item_value?:any):any;
     pop():any;
     push(item_value:any):IArrayProxy;
@@ -130,7 +131,6 @@ export interface IArrayProxy extends IValueProxy{
 
 
 let Undefined = {};
-let Null={};
 
 export class ValueProxy extends ValueObservable<IChangeEventArgs> implements IValueProxy{
     $type:ValueTypes;
@@ -201,7 +201,6 @@ function buildNotProperty(name:string,proxy:IObjectProxy,enumerable:boolean){
 }
 
 export class ObjectProxy extends ValueProxy implements IObjectProxy{
-    $props:{[name:string]:IValueProxy};
     $target:any;
     constructor(raw:(val?:any)=>any,meta:IObjectMeta){
         super(raw);
@@ -209,12 +208,10 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
         if(!target) raw(target=this.$target={});
         buildHiddenMembers(this,{
             "$target":target,
-            "$props":{},
             "$type":ValueTypes.Object
         });
 
         this.$type = ValueTypes.Object;
-        let props = this.$props;
         if(meta.fieldnames)
             for(let i in meta.fieldnames)
                 buildNotProperty(meta.fieldnames[i],this,true);
@@ -240,7 +237,7 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
                 Object.defineProperty(this,name,{
                     enumerable:true,configurable:false,get:()=>prop.$get(),set:(val:any)=>prop.$set(val)
                 });
-                props[name] = prop;
+                //props[name] = prop;
                 return define;
             };
             meta.propBuilder(define);
@@ -257,17 +254,30 @@ export class ObjectProxy extends ValueProxy implements IObjectProxy{
     $set(newValue:any):IValueProxy{
         super.$set(newValue||null);
         if(!newValue) return;
-        for(let n in this.$props){
-            this.$props[n].$set(newValue[n]);
+        let accessMode = ValueProxy.gettingProxy;
+        try{
+            ValueProxy.gettingProxy = true;
+            for(let n in this){
+                (this[n] as any as IValueProxy).$set(newValue[n]);
+            }
+        }finally{
+            ValueProxy.gettingProxy=accessMode;
         }
+        
         
         return this;
     }
     $update():boolean{
         let result = super.$update();
         if(result===false) return false;
-        for(let n in this.$props){
-            this.$props[n].$update();
+        let accessMode = ValueProxy.gettingProxy;
+        try{
+            ValueProxy.gettingProxy = true;
+            for(let n in this){
+                (this[n] as any as IValueProxy).$update();
+            }
+        }finally{
+            ValueProxy.gettingProxy=accessMode;
         }
         return true;
     }
