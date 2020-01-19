@@ -50,8 +50,9 @@ export interface IObservableProxy extends IObservable<IChangeEventArgs> {
     $update(): boolean;
 }
 export declare enum ProxyAccessModes {
-    Raw = 0,
-    Proxy = 1,
+    Default = 0,
+    Raw = 1,
+    Proxy = 2,
 }
 export declare class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy {
     $type: TargetTypes;

@@ -110,6 +110,7 @@ export interface IObservableProxy extends IObservable<IChangeEventArgs>{
 let Undefined = {};
 
 export enum ProxyAccessModes{
+    Default,
     Raw,
     Proxy
 }
@@ -140,13 +141,13 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
     }
 
     $get():any{
-        if(ObservableProxy.accessMode) return this;
-        
+        if( ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
+        if(ObservableProxy.accessMode===ProxyAccessModes.Raw) return this.$raw();
         return (this.$modifiedValue===undefined)?this.$target:(this.$modifiedValue===Undefined?undefined:this.$modifiedValue);
     }
 
     $set(newValue:any):IObservableProxy{
-        //if(ValueProxy.gettingProxy) throw new Error("ValueProxy.gettingProxy=true,不可以给对象属性赋值");
+        if(ObservableProxy.accessMode===ProxyAccessModes.Raw) {this.$raw.call(this,newValue);return this;}
         this.$modifiedValue=newValue===undefined?Undefined:newValue;
         return this;
     }
@@ -167,7 +168,7 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
     }
 
     toString(){return this.$raw().toString();}
-    static accessMode:ProxyAccessModes = ProxyAccessModes.Raw; 
+    static accessMode:ProxyAccessModes = ProxyAccessModes.Default; 
 }
 //let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
 defineMembers(ObservableProxy.prototype,ObservableProxy.prototype);
@@ -251,6 +252,7 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
     }
 
     $get():any{
+        if(ObservableProxy.accessMode===ProxyAccessModes.Raw) return this.$raw();
         return this;
         //if(ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
         //return this.$modifiedValue===undefined?(this.$target||null):this.$modifiedValue;
@@ -259,7 +261,7 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
 
     $set(newValue:any):IObservableProxy{
         super.$set(newValue||null);
-        if(!newValue) return;
+        if(!newValue || ObservableProxy.accessMode===ProxyAccessModes.Raw) return this;
         let accessMode = ObservableProxy.accessMode;
         try{
             ObservableProxy.accessMode = ProxyAccessModes.Proxy;
@@ -432,6 +434,9 @@ export class ObservableArray extends ObservableProxy{
         newValue || (newValue=[]);
         this.clear();
         super.$set(newValue);
+        if(ObservableProxy.accessMode=== ProxyAccessModes.Raw){
+            this.$raw(newValue);return this;
+        }
         
         for(const i in newValue)((idx:number)=>{
             let item =  this.$itemConvertor(idx,newValue[idx],this);
@@ -749,7 +754,15 @@ export function component(tag:string|Function,meta?:IComponentMeta){
         });
         let WrappedType= class extends RawType{
             constructor(...args:any[]){
-                super();
+                let accessMode = ObservableProxy.accessMode;
+                try{
+                    ObservableProxy.accessMode = ProxyAccessModes.Raw;
+                    if(!args.length) super();
+                    else RawType.apply(this,args);
+                }finally{
+                    ObservableProxy.accessMode = accessMode;
+                }
+                
                 intializeActions(this,WrappedType as IComponentMeta,RawType);
             }
         };
@@ -829,7 +842,7 @@ function initializeComponentType(WrappedType:Function){
         let privateName = `$private_${name}`;
         let initData = component[name];
         let model = new Model(initData,name);
-        defineReactive(name,privateName,WrappedType,()=>{debugger;return model.createProxy(initData);});
+        defineReactive(name,privateName,WrappedType,()=>model.createProxy(initData));
     })(n,reactives[n],WrappedType.prototype);
 
     let templates = (WrappedType as IComponentMeta).$templates;
@@ -863,7 +876,6 @@ function defineReactive(name:string,privateName:string,WrappedType:Function,prox
         enumerable:true,
         configurable:true,
         get:function(){
-            debugger;
             let proxy = this[privateName];
             if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
             else{
@@ -875,7 +887,6 @@ function defineReactive(name:string,privateName:string,WrappedType:Function,prox
             return proxy.$get(); 
         },
         set:function(val){
-            debugger;
             let proxy = this[privateName];
             if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
             else{

@@ -87,7 +87,7 @@ Unittest.Test("YA.Core",{
             propAge = proxy.age;
             
         }finally{
-            ObservableProxy.accessMode=ProxyAccessModes.Raw;
+            ObservableProxy.accessMode=ProxyAccessModes.Default;
         }
         assert(true,propAge instanceof ObservableProxy,"当ValueProxy.gettingProxy开关打开时，属性返回的的是代理对象本身");
         let evtArgs;
@@ -158,7 +158,7 @@ Unittest.Test("YA.Core",{
             idx2 = proxy[2];
             idx1 = proxy[1];
         }finally{
-            ObservableProxy.accessMode=ProxyAccessModes.Raw;
+            ObservableProxy.accessMode=ProxyAccessModes.Default;
         }
         assert(true,idx1 instanceof ObservableProxy,"可以获取到item代理");
         assert(true,idx2 instanceof ObservableProxy,"可以获取到item代理");
