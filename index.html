@@ -11,7 +11,7 @@
         </script>
         <script type="text/javascript" src="lib/Unittest.js"></script>
         <script type="text/javascript" src="lib/YA.core.js"></script>
-        <script type="text/javascript" src="lib/Tests/YA.core.unittests.js"></script>
+        
         <style type="text/css">
 .validate-error{
     color:red;
@@ -32,17 +32,11 @@
         </style>
     </head>
     <body>
+        <script type="text/javascript" src="lib/Tests/YA.core.unittest.js"></script>
         <div id="demo"></div>
         <script type="text/javascript">
- var obj={_x:5};
- Object.defineProperty(obj,0,{
-     get:function(){return this._x;},
-     set:function(val){this._x = val;}
- });
-
-console.log(obj["x"]);
-obj["x"] = 10;
-console.log(obj.x);
+ //console.log(Object.prototype.toString.call(function(){}));
         </script>
-    </body>
+    </body
+    >
 </html>

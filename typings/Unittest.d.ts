@@ -32,3 +32,4 @@ export declare class Unittest {
     static debugging: boolean;
     static hiddenSteps: boolean;
 }
+export declare function testIgnore(target: any, propName: string): void;

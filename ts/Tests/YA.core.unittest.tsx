@@ -1,5 +1,7 @@
-import {Unittest} from '../Unittest'
-import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model}  from '../YA.core'
+
+import {Unittest,testIgnore} from '../Unittest';
+import YA, { template, action } from "../YA.core";
+import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model,component,reactive}  from '../YA.core'
 Unittest.debugging=true;
 Unittest.Test("YA.Core",{ 
     "Observable":(assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
@@ -191,36 +193,15 @@ Unittest.Test("YA.Core",{
         assert(4,target.length,"更新后，arr的length+1");
     }
     ,"Model":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
-        let initData = {
-            search:{
-                name:"k",
-                author:"y",
-                min_date:null,
-                max_date:null,
-            }
-            ,rows:[{
-                __STRUCT:true,
-                id:"",
-                name:"YA.core",
-                author:{
-                    id:"",
-                    name:"yiy",
-                    email:"yitek@outlook.com"
-                },
-                date:null
-            }]
-            ,pageSize:10
-            ,pageIndex:1
-            ,recordCount:48
-        };
+        let initData = createData();
         let model = new Model(initData);
         let proxy = model.createProxy(initData) as any;
-        assert("k",proxy.search.name,"模型创建的代理可以访问原始对象proxy.search.name");
-        assert("y",proxy.search.author,"模型创建的代理可以访问原始对象proxy.search.author");
+        assert("k",proxy.queries.name,"模型创建的代理可以访问原始对象proxy.queries.name");
+        assert("y",proxy.queries.author,"模型创建的代理可以访问原始对象proxy.queries.author");
         assert(48,proxy.recordCount,"模型创建的代理可以访问原始对象proxy.recordCount");
         assert(0,proxy.rows.length,"模型创建的代理可以访问原始对象proxy.rows.length");
 
-        proxy.search.name = "YA";
+        proxy.queries.name = "YA";
         proxy.rows.push({
             id:"",
             name:"YA.core",
@@ -231,15 +212,85 @@ Unittest.Test("YA.Core",{
             },
             date:null
         });
-        assert("YA",proxy.search.name,"代理上修改值，应该变更为新值proxy.search.name");
+        assert("YA",proxy.queries.name,"代理上修改值，应该变更为新值proxy.queries.name");
         assert(1,proxy.rows.length,"代理上修改值，应该变更为新值proxy.rows.length");
         assert("YA.core",proxy.rows[0].name,"代理上修改值，应该变更为新值proxy.rows[0].name");
         assert("yitek@outlook.com",proxy.rows[0].author.email,"代理上修改值，应该变更为新值proxy.rows[0].author.email");
 
-        assert("k",initData.search.name,"代理上修改值，原始的值未变化initData.search.name");
+        assert("k",initData.queries.name,"代理上修改值，原始的值未变化initData.queries.name");
         assert(0,initData.rows.length,"代理上修改值，原始的值未变化initData.rows.length");
+
+        proxy.$update();
+
+        assert("YA",initData.queries.name,"Update后，原始对象应该变更为新值initData.queries.name");
+        assert(1,initData.rows.length,"Update后，原始对象应该变更为新值initData.rows.length");
+        assert("YA.core",initData.rows[0].name,"代Update后，原始对象应该变更为新值initData.rows[0].name");
+        assert("yitek@outlook.com",initData.rows[0].author.email,"Update后，原始对象应该变更为新值initData.rows[0].author.email");
+
 
         //assert(4,proxy.length,"push后，代理的length = array.length+1");
         
     }
+    
+    ,"component":(assert:(expected:any,actual:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
+        @component("A")
+        class SampleComponent{
+            lng={
+                "name":"标题"
+            };
+            @reactive()
+            model:any=createData();
+            @template("")
+            template(){
+            return <div>
+    <div> 
+        <div>
+            <label>{this.lng.name}</label>
+            <input type="text" onblur={this.nameChanged} value={this.model.queries.name} />
+        </div>
+            <div>你输入的字符是:{this.model.queries.name}</div>
+    </div>
+</div>
+            };
+            
+            
+            constructor(){
+                
+            }
+            @action()
+            nameChanged(e){
+                debugger;
+                this.model.queries.name = e.target.value;
+            }
+        }
+        let a = new SampleComponent() as any;
+        let elem = a.$render("");
+        document.body.appendChild(elem);
+    }
 });
+
+
+function createData(){
+    return {
+        queries:{
+            name:"k",
+            author:"y",
+            min_date:null,
+            max_date:null,
+        }
+        ,rows:[{
+            __STRUCT:true,
+            id:"",
+            name:"YA.core",
+            author:{
+                id:"",
+                name:"yiy",
+                email:"yitek@outlook.com"
+            },
+            date:null
+        }]
+        ,pageSize:10
+        ,pageIndex:1
+        ,recordCount:48
+    };
+}

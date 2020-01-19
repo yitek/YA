@@ -98,7 +98,8 @@ export class Unittest{
             this._$logger.info(msg);
         }
         for(let name in target){
-            if(name==="$RUN" || name==="$NAME") continue;
+            let ch =name[0];
+            if(ch==="$" || name==="_") continue;
             let fn = (target as any)[name];
             if(typeof fn !=="function") continue; 
             this._$logger.beginGroup(`${name}()`);
@@ -150,4 +151,8 @@ export class Unittest{
 
     static hiddenSteps:boolean;
    
+}
+
+export function testIgnore(target:any,propName:string){
+    target.$_testIgnore =  true;
 }

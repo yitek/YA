@@ -33,6 +33,7 @@ export interface IChangeEventArgs {
     target?: any;
     value?: any;
     old?: any;
+    item?: IObservableProxy;
     sender?: any;
     cancel?: boolean;
 }
@@ -93,12 +94,9 @@ export interface IObservableArray extends IObservableProxy {
     unshift(item_value: any): IObservableArray;
     $item_convertor?: IObservableProxy;
 }
-export interface IArrayChangeEventArgs extends IChangeEventArgs {
-    item?: IObservableProxy;
-}
 export declare class ObservableArray extends ObservableProxy {
     $itemConvertor: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy;
-    $changes: IArrayChangeEventArgs[];
+    $changes: IChangeEventArgs[];
     [index: number]: any;
     $length: number;
     length: number;
@@ -126,3 +124,54 @@ export declare class Model {
     constructor(data: any, index?: string | number, owner?: Model);
     createProxy(data: any, ownerProxy?: IObservableProxy): IObservableProxy;
 }
+export declare enum ReactiveTypes {
+    Local = 0,
+    In = 1,
+    Out = 2,
+    IO = 3,
+}
+export declare enum ComponentReadyStates {
+    Defined = 0,
+    Completed = 1,
+}
+export interface IComponentMeta {
+    $reactives?: {
+        [attr: string]: ReactiveTypes;
+    };
+    $templates?: {
+        [attr: string]: string;
+    };
+    $actions?: {
+        [attr: string]: string;
+    };
+    $wrapType?: Function;
+    $rawType?: Function;
+    $tag?: string;
+    $readyState?: ComponentReadyStates;
+}
+export interface IComponent extends IComponentMeta {
+    [attr: string]: any;
+}
+export declare const componentTypes: {
+    [tag: string]: {
+        new (): {};
+    };
+};
+export declare function component(tag: string | Function, meta?: IComponentMeta): any;
+export declare function reactive(type?: ReactiveTypes | string): any;
+export declare function action(async?: boolean): (target: any, propertyName: string) => void;
+export declare function template(partial?: string): (target: any, propertyName: string) => void;
+export declare let ELEMENT: any;
+declare let YA: {
+    Observable: typeof Observable;
+    ProxyAccessModes: typeof ProxyAccessModes;
+    ObservableProxy: typeof ObservableProxy;
+    ObservableObject: typeof ObservableObject;
+    ObservableArray: typeof ObservableArray;
+    Model: typeof Model;
+    component: (tag: string | Function, meta?: IComponentMeta) => any;
+    reactive: (type?: string | ReactiveTypes) => any;
+    action: (async?: boolean) => (target: any, propertyName: string) => void;
+    ELEMENT: any;
+};
+export default YA;

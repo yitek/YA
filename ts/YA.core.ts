@@ -1,9 +1,11 @@
 
-function defineMembers(target:any,props?:any,des?:any){
+function defineMembers(target:any,props?:any,des?:boolean|PropertyDecorator){
     props ||(props=target);
     let descriptor = {enumerable:false,writable:true,configurable:false,value:undefined};
-    if(des) for(let n in descriptor) descriptor[n] = des[n];
-    for(let n in props){
+    if(des===true) descriptor.writable=true;
+    else if(des===false) descriptor.writable = false;
+    else if(des) for(const n in descriptor) descriptor[n] = des[n];
+    for(const n in props){
         descriptor.value = props[n];
         Object.defineProperty(target,n,descriptor);
     } 
@@ -37,7 +39,7 @@ export function valueObservable<TEvtArgs>(target:any):IObservable<TEvtArgs>{
     target.$notify = function(evt:IChangeEventArgs):IObservable<TEvtArgs>{
         let listeners = this.$_listeners;
         if(!listeners|| listeners.length===0) return this;
-        for(let i in listeners){
+        for(const i in listeners){
             listeners[i].call(this,evt);
         }
         return this;
@@ -82,6 +84,7 @@ export interface IChangeEventArgs{
     target?:any;
     value?:any,
     old?:any,
+    item?:IObservableProxy,
     sender?:any,
     cancel?:boolean
 }
@@ -221,11 +224,11 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
             return;
         }
         if(meta.fieldnames)
-            for(let i in meta.fieldnames)
+            for(const i in meta.fieldnames)
                 buildNotProperty(meta.fieldnames[i],this,true);
         
         if(meta.methodnames)    
-            for(let i in meta.methodnames)
+            for(const i in meta.methodnames)
             buildNotProperty(meta.methodnames[i],this,false);
 
         if(meta.propBuilder){
@@ -248,8 +251,9 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
     }
 
     $get():any{
-        if(ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
-        return this.$modifiedValue===undefined?(this.$target||null):this.$modifiedValue;
+        return this;
+        //if(ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
+        //return this.$modifiedValue===undefined?(this.$target||null):this.$modifiedValue;
         
     }
 
@@ -259,7 +263,7 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
         let accessMode = ObservableProxy.accessMode;
         try{
             ObservableProxy.accessMode = ProxyAccessModes.Proxy;
-            for(let n in this){
+            for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof ObservableProxy) proxy.$set(newValue[n]);
             }
@@ -276,7 +280,7 @@ export class ObservableObject extends ObservableProxy implements IObservableObje
         let accessMode = ObservableProxy.accessMode;
         try{
             ObservableProxy.accessMode = ProxyAccessModes.Proxy;
-            for(let n in this){
+            for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof ObservableProxy) proxy.$update();
             }
@@ -301,9 +305,7 @@ export interface IObservableArray extends IObservableProxy{
     $item_convertor?:IObservableProxy;
 }
 
-export interface IArrayChangeEventArgs extends IChangeEventArgs{
-    item?:IObservableProxy;
-}
+
 
 function item_raw(ownerProxy:IObservableArray){
     return function(val?:any){return val===undefined?ownerProxy.$target[this.$index]:ownerProxy.$target[this.$index]=val;}
@@ -325,7 +327,7 @@ function define_item(arrProxy:IObservableArray,index:number,item:IObservableProx
 
 export class ObservableArray extends ObservableProxy{
     $itemConvertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
-    $changes:IArrayChangeEventArgs[];
+    $changes:IChangeEventArgs[];
     [index:number]:any;
     $length:number;
     length:number;
@@ -362,7 +364,7 @@ export class ObservableArray extends ObservableProxy{
         let old = this.$get();
         let changes = this.$changes|| (this.$changes=[]);
         let len = old.length;
-        if(changes)for(let i in changes){
+        if(changes)for(const i in changes){
             let change = changes[i];
             if(change.type ===ChangeTypes.Push || change.type===ChangeTypes.Unshift){
                 len++;
@@ -431,7 +433,7 @@ export class ObservableArray extends ObservableProxy{
         this.clear();
         super.$set(newValue);
         
-        for(let i in newValue)((idx:number)=>{
+        for(const i in newValue)((idx:number)=>{
             let item =  this.$itemConvertor(idx,newValue[idx],this);
             define_item(this,idx,item);
         })(i as any as number);
@@ -567,7 +569,7 @@ export class ObservableArray extends ObservableProxy{
         this.$changes = undefined;
 
         let arr = this.$target;
-        for(let i in changes){
+        for(const i in changes){
             let change = changes[i];
             switch(change.type){
                 case ChangeTypes.Push:
@@ -650,14 +652,14 @@ export class Model{
         if(t==="[object Object]") {
             this.type = TargetTypes.Object;
             this.prop_models = {};
-            for(let n in data){
+            for(const n in data){
                 if(n===ObservableArray.structToken) continue;
                 this.prop_models[n] = new Model(data[n],n,this);
             }
         }
         else if(t==="[object Array]"){
             this.type = TargetTypes.Array;
-            for(let i in data){
+            for(const i in data){
                 let item = data[i];
                 this.item_model = new Model(item,-1,this);
                 break;
@@ -671,7 +673,7 @@ export class Model{
 
     createProxy(data:any,ownerProxy?:IObservableProxy):IObservableProxy{
         let raw :(val?:any)=>any;
-        if(this.index!==undefined){
+        if(this.index!==undefined&& this.owner_model){
             raw = this.owner_model.type=== TargetTypes.Object
                 ? prop_raw(this.index as string,ownerProxy)
                 : item_raw(ownerProxy as IObservableArray);
@@ -685,7 +687,7 @@ export class Model{
             //let self:Model;
             proxy = new ObservableObject(raw,{
                 propBuilder:(ownerProxy:IObservableObject,define:(name,proxy)=>any)=>{
-                    for(let n in this.prop_models){
+                    for(const n in this.prop_models){
                         let prop_model = this.prop_models[n];
                         let prop_proxy = prop_model.createProxy(data[n],ownerProxy);
                         define(n,prop_proxy);
@@ -703,4 +705,338 @@ export class Model{
         return proxy;
     }
 }
+
+//=======================================================================
+
+export enum ReactiveTypes{
+    Local,
+    In,
+    Out,
+    IO
+}
+
+
+export enum ComponentReadyStates{
+    Defined,
+    Completed
+}
+
+export interface IComponentMeta {
+    $reactives?:{[attr:string]:ReactiveTypes};
+    $templates?:{[attr:string]:string};
+    $actions?:{[attr:string]:string};
+    $wrapType?:Function;
+    $rawType?:Function;
+    $tag?:string;
+    $readyState?:ComponentReadyStates;
+}
+
+export interface IComponent extends IComponentMeta{
+    [attr:string]:any;
+}
+
+type TRender=(states:any,container:any)=>any;
+
+
+export const componentTypes: {[tag:string]:{new():{}}}={};
+
+let currentComponentType:Function;
+
+export function component(tag:string|Function,meta?:IComponentMeta){
+    function decorator<T extends {new(...args: any[]):{}}>(RawType:T){
+        Object.defineProperty(RawType,"$tag",{
+            enumerable:false,writable:false,configurable:false,value:tag
+        });
+        let WrappedType= class extends RawType{
+            constructor(...args:any[]){
+                super();
+                intializeActions(this,WrappedType as IComponentMeta,RawType);
+            }
+        };
+        let info:IComponentMeta = {
+            "$reactives":RawType.prototype.$reactives || (RawType as any).$reactives
+            ,"$templates":RawType.prototype.$templates || (RawType as any).$templates
+            ,"$actions":RawType.prototype.$actions || (RawType as any).$actions
+            ,"$wrapType":WrappedType
+            ,"$rawType":RawType
+            //,"$readyState":ComponentReadyStates.Defined
+            ,"$tag":tag as string
+        };
+        for(let n in info){
+            delete RawType.prototype[n];
+        }
+        defineMembers(RawType,info,false);
+        defineMembers(WrappedType,info,false);
+        Object.defineProperty(WrappedType,"$readyState",{enumerable:false,configurable:true,writable:false,value:ComponentReadyStates.Defined});
+        Object.defineProperty(RawType,"$readyState",{enumerable:false,configurable:true,writable:false,value:ComponentReadyStates.Defined});
+        
+        currentComponentType = WrappedType;
+        //let wrappedProto = ;
+        try{
+            WrappedType.prototype = new RawType();
+        }finally{
+            currentComponentType=undefined;
+        }
+        initializeComponentType(WrappedType);
+        componentTypes[tag as string] = WrappedType;
+        
+        return WrappedType;
+    }
+    if(meta){
+        let rawType = tag as Function;
+        for(const  n in meta) rawType.prototype[n] = meta[n];
+        return decorator(rawType as any);
+    }else return decorator;
+}
+
+function intializeActions(component:any,WrappedType:IComponentMeta,RawType:Function){
+    Object.defineProperty(component,"$private_updateTick",{
+        enumerable:false,configurable:false,writable:true,value:undefined
+    });
+
+    let actions = WrappedType.$actions;
+    for(const n in actions)((name:string,method:Function,component:any,WrappedType:IComponentMeta)=>{
+        let action :any= function(){
+            let rs= method.apply(component,arguments);
+            if(component.$private_updateTick) clearTimeout(component.$private_updateTick);
+            component.$private_updateTick = setTimeout(()=>{
+                clearTimeout(component.$private_updateTick);
+                component.$private_updateTick = undefined;
+                let reactives = WrappedType.$reactives;
+                let accessMode = ObservableProxy.accessMode;
+                try{
+                    ObservableProxy.accessMode = ProxyAccessModes.Proxy;
+                    for(const n in reactives) component[n].$update();
+                }finally{
+                    ObservableProxy.accessMode = accessMode;
+                }
+            },0);
+            return rs;
+        };
+        Object.defineProperty(component,name,{
+            enumerable:false,configurable:false,writable:false,value:action
+        });
+        Object.defineProperty(action,"$isAction",{
+            enumerable:false,configurable:false,writable:false,value:true
+        });
+    })(n,RawType.prototype[n],component,WrappedType);
+}
+
+function initializeComponentType(WrappedType:Function){
+    //let meta = (WrappedType as any).$meta;
+    let reactives = (WrappedType as IComponentMeta).$reactives;
+    if(reactives)for(const n in reactives)((name:string,reactiveType:ReactiveTypes,component:any)=>{
+        let privateName = `$private_${name}`;
+        let initData = component[name];
+        let model = new Model(initData,name);
+        defineReactive(name,privateName,WrappedType,()=>{debugger;return model.createProxy(initData);});
+    })(n,reactives[n],WrappedType.prototype);
+
+    let templates = (WrappedType as IComponentMeta).$templates;
+    Object.defineProperty(WrappedType.prototype,"$render",{enumerable:false,configurable:false,writable:false,value:function(partial?:string):any{
+        partial||(partial="");
+        let rendername = templates[partial];
+        if(rendername!==undefined){
+            let render = this[rendername];
+            if(render) {
+                let accessMode = ObservableProxy.accessMode;
+                try{
+                    ObservableProxy.accessMode = ProxyAccessModes.Proxy;
+                    return render.call(this,this);
+                }finally{
+                    ObservableProxy.accessMode = accessMode;
+                }
+            } 
+        }
+        return undefined;
+    }});
+
+    
+
+    Object.defineProperty(WrappedType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
+    //Object.defineProperty(RawType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
+        
+}
+
+function defineReactive(name:string,privateName:string,WrappedType:Function,proxyCreator:()=>IObservableProxy){
+    let descriptor = {
+        enumerable:true,
+        configurable:true,
+        get:function(){
+            debugger;
+            let proxy = this[privateName];
+            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
+            else{
+                delete this[privateName];
+                Object.defineProperty(this,name,{
+                    enumerable:true,configurable:false,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
+                });
+            } 
+            return proxy.$get(); 
+        },
+        set:function(val){
+            debugger;
+            let proxy = this[privateName];
+            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
+            else{
+                delete this[privateName];
+                Object.defineProperty(this,name,{
+                    enumerable:true,configurable:false,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
+                });
+            } 
+            proxy.$set(val); 
+        }
+    };
+    Object.defineProperty(WrappedType.prototype,name,descriptor);
+    //Object.defineProperty(component,name,descriptor);
+    //Object.defineProperty(component,name,descriptor);
+}
+
+
+export function reactive(type?:ReactiveTypes|string):any{
+    return function(target:any,propName:string){
+        (target.$reactives || (target.$reactives=[]))[propName] = ReactiveTypes[type]|| type || ReactiveTypes.Local;
+    }
+}
+export function action(async?:boolean){
+    return function(target: any, propertyName: string){
+        (target.$actions || (target.$actions=[]))[propertyName] = async;
+    };
+}
+
+export function template(partial?:string){
+    return function(target: any, propertyName: string){
+        (target.$templates || (target.$templates=[]))[partial||""] = propertyName;
+    };
+}
+let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+export let ELEMENT:any =function(tag:string,attrs:{[name:string]:any}){
+    if(currentComponentType && (currentComponentType as IComponentMeta).$readyState!==ComponentReadyStates.Completed) {
+        return;
+    };
+    let elem = ELEMENT.createElement(tag);
+    for(const attrname in attrs){
+        let attrValue= attrs[attrname];
+        if(attrValue&& attrValue.$isAction){
+            let match = attrname.match(evtnameRegx);
+            ELEMENT.attach(elem,match?match[1]:attrname,attrValue);
+            continue;
+        }
+        if(attrValue instanceof ObservableProxy){
+            let binder = attrBinders[name];
+            if(binder){
+                binder(elem,attrValue);
+                continue;
+            }
+            else attrValue = attrValue.$get();
+        }
+        ELEMENT.setAttribute(elem,attrname,attrValue);
+    }
+    for(let i =2,j=arguments.length;i<j;i++){
+        let child = arguments[i];
+        if(!child) continue;
+        if(!ELEMENT.isElement(child)){
+            if(child instanceof ObservableProxy){
+                let proxy = child;
+                child = ELEMENT.createText(child.$get());
+                attrBinders["#text"](child,proxy);
+            }else{
+                child = ELEMENT.createText(child);
+            }
+        }
+        ELEMENT.appendChild(elem,child);
+    }
+    return elem;
+};
+ELEMENT.isElement=(elem):any=>{
+    return (elem as HTMLElement).nodeType === 1;
+};
+
+ELEMENT.createElement=(tag:string):any=>{
+    return document.createElement(tag);
+};
+
+ELEMENT.createText=(txt:string):any=>{
+    return document.createTextNode(txt);
+};
+
+
+ELEMENT.setAttribute=(elem:any,name:string,value:any)=>{
+    elem.setAttribute(name,value);
+};
+
+ELEMENT.appendChild=(elem:any,child:any)=>{
+    elem.appendChild(child);
+};
+
+ELEMENT.removeAllChildrens=(elem:any)=>{
+    elem.innerHTML = elem.nodeValue="";
+};
+
+ELEMENT.attach = (elem:any,evtname:string,handler:Function)=>{
+    if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
+    else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
+    else elem['on'+evtname] = handler;
+}
+
+let attrBinders:{[name:string]:{(elem:any,bindValue:IObservableProxy):void}} ={};
+function changeEventToText(e:IChangeEventArgs):string{
+    let value = e.value===undefined?(e.item?e.item.$get():e.value):e.value;
+    return (value===undefined || value===null)?"":value.toString();
+}
+attrBinders["#text"] = (elem:any,bindValue:IObservableProxy)=>{
+    debugger;
+    bindValue.$subscribe((e:IChangeEventArgs)=>{
+        debugger;
+        (elem as Node).nodeValue = changeEventToText(e);
+    });
+};
+attrBinders["value"] = (elem:any,bindValue:IObservableProxy)=>{
+    debugger;
+    bindValue.$subscribe((e:IChangeEventArgs)=>{
+        (elem as HTMLInputElement).value = changeEventToText(e);
+    });
+    elem.value = bindValue.toString();
+};
+
+let eventBinders:{[name:string]:{(elem:any,handler:Function):void}} ={};
+eventBinders["onchange"] = (elem:any,handler:Function)=>{
+    let bindEdit =(elem,handler)=>{
+        let tick :number;
+        let evtHandler = (e)=>{
+            if(tick) clearTimeout(tick);
+            tick = setTimeout(() => {
+                clearTimeout(tick);tick =0;
+                handler(e);
+            }, 150);
+        };  
+        ELEMENT.attach(elem,"keydown",evtHandler);
+        ELEMENT.attach(elem,"keyup",evtHandler);
+        ELEMENT.attach(elem,"keypress",evtHandler);
+    };
+    if(elem.tagName==="INPUT"){
+        if(elem.type==="text")
+            bindEdit(elem,handler);
+    } else if(elem.tagName==="TEXTAREA"){
+        bindEdit(elem,handler);
+    }
+
+
+    ELEMENT.attach(elem,"onchange",handler);
+    ELEMENT.attach(elem,"focusout",handler);
+    ELEMENT.attach(elem,"blur",handler);
+    
+};
+
+let YA={
+    Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model,
+    component,reactive,action,
+    ELEMENT: ELEMENT
+};
+if(typeof window!=='undefined') (window as any).YA = YA;
+export default YA;
+
+
+
+
 
