@@ -1,6 +1,6 @@
 
 import {Unittest,testIgnore} from '../Unittest';
-import YA, { template, action } from "../YA.core";
+import YA, { template, action, ReactiveTypes, IComponentMeta } from "../YA.core";
 import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model,component,reactive}  from '../YA.core'
 Unittest.debugging=true;
 Unittest.Test("YA.Core",{ 
@@ -240,6 +240,19 @@ Unittest.Test("YA.Core",{
             };
             @reactive()
             model:any=createData();
+
+            @reactive(ReactiveTypes.Each)
+            rowItem:{
+                __STRUCT:true,
+                id:"",
+                name:"YA.core",
+                author:{
+                    id:"",
+                    name:"yiy",
+                    email:"yitek@outlook.com"
+                },
+                date:null
+            }
             @template("")
             template(){
             return <div>
@@ -248,8 +261,11 @@ Unittest.Test("YA.Core",{
             <label>{this.lng.name}</label>
             <input type="text" onblur={this.nameChanged} value={this.model.queries.name} />
         </div>
-            <div>你输入的字符是:{this.model.queries.name}</div>
+        <div>你输入的字符是:{this.model.queries.name}</div>
     </div>
+    <table border="1" repeat={[this.model.rows,this.rowItem]}>
+        
+    </table>
 </div>
             };
             
@@ -264,7 +280,7 @@ Unittest.Test("YA.Core",{
             }
         }
         let a = new SampleComponent() as any;
-        let elem = a.$render("");
+        let elem = (SampleComponent as IComponentMeta).$render(a,null,"");
         document.body.appendChild(elem);
     }
 });

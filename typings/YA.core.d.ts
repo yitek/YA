@@ -122,14 +122,9 @@ export declare class Model {
         [index: string]: Model;
     };
     owner_model: Model;
+    _path?: string;
     constructor(data: any, index?: string | number, owner?: Model);
     createProxy(data: any, ownerProxy?: IObservableProxy): IObservableProxy;
-}
-export declare enum ReactiveTypes {
-    Local = 0,
-    In = 1,
-    Out = 2,
-    IO = 3,
 }
 export declare enum ComponentReadyStates {
     Defined = 0,
@@ -140,7 +135,9 @@ export interface IComponentMeta {
         [attr: string]: ReactiveTypes;
     };
     $templates?: {
-        [attr: string]: string;
+        [attr: string]: string | {
+            (component: IComponent, children: INode[]);
+        };
     };
     $actions?: {
         [attr: string]: string;
@@ -148,20 +145,41 @@ export interface IComponentMeta {
     $wrapType?: Function;
     $rawType?: Function;
     $tag?: string;
+    $render?: (component: IComponent, vnode: INode, partial?: string) => any;
     $readyState?: ComponentReadyStates;
 }
-export interface IComponent extends IComponentMeta {
+export declare type TComponentType = {
+    new (): any;
+} & IComponentMeta;
+export interface IComponent {
     [attr: string]: any;
+}
+export declare enum ReactiveTypes {
+    Local = 0,
+    In = 1,
+    Out = 2,
+    Ref = 3,
+    Each = 4,
 }
 export declare const componentTypes: {
     [tag: string]: {
         new (): {};
     };
 };
-export declare function component(tag: string | Function, meta?: IComponentMeta): any;
 export declare function reactive(type?: ReactiveTypes | string): any;
 export declare function action(async?: boolean): (target: any, propertyName: string) => void;
 export declare function template(partial?: string): (target: any, propertyName: string) => void;
+export declare function component(tag: string | TComponentType): any;
+export interface INode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    text?: any;
+    children?: INode[];
+}
+export declare type TNodes = INode | INode[];
+export declare function render(nodes: TNodes, container?: any): any;
 export declare let ELEMENT: any;
 declare let YA: {
     Observable: typeof Observable;
@@ -170,7 +188,7 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     Model: typeof Model;
-    component: (tag: string | Function, meta?: IComponentMeta) => any;
+    component: (tag: string | TComponentType) => any;
     reactive: (type?: string | ReactiveTypes) => any;
     action: (async?: boolean) => (target: any, propertyName: string) => void;
     ELEMENT: any;

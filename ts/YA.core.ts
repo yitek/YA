@@ -167,7 +167,7 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
         
     }
 
-    toString(){return this.$raw().toString();}
+    toString(){let rawValue= this.$raw();return rawValue?rawValue.toString():rawValue;}
     static accessMode:ProxyAccessModes = ProxyAccessModes.Default; 
 }
 //let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
@@ -650,6 +650,7 @@ export class Model{
     item_model:Model;
     prop_models:{[index:string]:Model};
     owner_model:Model;
+    _path?:string;
     constructor(data:any,index?:string|number,owner?:Model){
         this.index = index;
         this.owner_model = owner;
@@ -707,18 +708,28 @@ export class Model{
             }
             proxy = new ObservableArray(raw,item_convertor,data);
         }
+        proxy.$extras = this;
         return proxy;
     }
 }
+Object.defineProperty(Model.prototype,"path",{enumerable:false,configurable:true
+    ,get:function(){
+        let path;
+        let mepath = this.index===undefined|| this.index===null?"":this.index;
+        if(this.owner_model){
+            let ppath = this.owner_model.path;
+            path = ppath?ppath + "." + mepath:mepath;
+        }else path = mepath;
+        Object.defineProperty(Model.prototype,"path",{enumerable:false,configurable:false,writable:false,value:path});
+        return mepath;
+        
+    }
+    ,set:function(){throw Error("系统自动生成path属性的值，不可以赋值");}
+});
 
 //=======================================================================
 
-export enum ReactiveTypes{
-    Local,
-    In,
-    Out,
-    IO
-}
+
 
 
 export enum ComponentReadyStates{
@@ -728,26 +739,56 @@ export enum ComponentReadyStates{
 
 export interface IComponentMeta {
     $reactives?:{[attr:string]:ReactiveTypes};
-    $templates?:{[attr:string]:string};
+    $templates?:{[attr:string]:string|{(component:IComponent,children:INode[])}};
     $actions?:{[attr:string]:string};
     $wrapType?:Function;
     $rawType?:Function;
     $tag?:string;
+    $render?:(component:IComponent,vnode:INode,partial?:string)=>any;
     $readyState?:ComponentReadyStates;
 }
 
-export interface IComponent extends IComponentMeta{
+export type TComponentType = {new ():any} & IComponentMeta;
+
+
+
+export interface IComponent{
     [attr:string]:any;
 }
 
-type TRender=(states:any,container:any)=>any;
 
+
+
+export enum ReactiveTypes{
+    Local,
+    In,
+    Out,
+    Ref,
+    Each
+}
 
 export const componentTypes: {[tag:string]:{new():{}}}={};
 
-let currentComponentType:Function;
+let currentComponentType:TComponentType;
 
-export function component(tag:string|Function,meta?:IComponentMeta){
+export function reactive(type?:ReactiveTypes|string):any{
+    return function(target:any,propName:string){
+        (target.$reactives || (target.$reactives=[]))[propName] = ReactiveTypes[type]|| type || ReactiveTypes.Local;
+    }
+}
+export function action(async?:boolean){
+    return function(target: any, propertyName: string){
+        (target.$actions || (target.$actions=[]))[propertyName] = async;
+    };
+}
+
+export function template(partial?:string){
+    return function(target: any, propertyName: string){
+        (target.$templates || (target.$templates=[]))[partial||""] = propertyName;
+    };
+}
+
+export function component(tag:string|TComponentType){
     function decorator<T extends {new(...args: any[]):{}}>(RawType:T){
         Object.defineProperty(RawType,"$tag",{
             enumerable:false,writable:false,configurable:false,value:tag
@@ -763,7 +804,7 @@ export function component(tag:string|Function,meta?:IComponentMeta){
                     ObservableProxy.accessMode = accessMode;
                 }
                 
-                intializeActions(this,WrappedType as IComponentMeta,RawType);
+                intializeActions(this,WrappedType,RawType);
             }
         };
         let info:IComponentMeta = {
@@ -790,25 +831,61 @@ export function component(tag:string|Function,meta?:IComponentMeta){
         }finally{
             currentComponentType=undefined;
         }
-        initializeComponentType(WrappedType);
+        initializeReactives(WrappedType);
+        initializeTemplates(WrappedType);
         componentTypes[tag as string] = WrappedType;
+        Object.defineProperty(WrappedType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
+    
         
         return WrappedType;
     }
-    if(meta){
+    
+    if(typeof tag==="function"){
         let rawType = tag as Function;
-        for(const  n in meta) rawType.prototype[n] = meta[n];
         return decorator(rawType as any);
     }else return decorator;
 }
+function initializeTemplates(WrappedType:TComponentType){
+    let templates = WrappedType.$templates;
+    
+    Object.defineProperty(WrappedType,"$render",{enumerable:false,configurable:false,writable:false,value:function(component:IComponent,vnode?:INode,partial?:string,container?:any):any{
+        partial||(partial="");
+        let nameOrMethod = templates[partial];
+        if(nameOrMethod!==undefined){
+            if(typeof nameOrMethod==="function") return (nameOrMethod as Function).call(component,component,vnode,container);
+            let renderMethod = component[nameOrMethod as string] as any;
+            if(!renderMethod) return;
+            
+            let templateMethod:Function;
+            let node :any;
+            let accessMode = ObservableProxy.accessMode;
+            try{
+                
+                ObservableProxy.accessMode = ProxyAccessModes.Proxy;
+                node = renderMethod.call(component,component,vnode,container);
+                if(ELEMENT.isElement(node)){
+                    templateMethod = renderMethod;
+                }else{
+                    templateMethod = (component,_node:INode,_container:any)=>render(node,_container);
+                }
+            }finally{
+                ObservableProxy.accessMode = accessMode;
+            }
+            component[nameOrMethod as string] = templateMethod;
+            return templateMethod === renderMethod?node:templateMethod.call(component,component,node,container);
 
-function intializeActions(component:any,WrappedType:IComponentMeta,RawType:Function){
+        }
+        return undefined;
+    }});
+}
+
+function intializeActions(component:any,WrappedType:TComponentType,RawType:TComponentType){
     Object.defineProperty(component,"$private_updateTick",{
         enumerable:false,configurable:false,writable:true,value:undefined
     });
 
     let actions = WrappedType.$actions;
-    for(const n in actions)((name:string,method:Function,component:any,WrappedType:IComponentMeta)=>{
+    for(const n in actions)((name:string,method:Function,component:any,WrappedType:TComponentType)=>{
         let action :any= function(){
             let rs= method.apply(component,arguments);
             if(component.$private_updateTick) clearTimeout(component.$private_updateTick);
@@ -835,9 +912,9 @@ function intializeActions(component:any,WrappedType:IComponentMeta,RawType:Funct
     })(n,RawType.prototype[n],component,WrappedType);
 }
 
-function initializeComponentType(WrappedType:Function){
+function initializeReactives(WrappedType:TComponentType){
     //let meta = (WrappedType as any).$meta;
-    let reactives = (WrappedType as IComponentMeta).$reactives;
+    let reactives = WrappedType.$reactives;
     if(reactives)for(const n in reactives)((name:string,reactiveType:ReactiveTypes,component:any)=>{
         let privateName = `$private_${name}`;
         let initData = component[name];
@@ -845,29 +922,11 @@ function initializeComponentType(WrappedType:Function){
         defineReactive(name,privateName,WrappedType,()=>model.createProxy(initData));
     })(n,reactives[n],WrappedType.prototype);
 
-    let templates = (WrappedType as IComponentMeta).$templates;
-    Object.defineProperty(WrappedType.prototype,"$render",{enumerable:false,configurable:false,writable:false,value:function(partial?:string):any{
-        partial||(partial="");
-        let rendername = templates[partial];
-        if(rendername!==undefined){
-            let render = this[rendername];
-            if(render) {
-                let accessMode = ObservableProxy.accessMode;
-                try{
-                    ObservableProxy.accessMode = ProxyAccessModes.Proxy;
-                    return render.call(this,this);
-                }finally{
-                    ObservableProxy.accessMode = accessMode;
-                }
-            } 
-        }
-        return undefined;
-    }});
+    
 
     
 
-    Object.defineProperty(WrappedType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
-    //Object.defineProperty(RawType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
+   //Object.defineProperty(RawType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
         
 }
 
@@ -899,35 +958,82 @@ function defineReactive(name:string,privateName:string,WrappedType:Function,prox
         }
     };
     Object.defineProperty(WrappedType.prototype,name,descriptor);
-    //Object.defineProperty(component,name,descriptor);
-    //Object.defineProperty(component,name,descriptor);
 }
 
 
-export function reactive(type?:ReactiveTypes|string):any{
-    return function(target:any,propName:string){
-        (target.$reactives || (target.$reactives=[]))[propName] = ReactiveTypes[type]|| type || ReactiveTypes.Local;
-    }
-}
-export function action(async?:boolean){
-    return function(target: any, propertyName: string){
-        (target.$actions || (target.$actions=[]))[propertyName] = async;
-    };
-}
-
-export function template(partial?:string){
-    return function(target: any, propertyName: string){
-        (target.$templates || (target.$templates=[]))[partial||""] = propertyName;
-    };
-}
 let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
-export let ELEMENT:any =function(tag:string,attrs:{[name:string]:any}){
-    if(currentComponentType && (currentComponentType as IComponentMeta).$readyState!==ComponentReadyStates.Completed) {
-        return;
-    };
-    let elem = ELEMENT.createElement(tag);
-    for(const attrname in attrs){
-        let attrValue= attrs[attrname];
+
+export interface INode{
+    tag:string;
+    attrs:{[name:string]:any};
+    text?:any;
+    children?:INode[];
+};
+export type TNodes = INode | INode[];
+
+export function render(nodes:TNodes,container?:any):any{
+    if(Object.prototype.toString.call(nodes)==="[object Array]"){
+        let rs = [];
+        for(const i in nodes) rs.push(render(nodes[i] as TNodes,container)); 
+        return rs;
+    }
+    let ComponentType = componentTypes[(nodes as INode).tag];
+    return (ComponentType)?renderComponent(nodes as INode,ComponentType,container):renderElement(nodes as INode,container);
+}
+
+function renderComponent(node:INode,ComponentType:TComponentType,container?:any){
+    let component :any= new ComponentType();
+    for(const attrName in node.attrs)(function(attrName:string,attrValue:any){
+        let reactiveType = ComponentType.$reactives[attrName];
+        if(reactiveType===ReactiveTypes.Local || reactiveType===ReactiveTypes.Each) throw new Error(`${node.tag}.${attrName}是内部变量，不可以在外部赋值`);
+        let prop = component[attrName];
+        if(reactiveType === ReactiveTypes.Out){
+            
+            if(attrValue instanceof ObservableProxy){
+                prop.$subscribe(e=>attrValue.$set(e.item?e.item.$get():e.value));
+            }else {
+                prop.$subscribe(e=>this[attrName]=e.item?e.item.$get():e.value);
+            }
+        }else if(reactiveType===ReactiveTypes.In){
+            let aValue = attrValue?(attrValue instanceof ObservableProxy?attrValue.$get():attrValue):attrValue;
+            if(attrValue instanceof ObservableProxy){
+                prop.$set(aValue);
+            }else {
+                this[attrName] = aValue;
+            }
+        }else if(reactiveType===ReactiveTypes.Ref){
+            if(attrValue instanceof ObservableProxy){
+                prop.$subscribe(e=>attrValue.$set(e.item?e.item.$get():e.value));
+                attrValue.$subscribe(e=>prop.$set(e.item?e.item.$get():e.value));
+            }else {
+                prop.$subscribe(e=>this[attrName]=e.item?e.item.$get():e.value);
+                console.warn(`父组件的${attrName}属性未设置未可观测对象，父组件的值发生变化后，无法传入${node.tag}.${prop.$extras.path}`);
+            }
+        }else{
+            if(prop instanceof ObservableArray) prop.$set(attrValue);
+            else component[attrName]= attrValue;
+        }
+    })(attrName,node.attrs[attrName]);
+    if(component.initialize) setTimeout(()=>component.initialize(elem),0);
+    let elem = ComponentType.$render.call(component,component,node);
+    if(container) ELEMENT.appendChild(container,elem);
+    return elem;
+}
+
+function renderElement(node:INode,container?:any){
+    if(node.text!==undefined){
+        if(node.text instanceof ObservableProxy){
+            let proxy = node.text;
+            let child= ELEMENT.createText(proxy.$get());
+            attrBinders["#text"](child,proxy);
+            return child;
+        }else{
+            return ELEMENT.createText(node.text);
+        }
+    }
+    let elem = ELEMENT.createElement(node.tag);
+    for(const attrname in node.attrs){
+        let attrValue= node.attrs[attrname];
         if(attrValue&& attrValue.$isAction){
             let match = attrname.match(evtnameRegx);
             ELEMENT.attach(elem,match?match[1]:attrname,attrValue);
@@ -943,21 +1049,46 @@ export let ELEMENT:any =function(tag:string,attrs:{[name:string]:any}){
         }
         ELEMENT.setAttribute(elem,attrname,attrValue);
     }
-    for(let i =2,j=arguments.length;i<j;i++){
-        let child = arguments[i];
-        if(!child) continue;
-        if(!ELEMENT.isElement(child)){
-            if(child instanceof ObservableProxy){
-                let proxy = child;
-                child = ELEMENT.createText(child.$get());
-                attrBinders["#text"](child,proxy);
-            }else{
-                child = ELEMENT.createText(child);
-            }
-        }
+    if(node.children)for(const i in node.children){
+        let childNode = node.children[i];
+        if(!childNode) continue;
+        let child = render(childNode as INode);
         ELEMENT.appendChild(elem,child);
     }
+    if(container) ELEMENT.appendChild(container,elem);
     return elem;
+}
+
+export let ELEMENT:any =function(tag:string,attrs:{[name:string]:any}){
+    //modeling
+    if(currentComponentType && (currentComponentType as IComponentMeta).$readyState!==ComponentReadyStates.Completed) {
+        return;
+    };
+    let vnode:INode = {
+        tag:tag,
+        text:undefined,
+        attrs:attrs,
+        children:undefined
+    };
+    if(arguments.length>2){
+        let children = vnode.children=[];
+        for(let i=2,j=arguments.length;i<j;i++){
+            let child = arguments[i];
+            if(child.tag)children.push(child);
+            else {
+               children.push({
+                   text:child
+               }); 
+            }
+        }
+    }
+    return vnode;
+
+        
+    
+    
+    
+    
 };
 ELEMENT.isElement=(elem):any=>{
     return (elem as HTMLElement).nodeType === 1;
@@ -996,14 +1127,11 @@ function changeEventToText(e:IChangeEventArgs):string{
     return (value===undefined || value===null)?"":value.toString();
 }
 attrBinders["#text"] = (elem:any,bindValue:IObservableProxy)=>{
-    debugger;
     bindValue.$subscribe((e:IChangeEventArgs)=>{
-        debugger;
         (elem as Node).nodeValue = changeEventToText(e);
     });
 };
 attrBinders["value"] = (elem:any,bindValue:IObservableProxy)=>{
-    debugger;
     bindValue.$subscribe((e:IChangeEventArgs)=>{
         (elem as HTMLInputElement).value = changeEventToText(e);
     });
