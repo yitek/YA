@@ -14,50 +14,160 @@ function defineMembers(target:any,props?:any,des?:boolean|PropertyDecorator){
 
 //===============================================================================
 
+
+/**
+ * 可监听对象接口
+ *
+ * @export
+ * @interface IObservable
+ * @template TEvtArgs 事件参数的类型
+ */
 export interface IObservable<TEvtArgs>{
-    $_listeners:Function[];
-    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
-    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
-    $notify:(evt:TEvtArgs)=>IObservable<TEvtArgs>;
+     
+    /**
+     * 内部的主题列表，可以访问它，但不推荐直接使用，主要是debug时使用
+     * 如果不指明主题topic，默认topic=""
+     * @type {[topic:string]:Function[]}
+     * @memberof IObservable
+     */
+    
+
+    $_topics:{[topic:string]:Function[]};
+    
+    /**
+     * 注册监听函数
+     * $notify的时候，注册了相关主题的监听函数会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):IObservable<TEvtArgs>;
+    
+    /**
+     * 取消主题订阅
+     * $notify操作时，被取消的监听器不会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $unsubscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):IObservable<TEvtArgs>;
+
+    /**
+     * 发送通知
+     * 如果相关主题上有监听器，会逐个调用监听器
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $notify(topicOrEvtArgs:string|TEvtArgs,evt?:TEvtArgs):IObservable<TEvtArgs>;
 }
 
 
 
-export function valueObservable<TEvtArgs>(target:any):IObservable<TEvtArgs>{
-    target.$subscribe = function(listener:(evt:IChangeEventArgs)=>any):IObservable<TEvtArgs>{
-        (this.$_listeners||(this.$_listeners=[])).push(listener);
-        return this;
-    }
-    target.$unsubscribe = function(listener:(evt:IChangeEventArgs)=>any):IObservable<TEvtArgs>{
-        if(!this.$_listeners)return this;
-        for(let i =0,j=this.$_listeners.length;i<j;i++){
-            let existed = this.$_listeners.shift();
-            if(existed!==listener) this.$_listeners.push(existed);
-        }
-        return this;
-    } 
-    target.$notify = function(evt:IChangeEventArgs):IObservable<TEvtArgs>{
-        let listeners = this.$_listeners;
-        if(!listeners|| listeners.length===0) return this;
-        for(const i in listeners){
-            listeners[i].call(this,evt);
-        }
-        return this;
-    }
-    return defineMembers(target) as IObservable<TEvtArgs>;
-}
+/**
+ * 可监听对象类
+ * 实现订阅/发布模式
+ * 它支持订阅/发布某个主题;如果未指定主题，默认主题为""
+ * 它的所有关于订阅发布的成员字段/函数都是enumerable=false的
+ * 一般用作其他类型的基类
+ *
+ * @export
+ * @class Observable
+ * @implements {IObservable<TEvtArgs>}
+ * @template TEvtArgs 事件参数的类型
+ */
 export class Observable<TEvtArgs> implements IObservable<TEvtArgs>{
-    $_listeners:Function[];
-    $subscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
-    $unsubscribe:(listener:(evt:TEvtArgs)=>any)=>IObservable<TEvtArgs>;
-    $notify:(evt:TEvtArgs)=>IObservable<TEvtArgs>;
-
+    /**
+     * 内部的主题列表，可以访问它，但不推荐直接使用，主要是debug时使用
+     * 如果不指明主题topic，默认topic=""
+     * 
+     * @type {[topic:string]:Function[]}
+     * @memberof Observable
+     */
+    $_topics:{[topic:string]:{(evt:TEvtArgs):any}[]};
+    
     constructor(){
-        Object.defineProperty(this,"$_listeners",{enumerable:false,writable:true,configurable:false});
+        Object.defineProperty(this,"$_topics",{enumerable:false,writable:true,configurable:false});
+    }
+    /**
+     * 注册监听函数
+     * $notify的时候，注册了相关主题的监听函数会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):IObservable<TEvtArgs>{
+        if(listener===undefined) {
+            listener = topicOrListener as {(evt:TEvtArgs):any};
+            topicOrListener="";
+        }
+        let topics = this.$_topics ||(this.$_topics={});
+        let handlers = topics[topicOrListener as string] ||(topics[topicOrListener as string] =[]);
+        handlers.push(listener);
+        return this;
+    }
+    /**
+     * 取消主题订阅
+     * $notify操作时，被取消的监听器不会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $unsubscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):IObservable<TEvtArgs>{
+        if(listener===undefined) {
+            listener = topicOrListener as {(evt:TEvtArgs):any};
+            topicOrListener="";
+        }
+        let topics,handlers;
+        if(!(topics = this.$_topics)) return this;
+        if(!(handlers=topics[topicOrListener as string])) return this;
+        for(let i =0,j=handlers.length;i<j;i++){
+            let existed = handlers.shift();
+            if(existed!==listener) handlers.push(existed);
+        }
+        return this;
+    }
+    /**
+     * 发送通知
+     * 如果相关主题上有监听器，会逐个调用监听器
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $notify(topicOrEvtArgs:string|TEvtArgs,evtArgs?:TEvtArgs):IObservable<TEvtArgs>{
+        if(evtArgs===undefined){
+            evtArgs = topicOrEvtArgs as TEvtArgs;
+            topicOrEvtArgs="";
+        }
+        let topics,handlers;
+        if(!(topics = this.$_topics)) return this;
+        if(!(handlers=topics[topicOrEvtArgs as string])) return this;
+        for(const i in handlers){
+            handlers[i].call(this,evtArgs);
+        }
+        return this;
     }
 }
 
-valueObservable(Observable.prototype);
+defineMembers(Observable.prototype);
 
 //================================================================
 
@@ -123,7 +233,7 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
     $extras?:any;
     $owner?:IObservableProxy;
     $raw:(value?:any)=>any;
-    constructor(raw:(val?:any)=>any,initValue?:any){
+    constructor(raw?:(val?:any)=>any,initValue?:any,extras?:any){
         super();
         let target:any;
         if(initValue!==undefined){
@@ -136,7 +246,8 @@ export class ObservableProxy extends Observable<IChangeEventArgs> implements IOb
             $owner:undefined,
             $index:undefined,
             $modifiedValue:undefined,
-            $type :TargetTypes.Value
+            $type :TargetTypes.Value,
+            $extras:extras
         });
     }
 
@@ -180,17 +291,11 @@ export interface IObjectMeta{
 }
 
 export interface IObservableObject extends IObservableProxy{
+    $prop(name:string,prop:IObservableProxy|boolean|{(proxy:ObservableObject,name:string):any}|PropertyDecorator):IObservableObject;
     [index:string]:any;   
 }
 
-function buildNotProperty(name:string,proxy:IObservableObject,enumerable:boolean){
-    
-    Object.defineProperty(proxy,name,{
-        enumerable:enumerable,configurable:false,
-        get:()=>(proxy.$modifiedValue===undefined?proxy.$target:(proxy.$modifiedValue===Undefined?null:proxy.$modifiedValue))[name],
-        set:(newValue:any)=>(proxy.$modifiedValue===undefined?proxy.$target:(proxy.$modifiedValue===Undefined?null:proxy.$modifiedValue))[name]=newValue
-    });
-}
+
 
 function prop_raw(name:string,objProxy:IObservableObject):{(val?:any):any}{
     return function(val?:any){
@@ -209,54 +314,65 @@ function prop_raw(name:string,objProxy:IObservableObject):{(val?:any):any}{
 export class ObservableObject extends ObservableProxy implements IObservableObject{
     $target:any;
     [index:string]:any;
-    constructor(raw:(val?:any)=>any,meta:IObjectMeta,initValue?:object){
-        super(raw,initValue);
+    constructor(raw:(val?:any)=>any,initValue?:object,extras?:any){
+        super(raw,initValue,extras);
         let target = this.$target;
         if(!target) raw.call(this,target=this.$target={});
+        
         defineMembers(this,{
             "$target":target,
             "$type":TargetTypes.Object
         });
 
         this.$type = TargetTypes.Object;
+    }
 
-        if(!meta){
-
-            return;
+    $prop(name:string,prop:IObservableProxy|boolean|{(proxy:ObservableObject,name:string):any}|PropertyDecorator):ObservableObject{
+        if(prop ===false){
+            Object.defineProperty(this,name,{
+                enumerable:true,configurable:false,
+                get:()=>(this.$modifiedValue===undefined?this.$target:(this.$modifiedValue===Undefined?null:this.$modifiedValue))[name],
+                set:(newValue:any)=>(this.$modifiedValue===undefined?this.$target:(this.$modifiedValue===Undefined?null:this.$modifiedValue))[name]=newValue
+            });
+            return this;
         }
-        if(meta.fieldnames)
-            for(const i in meta.fieldnames)
-                buildNotProperty(meta.fieldnames[i],this,true);
+        if(prop===true || prop instanceof ObservableProxy){
+            prop = prop instanceof ObservableProxy?prop :(new ObservableProxy(prop_raw(name,this)));
+            (prop as IObservableProxy).$owner = this;
+            (prop as IObservableProxy).$index = name;
+            Object.defineProperty(this,name,{
+                enumerable:true,
+                configurable:false,
+                get:(prop as IObservableProxy).$type === TargetTypes.Value?()=>(prop as IObservableProxy).$get():()=>prop,
+                set:(val:any)=>(prop as IObservableProxy).$set(val)
+            });                
+            
+            return this;
+        }
         
-        if(meta.methodnames)    
-            for(const i in meta.methodnames)
-            buildNotProperty(meta.methodnames[i],this,false);
-
-        if(meta.propBuilder){
-            let define = (name:string,prop:IObservableProxy)=>{
-                prop ||(prop = new ObservableProxy(prop_raw(name,this)));
-                prop.$owner = this;
-                prop.$index = name;
-                Object.defineProperty(this,name,{
-                    enumerable:true,
-                    configurable:false,
-                    get:prop.$type === TargetTypes.Value?()=>prop.$get():()=>prop,
-                    set:(val:any)=>prop.$set(val)
-                });                
-                
-                return define;
-            };
-            meta.propBuilder.call(this,this,define);
-        } 
-        
+        if( typeof prop==='function'){
+            let prop_value:any;
+            Object.defineProperty(this,name,{
+                enumerable:false,
+                configurable:false,
+                get:()=>{
+                    if(prop_value===undefined) prop_value=(prop as Function).call(this,this,name);
+                    return prop_value.get?prop_value.get():prop_value.$get();
+                },
+                set:(val)=>{
+                    if(prop_value===undefined) prop_value=(prop as Function).call(this,this,name);
+                    return prop_value.set?prop_value.set(val):prop_value.$set(val);
+                }
+            });  
+            return this;
+        }
+        Object.defineProperty(this,name,prop);
+        return this;
     }
 
     $get():any{
         if(ObservableProxy.accessMode===ProxyAccessModes.Raw) return this.$raw();
         return this;
-        //if(ObservableProxy.accessMode===ProxyAccessModes.Proxy) return this;
-        //return this.$modifiedValue===undefined?(this.$target||null):this.$modifiedValue;
-        
     }
 
     $set(newValue:any):IObservableProxy{
@@ -333,9 +449,9 @@ export class ObservableArray extends ObservableProxy{
     [index:number]:any;
     $length:number;
     length:number;
-    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy,initValue?:any[]){
+    constructor(raw:(val?:any)=>any,item_convertor?:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy,initValue?:any[],extras?:any){
         let target:any;
-        super(raw,initValue);
+        super(raw,initValue,extras);
         target = this.$target;
         if(Object.prototype.toString.call(target)!=="[object Array]") raw.call(this,target=this.$target=[]);
         
@@ -643,89 +759,99 @@ export function observable(target?:any):IObservable<any>{
 }
  
 //=======================================================================
+export class ObservableSchema{
+    $type:TargetTypes;
+    $index:string|number;
+    $path:string;
+    
+    //$prop_models:{[index:string]:Model};
+    $owner_schema?:ObservableSchema;
+    $item_schema?:ObservableSchema;
+    $init_data?:any;
+    constructor(index?:string|number,owner?:ObservableSchema){
+        let path;
+        index = index===undefined|| index===null?"":index;
+        if(owner){
+            let ppath = owner.$path;
+            path = ppath?ppath + "." + index:index;
+        }else path = index;
 
-export class Model{
-    type:TargetTypes;
-    index:string|number;
-    item_model:Model;
-    prop_models:{[index:string]:Model};
-    owner_model:Model;
-    _path?:string;
-    constructor(data:any,index?:string|number,owner?:Model){
-        this.index = index;
-        this.owner_model = owner;
-        let t = Object.prototype.toString.call(data);
+        defineMembers(this,{
+            "$type":TargetTypes.Value
+            ,"$index":index
+            ,"$path":path
+            ,"$owner_schema":owner
+            ,"$item_schema":null
+            ,"$init_data":undefined
+        });
+    }
+    $init(initData:any):ObservableSchema{
+        this.$init_data = initData;
+        let t = Object.prototype.toString.call(initData);
         if(t==="[object Object]") {
-            this.type = TargetTypes.Object;
-            this.prop_models = {};
-            for(const n in data){
+            this.$type = TargetTypes.Object;
+            
+            for(const n in initData){
                 if(n===ObservableArray.structToken) continue;
-                this.prop_models[n] = new Model(data[n],n,this);
+                let memberSchema = new ObservableSchema(n,this).$init(initData[n]);
+                Object.defineProperty(this,n,{enumerable:true,configurable:false,writable:false,value:memberSchema});
             }
         }
         else if(t==="[object Array]"){
-            this.type = TargetTypes.Array;
-            for(const i in data){
-                let item = data[i];
-                this.item_model = new Model(item,-1,this);
+            this.$type = TargetTypes.Array;
+            for(const i in initData){
+                let item = initData[i];
+                this.$item_schema = new ObservableSchema(-1,this).$init(item);
                 break;
             }
         }
         else{
-            this.type = TargetTypes.Value;
-
+            this.$type = TargetTypes.Value;
         }
+        return this;
     }
+    $createProxy(initData:any,ownerProxy?:IObservableProxy){
+        if(!ownerProxy){
+            if(initData instanceof ObservableProxy){
+                ownerProxy = initData;
+                initData=undefined;
+            }
+        }
 
-    createProxy(data:any,ownerProxy?:IObservableProxy):IObservableProxy{
         let raw :(val?:any)=>any;
-        if(this.index!==undefined&& this.owner_model){
-            raw = this.owner_model.type=== TargetTypes.Object
-                ? prop_raw(this.index as string,ownerProxy)
+        if(this.$index!==undefined&& this.$owner_schema){
+            raw = this.$owner_schema.$type=== TargetTypes.Object
+                ? prop_raw(this.$index as string,ownerProxy as IObservableObject)
                 : item_raw(ownerProxy as IObservableArray);
         } 
-        else raw = (val?:any)=>val===undefined?data:data=val;    
-        
+        else raw = (val?:any)=>val===undefined?initData:initData=val;    
+
         let proxy:IObservableProxy;
-        if(this.type===TargetTypes.Value) {
-            proxy = new ObservableProxy(raw,data);
-        }else if(this.type === TargetTypes.Object){
+        let type = this.$type;
+        if(type===TargetTypes.Value) {
+            proxy = new ObservableProxy(raw,initData,this);
+        }else if(type === TargetTypes.Object){
             //let self:Model;
-            proxy = new ObservableObject(raw,{
-                propBuilder:(ownerProxy:IObservableObject,define:(name,proxy)=>any)=>{
-                    for(const n in this.prop_models){
-                        let prop_model = this.prop_models[n];
-                        let prop_proxy = prop_model.createProxy(data[n],ownerProxy);
-                        define(n,prop_proxy);
-                    }
+            proxy = new ObservableObject(raw,initData,this);
+            for(const n in this){
+                let schema:any = this[n];
+                if(schema instanceof ObservableSchema){
+                    (proxy as IObservableObject).$prop(n,schema.$createProxy(initData[n],proxy));
                 }
-            },data);
-        }else if(this.type===TargetTypes.Array){
-            let item_convertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
-            if(this.item_model){
-                item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>
-                    this.item_model.createProxy(item_value,proxy);
             }
-            proxy = new ObservableArray(raw,item_convertor,data);
+        }else if(type===TargetTypes.Array){
+            let item_convertor:(index:number,item_value:any,proxy:IObservableArray)=>IObservableProxy;
+            if(this.$item_schema){
+                item_convertor = (index:number,item_value:any,proxy:IObservableArray):IObservableProxy=>
+                    this.$item_schema.$createProxy(item_value,proxy);
+            }
+            proxy = new ObservableArray(raw,item_convertor,initData,this);
+            
         }
-        proxy.$extras = this;
         return proxy;
     }
 }
-Object.defineProperty(Model.prototype,"path",{enumerable:false,configurable:true
-    ,get:function(){
-        let path;
-        let mepath = this.index===undefined|| this.index===null?"":this.index;
-        if(this.owner_model){
-            let ppath = this.owner_model.path;
-            path = ppath?ppath + "." + mepath:mepath;
-        }else path = mepath;
-        Object.defineProperty(Model.prototype,"path",{enumerable:false,configurable:false,writable:false,value:path});
-        return mepath;
-        
-    }
-    ,set:function(){throw Error("系统自动生成path属性的值，不可以赋值");}
-});
+
 
 //=======================================================================
 
@@ -739,12 +865,12 @@ export enum ComponentReadyStates{
 
 export interface IComponentMeta {
     $reactives?:{[attr:string]:ReactiveTypes};
-    $templates?:{[attr:string]:string|{(component:IComponent,children:INode[])}};
+    $templates?:{[attr:string]:string|Function};
     $actions?:{[attr:string]:string};
     $wrapType?:Function;
     $rawType?:Function;
     $tag?:string;
-    $render?:(component:IComponent,vnode:INode,partial?:string)=>any;
+    $render?:(component:IComponent,partial:string,container:any)=>any;
     $readyState?:ComponentReadyStates;
 }
 
@@ -773,7 +899,8 @@ let currentComponentType:TComponentType;
 
 export function reactive(type?:ReactiveTypes|string):any{
     return function(target:any,propName:string){
-        (target.$reactives || (target.$reactives=[]))[propName] = ReactiveTypes[type]|| type || ReactiveTypes.Local;
+        type = typeof type ==="string"?ReactiveTypes[type]:type;
+        (target.$reactives || (target.$reactives=[]))[propName] = type || ReactiveTypes.Local;
     }
 }
 export function action(async?:boolean){
@@ -848,11 +975,11 @@ export function component(tag:string|TComponentType){
 function initializeTemplates(WrappedType:TComponentType){
     let templates = WrappedType.$templates;
     
-    Object.defineProperty(WrappedType,"$render",{enumerable:false,configurable:false,writable:false,value:function(component:IComponent,vnode?:INode,partial?:string,container?:any):any{
+    Object.defineProperty(WrappedType,"$render",{enumerable:false,configurable:false,writable:false,value:function(component:IComponent,partial?:string,container?:any):any{
         partial||(partial="");
         let nameOrMethod = templates[partial];
         if(nameOrMethod!==undefined){
-            if(typeof nameOrMethod==="function") return (nameOrMethod as Function).call(component,component,vnode,container);
+            if((nameOrMethod as any).$virtual_node!==undefined) return (nameOrMethod as Function).call(component,container);
             let renderMethod = component[nameOrMethod as string] as any;
             if(!renderMethod) return;
             
@@ -862,17 +989,19 @@ function initializeTemplates(WrappedType:TComponentType){
             try{
                 
                 ObservableProxy.accessMode = ProxyAccessModes.Proxy;
-                node = renderMethod.call(component,component,vnode,container);
+                node = renderMethod.call(component,container);
                 if(ELEMENT.isElement(node)){
                     templateMethod = renderMethod;
+                    Object.defineProperty(templateMethod,"$virtual_node",{enumerable:false,writable:false,configurable:false,value:false});
                 }else{
-                    templateMethod = (component,_node:INode,_container:any)=>render(node,_container);
+                    templateMethod = (component:IComponent,_container:any)=>(node as VirtualNode).render(component,container);
+                    Object.defineProperty(templateMethod,"$virtual_node",{enumerable:false,writable:false,configurable:false,value:node});
                 }
             }finally{
                 ObservableProxy.accessMode = accessMode;
             }
             component[nameOrMethod as string] = templateMethod;
-            return templateMethod === renderMethod?node:templateMethod.call(component,component,node,container);
+            return templateMethod === renderMethod?node:templateMethod.call(component,component,container);
 
         }
         return undefined;
@@ -906,52 +1035,78 @@ function intializeActions(component:any,WrappedType:TComponentType,RawType:TComp
         Object.defineProperty(component,name,{
             enumerable:false,configurable:false,writable:false,value:action
         });
-        Object.defineProperty(action,"$isAction",{
-            enumerable:false,configurable:false,writable:false,value:true
+        Object.defineProperty(action,"$actionName",{
+            enumerable:false,configurable:false,writable:false,value:name
         });
     })(n,RawType.prototype[n],component,WrappedType);
 }
 
 function initializeReactives(WrappedType:TComponentType){
-    //let meta = (WrappedType as any).$meta;
     let reactives = WrappedType.$reactives;
     if(reactives)for(const n in reactives)((name:string,reactiveType:ReactiveTypes,component:any)=>{
         let privateName = `$private_${name}`;
         let initData = component[name];
-        let model = new Model(initData,name);
-        defineReactive(name,privateName,WrappedType,()=>model.createProxy(initData));
-    })(n,reactives[n],WrappedType.prototype);
-
-    
-
-    
-
-   //Object.defineProperty(RawType,"$readyState",{enumerable:false,configurable:false,writable:false,value:true});
+        let model = new ObservableSchema(name,initData);
+        if(reactiveType=== ReactiveTypes.Each){
+            defineReactive(name,privateName,WrappedType,enumerableReactiveCreator(name,()=>model.$createProxy(initData)),true);
+        }else {
+            defineReactive(name,privateName,WrappedType,()=>model.$createProxy(initData),false);
+        }
         
+    })(n,reactives[n],WrappedType.prototype);        
 }
 
-function defineReactive(name:string,privateName:string,WrappedType:Function,proxyCreator:()=>IObservableProxy){
+function enumerableReactiveCreator(name:string,proxyCreator:()=>IObservableProxy):any{
+    return function createEnumerableProxy(proxy?:IObservableProxy){
+        let component:IComponent= this;
+        proxy ||(proxy=proxyCreator()) ;
+        Object.defineProperty(proxy,"$new",{
+            enumerable:false,configurable:false,writable:false,value:function(){
+                let newProxy = proxyCreator();
+                createEnumerableProxy.call(component,newProxy);
+                Object.defineProperty(component,name,{
+                    enumerable:true,configurable:true,get:()=>newProxy.$get(),set:(val)=>newProxy.$set(val)
+                });
+                return newProxy;
+            }
+        });
+        Object.defineProperty(proxy,"$replace",{
+            enumerable:false,configurable:false,writable:false,value:function(newProxy:IObservableProxy){
+                createEnumerableProxy.call(component,newProxy);
+                Object.defineProperty(component,name,{
+                    enumerable:true,configurable:true,get:()=>newProxy.$get(),set:(val)=>newProxy.$set(val)
+                });
+                return newProxy;
+            }
+        });
+        return proxy;
+    }
+}
+
+
+
+function defineReactive(name:string,privateName:string,WrappedType:TComponentType,proxyCreator:()=>IObservableProxy,configurable:boolean){
     let descriptor = {
         enumerable:true,
         configurable:true,
         get:function(){
             let proxy = this[privateName];
-            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
+            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator.call(this)});
             else{
                 delete this[privateName];
                 Object.defineProperty(this,name,{
-                    enumerable:true,configurable:false,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
+                    enumerable:true,configurable:configurable,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
                 });
             } 
             return proxy.$get(); 
         },
         set:function(val){
             let proxy = this[privateName];
-            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator()});
+            if(!proxy) Object.defineProperty(this,privateName,{enumerable:false,writable:false,configurable:true,value:proxy=proxyCreator.call(this)});
             else{
                 delete this[privateName];
                 Object.defineProperty(this,name,{
-                    enumerable:true,configurable:false,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
+                    enumerable:true,configurable:configurable,get:()=>proxy.$get(),set:(val)=>proxy.$set(val)
                 });
             } 
             proxy.$set(val); 
@@ -962,134 +1117,203 @@ function defineReactive(name:string,privateName:string,WrappedType:Function,prox
 
 
 let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+export class VirtualNode{
+    tag?:string;
+    attrs?:{[name:string]:any};
+    content?:any;
+    children?:VirtualNode[];
+    constructor(){}
 
-export interface INode{
-    tag:string;
-    attrs:{[name:string]:any};
-    text?:any;
-    children?:INode[];
-};
-export type TNodes = INode | INode[];
-
-export function render(nodes:TNodes,container?:any):any{
-    if(Object.prototype.toString.call(nodes)==="[object Array]"){
-        let rs = [];
-        for(const i in nodes) rs.push(render(nodes[i] as TNodes,container)); 
-        return rs;
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        return null;
     }
-    let ComponentType = componentTypes[(nodes as INode).tag];
-    return (ComponentType)?renderComponent(nodes as INode,ComponentType,container):renderElement(nodes as INode,container);
+
+    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        return null;
+    }
+
+    render(component:IComponent,container?:any):any{
+        let variables :any[]=[];
+        let codeText = this.genCodes(variables).join("");
+        console.log(codeText);
+        let actualRenderFn = new Function("variables","ELEMENT","component","container",codeText) as {(variables,ELEMENT:any,component:IComponent,container?:any):any};
+        this.render =(component,container)=> actualRenderFn(variables,ELEMENT,component,container);
+        return this.render(component,container);
+    }
+
+    renderChildren(component:IComponent,container?:any):any{
+        let variables :any[]=[];
+        let actualRenderFn = new Function("ELEMENT","component","elem",this.genChildrenCodes(variables).join("")+"return children;\n") as {(ELEMENT:any,component:IComponent,container?:any):any};
+        this.renderChildren =(component,container)=> actualRenderFn(ELEMENT,component,container);
+        return this.renderChildren(component,container);
+    }
 }
 
-function renderComponent(node:INode,ComponentType:TComponentType,container?:any){
-    let component :any= new ComponentType();
-    for(const attrName in node.attrs)(function(attrName:string,attrValue:any){
-        let reactiveType = ComponentType.$reactives[attrName];
-        if(reactiveType===ReactiveTypes.Local || reactiveType===ReactiveTypes.Each) throw new Error(`${node.tag}.${attrName}是内部变量，不可以在外部赋值`);
-        let prop = component[attrName];
-        if(reactiveType === ReactiveTypes.Out){
-            
-            if(attrValue instanceof ObservableProxy){
-                prop.$subscribe(e=>attrValue.$set(e.item?e.item.$get():e.value));
-            }else {
-                prop.$subscribe(e=>this[attrName]=e.item?e.item.$get():e.value);
-            }
-        }else if(reactiveType===ReactiveTypes.In){
-            let aValue = attrValue?(attrValue instanceof ObservableProxy?attrValue.$get():attrValue):attrValue;
-            if(attrValue instanceof ObservableProxy){
-                prop.$set(aValue);
-            }else {
-                this[attrName] = aValue;
-            }
-        }else if(reactiveType===ReactiveTypes.Ref){
-            if(attrValue instanceof ObservableProxy){
-                prop.$subscribe(e=>attrValue.$set(e.item?e.item.$get():e.value));
-                attrValue.$subscribe(e=>prop.$set(e.item?e.item.$get():e.value));
-            }else {
-                prop.$subscribe(e=>this[attrName]=e.item?e.item.$get():e.value);
-                console.warn(`父组件的${attrName}属性未设置未可观测对象，父组件的值发生变化后，无法传入${node.tag}.${prop.$extras.path}`);
-            }
-        }else{
-            if(prop instanceof ObservableArray) prop.$set(attrValue);
-            else component[attrName]= attrValue;
-        }
-    })(attrName,node.attrs[attrName]);
-    if(component.initialize) setTimeout(()=>component.initialize(elem),0);
-    let elem = ComponentType.$render.call(component,component,node);
-    if(container) ELEMENT.appendChild(container,elem);
-    return elem;
-}
-
-function renderElement(node:INode,container?:any){
-    if(node.text!==undefined){
-        if(node.text instanceof ObservableProxy){
-            let proxy = node.text;
-            let child= ELEMENT.createText(proxy.$get());
-            attrBinders["#text"](child,proxy);
-            return child;
-        }else{
-            return ELEMENT.createText(node.text);
-        }
+export class VirtualTextNode extends VirtualNode{
+    
+    constructor(public content:any){
+        super();
     }
-    let elem = ELEMENT.createElement(node.tag);
-    for(const attrname in node.attrs){
-        let attrValue= node.attrs[attrname];
-        if(attrValue&& attrValue.$isAction){
-            let match = attrname.match(evtnameRegx);
-            ELEMENT.attach(elem,match?match[1]:attrname,attrValue);
-            continue;
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        if(this.content instanceof ObservableProxy){
+            if(this.content.$extras.path==="name") debugger;
+            codes.push(`${tabs}var proxy=component.${this.content.$extras.path};\n`);
+            codes.push(`${tabs}var elem=ELEMENT.createText(proxy.$get());\n`);
+            codes.push(`${tabs}proxy.$subscribe(function(e){elem.nodeValue = ELEMENT.changeEventToText(e);})\n`);
+        }else{
+            codes.push(`${tabs}var elem = ELEMENT.createText('${this.content.replace(/'/,"\\'")}');\n`);
         }
-        if(attrValue instanceof ObservableProxy){
-            let binder = attrBinders[name];
-            if(binder){
-                binder(elem,attrValue);
+        codes.push(`${tabs}if(container) ELEMENT.appendChild(container,elem);\n`);
+        codes.push(`${tabs}return elem;\n`);
+        return codes;
+    }
+}
+export class VirtualElementNode extends VirtualNode{
+    
+    children?:VirtualNode[];
+
+    constructor(public tag:string,public attrs:{[name:string]:any}){
+        super();
+    }
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        codes.push(`${tabs}var elem=ELEMENT.createElement("${this.tag}");\n`);
+        
+        let repeatPars :any[];
+        for(const attrname in this.attrs){
+            let attrValue= this.attrs[attrname];
+            if(attrname==="repeat") {
+                repeatPars = [];
+                for(let i in attrValue) repeatPars.push(`component.${attrValue[i].$extras.path}`);
                 continue;
             }
-            else attrValue = attrValue.$get();
+            
+            if(attrValue&& attrValue.$actionName){
+                let match = attrname.match(evtnameRegx);
+                let evtName = match?match[1]:attrname;
+                codes.push(`${tabs}ELEMENT.attach(elem,"${evtName}",component.${attrValue.$actionName});\n`);
+            }else if(attrValue instanceof ObservableProxy){
+                let binder = attrBinders[name];
+                if(binder)
+                    codes.push(`${tabs}ELEMENT.$attrBinders["${attrname}"].call(component,elem,compnent.${attrValue.$extras.path});\n`);
+                else 
+                    codes.push(`${tabs}ELEMENT.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+            }else {
+                codes.push(`${tabs}ELEMENT.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+            }
         }
-        ELEMENT.setAttribute(elem,attrname,attrValue);
+        codes.push(`${tabs}if(container) ELEMENT.appendChild(container,elem);\n`);
+
+        if(repeatPars){
+            codes.push(`${tabs}ELEMENT.$repeat(component,elem,vars[${variables.length}],${repeatPars.join(",")});\n`);
+            variables.push(this);
+        }else{
+            this.genChildrenCodes(variables,codes,tabs);
+        }
+        
+        codes.push(`${tabs}return elem;\n`);
+        return codes;
     }
-    if(node.children)for(const i in node.children){
-        let childNode = node.children[i];
-        if(!childNode) continue;
-        let child = render(childNode as INode);
-        ELEMENT.appendChild(elem,child);
+    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        if(this.children && this.children.length){
+            codes.push(tabs + "var child;var children=[];\n");
+            let subTabs = tabs+"\t";
+            for(let i in this.children){
+                let child = this.children[i];
+                codes.push(`${tabs}children.push(child=(function(ELEMENT,component,container){\n`);
+                child.genCodes(variables,codes,subTabs);
+                codes.push(`${tabs}})(ELEMENT,component,elem));\n`);
+            }
+        }
+        return codes;
     }
-    if(container) ELEMENT.appendChild(container,elem);
-    return elem;
 }
+
+export class VirtualComponentNode extends VirtualNode{
+    children?:VirtualNode[];
+    constructor(public tag:string,public attrs:{[name:string]:any},public content:any){
+        super();
+    }
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        let typeAt = variables.length;
+        codes.push(`${tabs}var subComponent = variables[${typeAt}].$create();\n`);
+        variables.push(this.content);
+        let ComponentType = this.content as TComponentType;
+        for(const attrName in this.attrs){
+            let attrValue = this.attrs[attrName];
+            let reactiveType = ComponentType.$reactives[attrName];
+            if(reactiveType===ReactiveTypes.Local || reactiveType===ReactiveTypes.Each) throw new Error(`${this.tag}.${attrName}是内部变量，不可以在外部赋值`);
+            
+            if(reactiveType === ReactiveTypes.Out){
+                if(attrValue instanceof ObservableProxy){
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$extras.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    
+                }else {
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrName}=e.item?e.item.$get():e.value;});\n`);
+                }
+            }else if(reactiveType===ReactiveTypes.In){
+                if(attrValue instanceof ObservableProxy){
+                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrValue.$extras.path}.$get());\n`);
+                }else{
+                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrName});\n`);
+                }
+                
+            }else if(reactiveType===ReactiveTypes.Ref){
+                if(attrValue instanceof ObservableProxy){
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$extras.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    codes.push(`${tabs}component.${attrValue.$extras.path}.$subscribe(function(e){subComponent.${attrName}.$set(e.item?e.item.$get():e.value);});\n`);
+                }else {
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$extras.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    console.warn(`父组件的属性未设置未可观测对象，父组件的值发生变化后，无法传入${this.tag}.${attrName}`);
+                }
+
+            }else{
+                codes.push(`${tabs}if(subComponent.${attrName}.$set) subComponent.${attrName}.$set(variables[${variables.length}]);else subComponent.${attrName}=variables[${variables.length}];\n`);
+                variables.push(attrValue);
+            }
+        };
+        codes.push(`${tabs}if(subComponent.initialize) setTimeout(function(){subComponent.initialize(elem);},0);\n`);
+        codes.push(`${tabs}var elem = variables[${typeAt}].$render.call(subComponent,variables[${variables.length}]);\n`);
+        variables.push(this);
+        codes.push(`${tabs}if(container) ELEMENT.appendChild(container,elem);\n`);
+        return codes;
+    }
+}
+
+function buildRepeat(component:IComponent,container:any,vnode:VirtualNode,each:IObservableProxy,value:IObservableProxy,key:IObservableProxy){
+    ELEMENT.removeAllChildrens(container);
+    
+    for(let k in each){
+        if(key)(key as any).$new(k);
+        if(value) (value as any).$replace(each[k]);
+        vnode.renderChildren(component,container);
+    }
+}
+
+
 
 export let ELEMENT:any =function(tag:string,attrs:{[name:string]:any}){
     //modeling
     if(currentComponentType && (currentComponentType as IComponentMeta).$readyState!==ComponentReadyStates.Completed) {
         return;
     };
-    let vnode:INode = {
-        tag:tag,
-        text:undefined,
-        attrs:attrs,
-        children:undefined
-    };
+    let ComponentType = componentTypes[tag];
+    let vnode:VirtualNode =ComponentType?new VirtualComponentNode(tag,attrs,ComponentType): new VirtualElementNode(tag,attrs);
     if(arguments.length>2){
-        let children = vnode.children=[];
+        let children:VirtualNode[] = vnode.children=[];
         for(let i=2,j=arguments.length;i<j;i++){
             let child = arguments[i];
+            if(!child) continue;
             if(child.tag)children.push(child);
-            else {
-               children.push({
-                   text:child
-               }); 
-            }
+            else children.push(new VirtualTextNode(child)); 
         }
     }
-    return vnode;
-
-        
-    
-    
-    
-    
+    return vnode; 
 };
+ELEMENT.$repeat =buildRepeat;
 ELEMENT.isElement=(elem):any=>{
     return (elem as HTMLElement).nodeType === 1;
 };
@@ -1121,17 +1345,20 @@ ELEMENT.attach = (elem:any,evtname:string,handler:Function)=>{
     else elem['on'+evtname] = handler;
 }
 
-let attrBinders:{[name:string]:{(elem:any,bindValue:IObservableProxy):void}} ={};
+let attrBinders:{[name:string]:{(elem:any,bindValue:IObservableProxy,isBibind?:boolean):any}} ={};
 function changeEventToText(e:IChangeEventArgs):string{
     let value = e.value===undefined?(e.item?e.item.$get():e.value):e.value;
     return (value===undefined || value===null)?"":value.toString();
 }
-attrBinders["#text"] = (elem:any,bindValue:IObservableProxy)=>{
+
+attrBinders["value"] = (elem:any,bindValue:IObservableProxy,isBibind?:boolean)=>{
     bindValue.$subscribe((e:IChangeEventArgs)=>{
-        (elem as Node).nodeValue = changeEventToText(e);
+        (elem as HTMLInputElement).value = changeEventToText(e);
     });
+    elem.value = bindValue.toString();
 };
-attrBinders["value"] = (elem:any,bindValue:IObservableProxy)=>{
+
+attrBinders["repeat"] = (elem:any,bindValue:IObservableProxy,isBibind?:boolean)=>{
     bindValue.$subscribe((e:IChangeEventArgs)=>{
         (elem as HTMLInputElement).value = changeEventToText(e);
     });
@@ -1168,7 +1395,7 @@ eventBinders["onchange"] = (elem:any,handler:Function)=>{
 };
 
 let YA={
-    Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, Model,
+    Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, ObservableSchema,
     component,reactive,action,
     ELEMENT: ELEMENT
 };

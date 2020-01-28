@@ -1,16 +1,129 @@
+/**
+ * 可监听对象接口
+ *
+ * @export
+ * @interface IObservable
+ * @template TEvtArgs 事件参数的类型
+ */
 export interface IObservable<TEvtArgs> {
-    $_listeners: Function[];
-    $subscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
-    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
-    $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
+    /**
+     * 内部的主题列表，可以访问它，但不推荐直接使用，主要是debug时使用
+     * 如果不指明主题topic，默认topic=""
+     * @type {[topic:string]:Function[]}
+     * @memberof IObservable
+     */
+    $_topics: {
+        [topic: string]: Function[];
+    };
+    /**
+     * 注册监听函数
+     * $notify的时候，注册了相关主题的监听函数会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $subscribe(topicOrListener: string | {
+        (evt: TEvtArgs): any;
+    }, listener?: {
+        (evt: TEvtArgs): any;
+    }): IObservable<TEvtArgs>;
+    /**
+     * 取消主题订阅
+     * $notify操作时，被取消的监听器不会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $unsubscribe(topicOrListener: string | {
+        (evt: TEvtArgs): any;
+    }, listener?: {
+        (evt: TEvtArgs): any;
+    }): IObservable<TEvtArgs>;
+    /**
+     * 发送通知
+     * 如果相关主题上有监听器，会逐个调用监听器
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof IObservable
+     */
+    $notify(topicOrEvtArgs: string | TEvtArgs, evt?: TEvtArgs): IObservable<TEvtArgs>;
 }
-export declare function valueObservable<TEvtArgs>(target: any): IObservable<TEvtArgs>;
+/**
+ * 可监听对象类
+ * 实现订阅/发布模式
+ * 它支持订阅/发布某个主题;如果未指定主题，默认主题为""
+ * 它的所有关于订阅发布的成员字段/函数都是enumerable=false的
+ * 一般用作其他类型的基类
+ *
+ * @export
+ * @class Observable
+ * @implements {IObservable<TEvtArgs>}
+ * @template TEvtArgs 事件参数的类型
+ */
 export declare class Observable<TEvtArgs> implements IObservable<TEvtArgs> {
-    $_listeners: Function[];
-    $subscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
-    $unsubscribe: (listener: (evt: TEvtArgs) => any) => IObservable<TEvtArgs>;
-    $notify: (evt: TEvtArgs) => IObservable<TEvtArgs>;
+    /**
+     * 内部的主题列表，可以访问它，但不推荐直接使用，主要是debug时使用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @type {[topic:string]:Function[]}
+     * @memberof Observable
+     */
+    $_topics: {
+        [topic: string]: {
+            (evt: TEvtArgs): any;
+        }[];
+    };
     constructor();
+    /**
+     * 注册监听函数
+     * $notify的时候，注册了相关主题的监听函数会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $subscribe(topicOrListener: string | {
+        (evt: TEvtArgs): any;
+    }, listener?: {
+        (evt: TEvtArgs): any;
+    }): IObservable<TEvtArgs>;
+    /**
+     * 取消主题订阅
+     * $notify操作时，被取消的监听器不会被调用
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $unsubscribe(topicOrListener: string | {
+        (evt: TEvtArgs): any;
+    }, listener?: {
+        (evt: TEvtArgs): any;
+    }): IObservable<TEvtArgs>;
+    /**
+     * 发送通知
+     * 如果相关主题上有监听器，会逐个调用监听器
+     * 如果不指明主题topic，默认topic=""
+     *
+     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
+     * @returns {IObservable<TEvtArgs>} 可监听对象
+     * @memberof Observable
+     */
+    $notify(topicOrEvtArgs: string | TEvtArgs, evtArgs?: TEvtArgs): IObservable<TEvtArgs>;
 }
 export declare enum TargetTypes {
     Value = 0,
@@ -62,7 +175,7 @@ export declare class ObservableProxy extends Observable<IChangeEventArgs> implem
     $extras?: any;
     $owner?: IObservableProxy;
     $raw: (value?: any) => any;
-    constructor(raw: (val?: any) => any, initValue?: any);
+    constructor(raw?: (val?: any) => any, initValue?: any, extras?: any);
     $get(): any;
     $set(newValue: any): IObservableProxy;
     $update(): boolean;
@@ -75,12 +188,18 @@ export interface IObjectMeta {
     methodnames?: string[];
 }
 export interface IObservableObject extends IObservableProxy {
+    $prop(name: string, prop: IObservableProxy | boolean | {
+        (proxy: ObservableObject, name: string): any;
+    } | PropertyDecorator): IObservableObject;
     [index: string]: any;
 }
 export declare class ObservableObject extends ObservableProxy implements IObservableObject {
     $target: any;
     [index: string]: any;
-    constructor(raw: (val?: any) => any, meta: IObjectMeta, initValue?: object);
+    constructor(raw: (val?: any) => any, initValue?: object, extras?: any);
+    $prop(name: string, prop: IObservableProxy | boolean | {
+        (proxy: ObservableObject, name: string): any;
+    } | PropertyDecorator): ObservableObject;
     $get(): any;
     $set(newValue: any): IObservableProxy;
     $update(): boolean;
@@ -101,7 +220,7 @@ export declare class ObservableArray extends ObservableProxy {
     [index: number]: any;
     $length: number;
     length: number;
-    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy, initValue?: any[]);
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy, initValue?: any[], extras?: any);
     clear(): IObservableArray;
     resize(newLength: number): IObservableArray;
     $set(newValue: any): IObservableProxy;
@@ -114,17 +233,16 @@ export declare class ObservableArray extends ObservableProxy {
     static structToken: string;
 }
 export declare function observable(target?: any): IObservable<any>;
-export declare class Model {
-    type: TargetTypes;
-    index: string | number;
-    item_model: Model;
-    prop_models: {
-        [index: string]: Model;
-    };
-    owner_model: Model;
-    _path?: string;
-    constructor(data: any, index?: string | number, owner?: Model);
-    createProxy(data: any, ownerProxy?: IObservableProxy): IObservableProxy;
+export declare class ObservableSchema {
+    $type: TargetTypes;
+    $index: string | number;
+    $path: string;
+    $owner_schema?: ObservableSchema;
+    $item_schema?: ObservableSchema;
+    $init_data?: any;
+    constructor(index?: string | number, owner?: ObservableSchema);
+    $init(initData: any): ObservableSchema;
+    $createProxy(initData: any, ownerProxy?: IObservableProxy): IObservableProxy;
 }
 export declare enum ComponentReadyStates {
     Defined = 0,
@@ -135,9 +253,7 @@ export interface IComponentMeta {
         [attr: string]: ReactiveTypes;
     };
     $templates?: {
-        [attr: string]: string | {
-            (component: IComponent, children: INode[]);
-        };
+        [attr: string]: string | Function;
     };
     $actions?: {
         [attr: string]: string;
@@ -145,7 +261,7 @@ export interface IComponentMeta {
     $wrapType?: Function;
     $rawType?: Function;
     $tag?: string;
-    $render?: (component: IComponent, vnode: INode, partial?: string) => any;
+    $render?: (component: IComponent, partial: string, container: any) => any;
     $readyState?: ComponentReadyStates;
 }
 export declare type TComponentType = {
@@ -170,16 +286,48 @@ export declare function reactive(type?: ReactiveTypes | string): any;
 export declare function action(async?: boolean): (target: any, propertyName: string) => void;
 export declare function template(partial?: string): (target: any, propertyName: string) => void;
 export declare function component(tag: string | TComponentType): any;
-export interface INode {
+export declare class VirtualNode {
+    tag?: string;
+    attrs?: {
+        [name: string]: any;
+    };
+    content?: any;
+    children?: VirtualNode[];
+    constructor();
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    render(component: IComponent, container?: any): any;
+    renderChildren(component: IComponent, container?: any): any;
+}
+export declare class VirtualTextNode extends VirtualNode {
+    content: any;
+    constructor(content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare class VirtualElementNode extends VirtualNode {
     tag: string;
     attrs: {
         [name: string]: any;
     };
-    text?: any;
-    children?: INode[];
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    });
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
 }
-export declare type TNodes = INode | INode[];
-export declare function render(nodes: TNodes, container?: any): any;
+export declare class VirtualComponentNode extends VirtualNode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    content: any;
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    }, content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
 export declare let ELEMENT: any;
 declare let YA: {
     Observable: typeof Observable;
@@ -187,7 +335,7 @@ declare let YA: {
     ObservableProxy: typeof ObservableProxy;
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
-    Model: typeof Model;
+    ObservableSchema: typeof ObservableSchema;
     component: (tag: string | TComponentType) => any;
     reactive: (type?: string | ReactiveTypes) => any;
     action: (async?: boolean) => (target: any, propertyName: string) => void;
