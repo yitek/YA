@@ -312,10 +312,12 @@ function makeCodes(func:Function):IUsageCode[]{
                     BranceCount++;
                 }else if(ch==="'"){
                     if(ch===isInStr) isInStr=undefined;
-                    else isInStr = ch;
+                    else if(!isInStr) isInStr = ch;
+                    else continue;
                 }else if(ch==='"'){
                     if(ch===isInStr) isInStr=undefined;
-                    else isInStr = ch;
+                    else if(!isInStr) isInStr = ch;
+                    else continue;
                 }
             }
             if(BranceCount) throw new Error("无法解析的函数");

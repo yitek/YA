@@ -68,6 +68,36 @@ class ObservableTest {
             });
             
         });
+
+        mdoc.usage("订阅主题事件",(assert_statement:TAssertStatement)=>{
+            // 1 创建可监听对象
+            let ob = new YA.Observable<any>();
+            
+            let evtInListener1:any,evtInListener2:any;
+
+            // 2 定义2个监听者函数,分别订阅topic1跟topic2
+            let lisenter1 = (evt)=>{evtInListener1=evt;}
+            let lisenter2 = (evt)=>{evtInListener2=evt;}
+            ob.$subscribe("topic1",lisenter1);
+            ob.$subscribe("topic2",lisenter2); 
+
+            // 3 发送topic1主题事件
+            ob.$notify("topic1","topic1_eventArgs");
+
+            assert_statement((assert:TAssert)=>{
+                assert("topic1_eventArgs",evtInListener1,"topic1的监听器接收到事件:evtInListener1==='topic1_eventArgs'");
+                assert(undefined,evtInListener2,"topic2的监听器不能接收到事件:evtInListener2===undefined");
+            });
+
+            // 清洗数据，准备下一调用
+            evtInListener1 = evtInListener2 = undefined;
+            ob.$notify("topic2","topic2_eventArgs");
+
+            assert_statement((assert:TAssert)=>{
+                assert(undefined,evtInListener1,"topic1的监听器不能接收到事件:evtInListener1===undefined");
+                assert("topic2_eventArgs",evtInListener2,"topic2的监听器接收到事件:evtInListener2==='topic2_eventArgs'");
+            });
+        });
     }
     @doct()
     notify(mdoc:MemberDoct){
