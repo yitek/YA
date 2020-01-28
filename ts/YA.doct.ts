@@ -177,7 +177,7 @@ export class NamespaceDoct extends Doct {
 export type TAssert = (expected:any,actual:any,message?:string)=>any;
 export type TAssertStatement = (assert:TAssert)=>any;
 export type TUsageStatement = (assert_statement:TAssertStatement)=>any;
-export interface IUsageAssert{
+export interface IUsageCode{
     code:string;
     asserts?:string[];
 }
@@ -185,11 +185,13 @@ export interface IUsageAssert{
 export class UsageDoct extends Doct{
     name:string;
     exception:Error;
+    //@enumerable(false)
+    //code:string;
+
+    //@enumerable(false)
+    //asserts:string[];
     @enumerable(false)
-    code:string;
-    
-    @enumerable(false)
-    asserts:string[][];
+    codes:IUsageCode[];
     
     @enumerable(false)
     statement:TUsageStatement;
@@ -202,16 +204,18 @@ export class UsageDoct extends Doct{
             p=p.parent;
         }
         this.statement = statement;
-        this.code = makeCode(statement);
-        this.asserts=[];
+        //this.code = makeCode(statement);
+        //this.asserts=[];
+        this.codes=makeCodes(statement);
     }
     @enumerable(false)
     execute(params?:any):UsageDoct{
         let end:Date;
+        let index:number = 0;
         let assert_proc = (assert_statement:(assert:(expected,actual,message)=>any)=>any)=>{
             end = this.end = new Date();
             this.setEllapse(this.end.valueOf()- this.start.valueOf());
-            assert_statement(makeAssert(this));
+            assert_statement(makeAssert(this,index++));
             
         };
         
@@ -244,7 +248,7 @@ export class UsageDoct extends Doct{
     reset():UsageDoct{
         super.reset();
         this.exception=undefined;
-        this.asserts=[];
+        for(const i in this.codes) this.codes[i].asserts=[];
         return this;
     }
 
@@ -262,19 +266,23 @@ export class UsageDoct extends Doct{
 
 }
 
-function makeCode(func:Function){
+
+
+function makeCodes(func:Function):IUsageCode[]{
     let trimRegx = /(^\s+)|(\s+$)/g;
-    let assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{\s*/;
+    let assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
 
     let statement_proc = func.toString();
     let assert_proc_name_match = statement_proc.match(assert_proc_name_regx);
     let assert_proce_name = assert_proc_name_match[1];
-    if(!assert_proce_name) return  statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1);
+    if(!assert_proce_name) return  [{code:statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1)}];
+
+    let rs = [];
     
     let assert_proc_regx = new RegExp(`[;\\s]?${assert_proce_name}\\s?\\(`);
     statement_proc = statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1);
     let stateBeginAt = 0;
-    let codes = "";
+    //let codes = "";
     let c = 0;
     while(true){
         if(c++===10){debugger;break;}
@@ -282,8 +290,9 @@ function makeCode(func:Function){
         let match = statement_proc.match(assert_proc_regx);
         if(match){
             let matchAt = match.index;
-            let stateCode = statement_proc.substring(stateBeginAt,matchAt);
-            codes += stateCode;
+            let stateCode = statement_proc.substring(stateBeginAt,matchAt).replace(/(^\s+)|(\s+$)/g,"");
+            if(stateCode) rs.push({code:stateCode,asserts:[]});
+            
             let BranceCount =1;
             let isInStr;
             
@@ -295,6 +304,7 @@ function makeCode(func:Function){
                     if(--BranceCount==0){
                         statement_proc = statement_proc.substring(i+1).replace(/^\s*;?/g,"");
                         stateBeginAt=0;
+                        
                         break;
                     }
                 }else if(ch==="("){
@@ -310,20 +320,25 @@ function makeCode(func:Function){
             }
             if(BranceCount) throw new Error("无法解析的函数");
         }else {
-            codes += statement_proc.substring(stateBeginAt,statement_proc.length-1);
+            let stateCode = statement_proc.substring(stateBeginAt,statement_proc.length-1).replace(/(^\s+)|(\s+$)/g,"");
+            if(stateCode)rs.push({code:stateCode,asserts:[]});
             break;
         }
     }
 
-    return codes;
+    return rs;
 }
 
 
-function makeAssert(doc:UsageDoct){
+function makeAssert(doc:UsageDoct,codeIndex:number){
+    let usageCode = doc.codes[codeIndex];
     let assert= (expected:any,actual:any,msg:string,paths?:string[])=>{
+        
+        let asserts :string[] = usageCode.asserts|| (usageCode.asserts=[]);
+        
         if(!paths && msg) msg = msg.replace(/\{actual\}/g,JSON.stringify(actual)).replace(/\{expected\}/g,JSON.stringify(expected));
         if(actual===expected) {
-            if(msg)doc.asserts.push(msg);
+            if(msg)asserts.push(msg);
             return;
         }
         let t = typeof(expected);
@@ -347,13 +362,13 @@ function makeAssert(doc:UsageDoct){
                 paths.pop();
             }
             if(msg && !paths.length){
-                doc.asserts.push(msg);
+                asserts.push(msg);
             }
         }else if(actual!==expected){
             throw new AssertException(`${paths?paths.join("."):""}期望值为${expected},实际为${actual}`,msg);
         }else {
             if( msg && !paths){
-                doc.asserts.push(msg);
+                asserts.push(msg);
             }
         }
     };
@@ -554,9 +569,12 @@ doct.output = (params?:any,doc?:Doct):TDoct=>{
     let desc = doc.description;
     if(desc) console.info(`#说明:${desc}`);
     if(doc instanceof UsageDoct){
-        console.info(`#示例:`,doc.code);
-        if(doc.asserts && doc.asserts.length) {
-            console.info(`#结果:${doc.asserts.join('\n')}`);
+        for(const i in doc.codes){
+            let code = doc.codes[i];
+            console.info(`#示例:`,code.code);
+            if(code.asserts && code.asserts.length){
+                console.info(`/*结果:${code.asserts.join('\n')}*/`);
+            }
         }
     }
     if(doc instanceof StatementDoct){

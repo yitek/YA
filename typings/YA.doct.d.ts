@@ -37,15 +37,14 @@ export declare class NamespaceDoct extends Doct {
 export declare type TAssert = (expected: any, actual: any, message?: string) => any;
 export declare type TAssertStatement = (assert: TAssert) => any;
 export declare type TUsageStatement = (assert_statement: TAssertStatement) => any;
-export interface IUsageAssert {
+export interface IUsageCode {
     code: string;
     asserts?: string[];
 }
 export declare class UsageDoct extends Doct {
     name: string;
     exception: Error;
-    code: string;
-    asserts: string[][];
+    codes: IUsageCode[];
     statement: TUsageStatement;
     constructor(statement: TUsageStatement, parent?: StatementDoct, name?: string);
     execute(params?: any): UsageDoct;
