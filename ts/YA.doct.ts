@@ -290,39 +290,32 @@ function makeCodes(func:Function):IUsageCode[]{
         let match = statement_proc.match(assert_proc_regx);
         if(match){
             let matchAt = match.index;
-            let stateCode = statement_proc.substring(stateBeginAt,matchAt).replace(/(^\s+)|(\s+$)/g,"");
+            let stateCode = statement_proc.substring(stateBeginAt,matchAt).replace(trimRegx,"");
             if(stateCode) rs.push({code:stateCode,asserts:[]});
             
-            let BranceCount =1;
+            let branceCount =1;
             let isInStr;
-            
             for(let i =matchAt+match[0].length,j=statement_proc.length;i<j;i++){
                 let ch = statement_proc[i];
                 if(ch===")"){
-                    
                     if(isInStr) continue;
-                    if(--BranceCount==0){
+                    if(--branceCount==0){
                         statement_proc = statement_proc.substring(i+1).replace(/^\s*;?/g,"");
                         stateBeginAt=0;
-                        
                         break;
                     }
                 }else if(ch==="("){
                     if(isInStr) continue;
-                    BranceCount++;
-                }else if(ch==="'"){
-                    if(ch===isInStr) isInStr=undefined;
-                    else if(!isInStr) isInStr = ch;
-                    else continue;
-                }else if(ch==='"'){
+                    branceCount++;
+                }else if(ch==="'" || ch==='"'){
                     if(ch===isInStr) isInStr=undefined;
                     else if(!isInStr) isInStr = ch;
                     else continue;
                 }
             }
-            if(BranceCount) throw new Error("无法解析的函数");
+            if(branceCount) throw new Error("无法解析的函数");
         }else {
-            let stateCode = statement_proc.substring(stateBeginAt,statement_proc.length-1).replace(/(^\s+)|(\s+$)/g,"");
+            let stateCode = statement_proc.substring(stateBeginAt,statement_proc.length-1).replace(trimRegx,"");
             if(stateCode)rs.push({code:stateCode,asserts:[]});
             break;
         }
