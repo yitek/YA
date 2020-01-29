@@ -267,39 +267,39 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 
     $_raw:(value?:TData)=>any;
 
-    constructor(initValue:TData|ObservableSchema<TData>|{(val?:TData):any},index:{(val?:TData):any}|string|number,$_owner?:any,$extras?:any){
+    constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
         super();
-        let $schema:ObservableSchema<TData>=this.$schema;
-        let $target:TData;
-        let $_index:string|number;
-        let $_raw:(val?:TData)=>any;
+        
+        if(init instanceof ObservableObject){
+            //ctor(owner,index,extras)
+            this.$_owner= init as ObservableObject<any>;
+            this.$_index = index;
+            this.$_raw = prop_raw(index);
+            this.$target = this.$_raw();
+            this.$extras = extras;
+        }else if(typeof init==="function"){
+            //ctor(TRaw,extras)
+            this.$extras = index;
+            this.$_raw = init as {(val?:TData):any};
+            this.$target = this.$_raw();
+        }else {
+            if(typeof index==="function"){
+                this.$extras = extras;
+                this.$_raw = index;
+                this.$target = init;
+                index.call(this,init);
+            }else {
+                this.$target=init;
+                this.$extras = index;
+                this.$_raw =(val:TData)=>val===undefined?init:init=val;
+            }
+        }
     
-        if($_owner instanceof ObservableObject){
-            $_index = index as string|number;
-            $_raw = prop_raw($_index);
-        }else {
-            $_raw = index as {(val?:TData):any};
-            $extras = $_owner;
-            $_owner = undefined;
-        }
-        if(initValue instanceof ObservableSchema){
-            if(this.$schema && this.$schema!==initValue) throw new Error("已经定义了schema");
-            $schema = initValue;
-            $target = clone($schema.$initData);
-            if($_raw) $_raw.call(this,$target);
-        }else {
-            if(initValue!==undefined){
-                $target = initValue===Undefined?undefined:initValue as TData;
-                if($_raw) $_raw.call(this,$target);
-            }else if($_raw) $target = $_raw.call(this);
-        }
         
         intimate(this, {
-            $target,$extras,$type:DataTypes.Value,$schema
-            ,$_raw,$_index,$_modifiedValue:undefined,$_owner
+            $target:this.$target,$extras:this.$extras,$type:DataTypes.Value,$schema:this.$schema
+            ,$_raw:this.$_raw,$_index:this.$_index,$_modifiedValue:undefined,$_owner:this.$_owner
         });
-
-        if($schema) $schema.$initObservable(this);
     }
     
 
@@ -346,8 +346,9 @@ export interface IObservableObject<TData extends {[index:string]:any}> extends I
 @intimate()
 export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>{
     [index:string]:any;
-    constructor(initValue:TData|ObservableSchema<TData>|{(val?:TData):any},index:{(val?:TData):any}|string|number,owner?:any,extras?:any){
-        super(initValue,index,owner,extras);
+    constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
+        super(init,index,extras);
+        if(!this.$target) this.$_raw(this.$target={} as any);
         if(!this.$schema){
             this.$schema = new ObservableSchema<TData>(this.$target);
             this.$schema.$initObservable(this);
@@ -405,10 +406,10 @@ function prop_raw<TProp,TObj>(name:string|number):{(val?:any):any}{
     }      
 }
 
-function defineMember<TProp,TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
+function defineMember<TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
     let prop_value:any;
     Object.defineProperty(target,name,{
-        enumerable:false,
+        enumerable:true,
         configurable:false,
         get:()=>{
             if(prop_value===undefined) prop_value=accessorFactory.call(target,target,name);
@@ -495,40 +496,33 @@ export class ObservableSchema<TData>{
         if(this.$type === DataTypes.Array) throw new Error("无法将ObservableSchema从Array转化成Object.");
         this.$type = DataTypes.Object;
         let objSchema = this;
-        class NewType extends ObservableObject<TData>{
-            constructor(initValue:TData|{(val?:TData):any},owner?:ObservableObject<any>|any,extras?:any){
-                if(owner instanceof ObservableObject){
-                    super(initValue as TData
-                        ,objSchema.$_index as string|number
-                        ,owner as ObservableObject<any>
-                        ,extras as any);
-                }else {
-                    super(undefined,initValue as {(val?:TData):any},extras);
-                }
-                
+        class _ObservableObject extends ObservableObject<TData>{
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
+                super(init,index,extras);
             }
         };
-        NewType.prototype.$schema= this;
-        this.$ctor= NewType;
+        _ObservableObject.prototype.$schema= this;
+        this.$ctor= _ObservableObject;
         return this;
     }
 
     $defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
         if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
-        Object.defineProperty(this,propname,propSchema);        
+        Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
+        defineMember<TData>(this.$ctor,propname,(owner,name)=>new propSchema.$ctor(owner,name));        
         return propSchema;
     }
 
     $initObservable(ob:Observable<TData>){
         for(const n in this){
             let propSchema = this[n] as any as ObservableSchema<any>;
-            defineMember<any,TData>(ob,n,(owner,name)=>new this.$ctor(prop_raw(name),propSchema,owner));
+            defineMember<TData>(ob,n,(owner,name)=>new propSchema.$ctor(owner,name));
         }
     }
     
-    $create(initValue:TData|{(val?:TData):any},owner?:ObservableObject<any>|any,extras?:any){
-        return new this.$ctor(initValue,owner,extras);
+    $create(init:(val?:TData)=>any,extras?:any){
+        return new this.$ctor(clone(this.$initData,true),init,extras);
     }
 }
 

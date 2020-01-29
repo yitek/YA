@@ -558,6 +558,8 @@ export default doct;
 
 let rootDoc = new StatementDoct(Doctypes.Root,null);
 
+doct.debugging=true;
+
 doct.reset = ():TDoct=>{
     
     rootDoc.subs={};

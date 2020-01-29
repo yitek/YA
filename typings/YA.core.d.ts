@@ -174,11 +174,9 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $_modifiedValue: TData;
     $_owner?: ObservableObject<any>;
     $_raw: (value?: TData) => any;
-    constructor(initValue: TData | ObservableSchema<TData> | {
+    constructor(init: ObservableObject<any> | {
         (val?: TData): any;
-    }, index: {
-        (val?: TData): any;
-    } | string | number, $_owner?: any, $extras?: any);
+    } | TData, index?: any, extras?: any);
     $get(): TData | IObservable<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
@@ -192,11 +190,9 @@ export interface IObservableObject<TData extends {
 }
 export declare class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData> {
     [index: string]: any;
-    constructor(initValue: TData | ObservableSchema<TData> | {
+    constructor(init: ObservableObject<any> | {
         (val?: TData): any;
-    }, index: {
-        (val?: TData): any;
-    } | string | number, owner?: any, extras?: any);
+    } | TData, index?: any, extras?: any);
     $get(): any;
     $set(newValue: TData): IObservableObject<TData>;
     $update(): boolean;
@@ -222,9 +218,7 @@ export declare class ObservableSchema<TData> {
     $asObject(): ObservableSchema<TData>;
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
     $initObservable(ob: Observable<TData>): void;
-    $create(initValue: TData | {
-        (val?: TData): any;
-    }, owner?: ObservableObject<any> | any, extras?: any): Observable<any>;
+    $create(init: (val?: TData) => any, extras?: any): Observable<any>;
 }
 declare let YA: {
     Subject: typeof Subject;

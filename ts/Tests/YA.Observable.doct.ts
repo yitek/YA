@@ -1,15 +1,16 @@
-import {doct, ClassDoct, TAssert,TAssertStatement} from '../YA.doct';
+import {doct, ClassDoct, TAssert,TAssertStatement, MemberDoct} from '../YA.doct';
 import * as YA from '../YA.core';
 
 @doct("YA.ObservableProxy")
 export class ObservableTest {
     constructor(cdoc:ClassDoct){
-        cdoc.description = `可观察的数据代理，可以通过$get/$set来操作它的值`;
+        cdoc.description = `可观察的数据，可以通过$get/$set来操作它的值`;
+        cdoc.description =`它的本质是数据代理，在本文档中，有时候也用代理/数据代理等词代指该类型的实例`;
         cdoc.usage("基本用法",(assert_statement:TAssertStatement)=>{
             //0 定义被代理的数据
             let raw_data = 12;
             //1 创建一个数据代理,它的第一个参数为读/写原始值的函数
-            let proxy = new YA.Observable<number>(undefined,(val)=>val===undefined?raw_data:raw_data=val);
+            let proxy = new YA.Observable<number>((val)=>val===undefined?raw_data:raw_data=val);
             assert_statement((assert:TAssert)=>{
                 assert(YA.DataTypes.Value,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.DataTypes[proxy.$type]}`);
                 assert(12,proxy.$target,`代理的目标为当前的值:proxy.$target===12`);
@@ -52,7 +53,7 @@ export class ObservableTest {
         cdoc.usage("成员不可枚举","所有成员enumerable==false",(assert_statement:TAssertStatement)=>{
             //1 创建一个可观察对象 
             let raw_data = 12;
-            let ob = new YA.Observable(undefined,(val)=>val===undefined?raw_data:raw_data=val,undefined,{});    
+            let ob = new YA.Observable((val:number)=>val===undefined?raw_data:raw_data=val,{});    
 
             //2 做一些操作
             ob.$subscribe(()=>{});
@@ -68,6 +69,46 @@ export class ObservableTest {
             assert_statement((assert:TAssert)=>{
                 assert("name",propnames.join(","),"所有的属性/方法可以使用，但不可枚举:propnames=['name']");
             });
+        });
+    }
+    @doct()
+    ctor(mdoc:MemberDoct){
+        mdoc.description="构造函数的几种用法";
+        mdoc.usage("ctor(初始化值,额外信息?)",(assert_statement:TAssertStatement)=>{
+            let data = {};
+            let ob = new YA.Observable(data,(val)=>val===undefined?data:data=val,33);
+            assert_statement((assert:TAssert)=>{
+                assert(data,ob.$target,"指定初值，可观察数据代理的值为初值:ob.$target===data");
+                assert(33,ob.$extras,"额外信息为33:ob.$extras===33");
+            });  
+        });
+
+        mdoc.usage("ctor(原始值访问函数,额外信息?)",(assert_statement:TAssertStatement)=>{
+            let data = {};
+            let ob = new YA.Observable((val)=>val===undefined?data:data=val,33);
+            assert_statement((assert:TAssert)=>{
+                assert(data,ob.$target,"可观察数据代理的初值从原始值访问函数中获取:ob.$target===data");
+                assert(33,ob.$extras,"额外信息为33:ob.$extras===33");
+            });  
+        });
+
+
+        mdoc.usage("ctor(初始化值,原始值访问函数,额外信息?)",(assert_statement:TAssertStatement)=>{
+            let data = 12;
+            let ob = new YA.Observable(22,(val)=>val===undefined?data:data=val,33);
+            assert_statement((assert:TAssert)=>{
+                assert(22,ob.$target,"指定初值，可观察数据代理的值为初值:ob1.$target===22");
+                assert(22,data, "代理同时会把初值回写回原始数据中:data2===22");
+            });  
+        });
+        mdoc.usage("ctor(上级代理,属性名,额外信息?)",(assert_statement:TAssertStatement)=>{
+            let owner= new YA.ObservableObject({name:"yiy"});
+            let prop = new YA.Observable(owner,"name",44);
+            assert_statement((assert:TAssert)=>{
+                assert("yiy",prop.$target,"初值从原始对象中来:prop.$target==='yiy'");
+                assert(44,prop.$extras, "额外信息为44:prop.$extras===44");
+                assert(owner,prop.$_owner);
+            });  
         });
     }
 }
