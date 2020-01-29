@@ -17,7 +17,7 @@ let testObservableProxy = (assert:(actual:any,expected:any,message?:string)=>any
     proxy.$set(2);
     assert(2,proxy.$get(),"在代理上改变值后，重新获取代理的值应该是新值");
     assert(1,target.x, "在代理上调用$set后，原始的值还应该是旧值");
-    assert(2,proxy.$modifiedValue, "在代理上调用$set后，代理内部的$modifiedValue记录了改变的值");
+    assert(2,proxy.$_modifiedValue, "在代理上调用$set后，代理内部的$modifiedValue记录了改变的值");
 
     let evtArgs:any;
     proxy.$subscribe((evt)=>evtArgs = evt);
@@ -27,14 +27,14 @@ let testObservableProxy = (assert:(actual:any,expected:any,message?:string)=>any
     assert(proxy,evtArgs.sender,"事件的发送者应该为代理");
     assert(1,evtArgs.old, "事件对象中应该记录了旧值");
     assert(2,evtArgs.value, "事件对象中应该记录的新值");
-    assert(undefined,proxy.$modifiedValue,"$update后，代理内部记录改变的$modifiedValue将会被清空");
+    assert(undefined,proxy.$_modifiedValue,"$update后，代理内部记录改变的$modifiedValue将会被清空");
 
     evtArgs=undefined;
     proxy.$update();
     assert(undefined,evtArgs,"虽然调用了$update,由于未对旧值做变更，事件不会触发");
 
     proxy.$set(2);
-    assert(2,proxy.$modifiedValue, "在代理上调用$set后，代理内部的$modifiedValue记录了改变的值");
+    assert(2,proxy.$_modifiedValue, "在代理上调用$set后，代理内部的$modifiedValue记录了改变的值");
     proxy.$update();
     assert(undefined,evtArgs, "虽然调用了$update，但新值与旧值一样，监听不会触发");
 

@@ -1,3 +1,4 @@
+export declare function intimate(strong?: boolean): (target: any, propName?: string) => void;
 /**
  * 可监听对象接口
  *
@@ -125,10 +126,15 @@ export declare class Observable<TEvtArgs> implements IObservable<TEvtArgs> {
      */
     $notify(topicOrEvtArgs: string | TEvtArgs, evtArgs?: TEvtArgs): IObservable<TEvtArgs>;
 }
-export declare enum TargetTypes {
+export declare enum DataTypes {
     Value = 0,
     Object = 1,
     Array = 2,
+}
+export declare enum ProxyAccessModes {
+    Default = 0,
+    Raw = 1,
+    Proxy = 2,
 }
 export declare enum ChangeTypes {
     Value = 0,
@@ -151,30 +157,27 @@ export interface IChangeEventArgs {
     cancel?: boolean;
 }
 export interface IObservableProxy extends IObservable<IChangeEventArgs> {
-    $type: TargetTypes;
+    $type: DataTypes;
     $extras?: any;
     $target?: any;
-    $index?: string | number;
-    $modifiedValue?: any;
-    $owner?: IObservableProxy;
-    $raw: (value?: any) => any;
     $get(): any;
     $set(newValue: any): IObservableProxy;
     $update(): boolean;
 }
-export declare enum ProxyAccessModes {
-    Default = 0,
-    Raw = 1,
-    Proxy = 2,
+export interface IInternalObservableProxy extends IObservableProxy {
+    $_index?: string | number;
+    $_modifiedValue?: any;
+    $_owner?: IObservableProxy;
+    $_raw: (value?: any) => any;
 }
 export declare class ObservableProxy extends Observable<IChangeEventArgs> implements IObservableProxy {
-    $type: TargetTypes;
+    $type: DataTypes;
     $target: any;
-    $index: number | string;
-    $modifiedValue: any;
     $extras?: any;
-    $owner?: IObservableProxy;
-    $raw: (value?: any) => any;
+    $_index: number | string;
+    $_modifiedValue: any;
+    $_owner?: ObservableProxy;
+    $_raw: (value?: any) => any;
     constructor(raw?: (val?: any) => any, initValue?: any, extras?: any);
     $get(): any;
     $set(newValue: any): IObservableProxy;
@@ -215,12 +218,12 @@ export interface IObservableArray extends IObservableProxy {
     $item_convertor?: IObservableProxy;
 }
 export declare class ObservableArray extends ObservableProxy {
-    $itemConvertor: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy;
+    $itemConvertor: (index: number, item_value: any, proxy: ObservableArray) => ObservableProxy;
     $changes: IChangeEventArgs[];
     [index: number]: any;
     $length: number;
     length: number;
-    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: IObservableArray) => IObservableProxy, initValue?: any[], extras?: any);
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: ObservableArray) => IObservableProxy, initValue?: any[], extras?: any);
     clear(): IObservableArray;
     resize(newLength: number): IObservableArray;
     $set(newValue: any): IObservableProxy;
@@ -234,7 +237,7 @@ export declare class ObservableArray extends ObservableProxy {
 }
 export declare function observable(target?: any): IObservable<any>;
 export declare class ObservableSchema {
-    $type: TargetTypes;
+    $type: DataTypes;
     $index: string | number;
     $path: string;
     $owner_schema?: ObservableSchema;

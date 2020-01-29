@@ -10,6 +10,7 @@ export declare class Doct {
     parent: NamespaceDoct;
     name: string;
     descriptions: string[];
+    notices: string[];
     start: Date;
     end: Date;
     ellapse: number;
@@ -19,6 +20,7 @@ export declare class Doct {
     execute(params?: any): Doct;
     reset(): Doct;
     description: string;
+    notice: string;
 }
 export declare class NamespaceDoct extends Doct {
     subs: {

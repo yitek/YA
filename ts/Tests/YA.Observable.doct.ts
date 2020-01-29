@@ -2,15 +2,16 @@ import  {doct, ClassDoct, MemberDoct, TAssertStatement, TAssert} from '../YA.doc
 import * as YA  from '../YA.core'
 
 @doct("YA.Observable")
-class ObservableTest {
+export class ObservableTest {
     constructor(doc:ClassDoct){
         doc.description=`可观察对象类
 实现订阅/发布模式
 它支持订阅/发布某个主题;如果未指定主题，默认主题为""
 它的所有关于订阅发布的成员字段/函数都是enumerable=false的
 一般用作其他类型的基类
-*注意*:该对象并不会做垃圾回收，如果监听器及其上下文已经失效，由于它依然被该对象引用，JS的垃圾回收器不会回收该监听器及上下文。这在某些情况下会造成悬垂引用问题。`;
-        doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statement:TAssertStatement)=>{
+`;
+        doc.notice =  `该对象并不会做垃圾回收，如果监听器及其上下文已经失效，由于它依然被该对象引用，JS的垃圾回收器不会回收该监听器及上下文。这在某些情况下会造成悬垂引用问题。`;      
+doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statement:TAssertStatement)=>{
             //1 创建一个可观察对象 
             let ob = new YA.Observable<any>();    
 
@@ -58,8 +59,9 @@ class ObservableTest {
         mdoc.description = `订阅/注册事件监听函数
 当只传递一个参数时，为订阅默认事件，参数为监听器函数
 传递两个参数时,为订阅主题事件，第一个参数为主题名，第二个参数为监听器函数
-*注意*:订阅并不会给监听器排重，用相同的监听器函数重复订阅相同主题，会造成监听器重复调用
 `;
+        mdoc.notice = `订阅并不会给监听器排重，用相同的监听器函数重复订阅相同主题，会造成监听器重复调用`;
+        
         mdoc.usage("订阅默认事件",(assert_statement:TAssertStatement)=>{
             // 1 创建可观察对象
             let ob = new YA.Observable<any>();

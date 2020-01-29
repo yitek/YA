@@ -21,6 +21,7 @@ export enum Doctypes{
 export class Doct {
     name:string;
     descriptions:string[];
+    notices:string[];
     
     start:Date;
     end:Date;
@@ -32,6 +33,7 @@ export class Doct {
     constructor(public type:Doctypes,public parent:NamespaceDoct){
         this.errorCount = this.usageCount = this.ellapse=0;
         this.descriptions=[];
+        this.notices=[];
     }
     
     @enumerable(false)
@@ -51,6 +53,13 @@ export class Doct {
     }
     set description(value:string){
         this.descriptions.push(value);
+    }
+
+    get notice():string{
+        return this.notices.join("\n");
+    }
+    set notice(value:string){
+        this.notices.push(value);
     }
 }
 
@@ -563,6 +572,9 @@ doct.output = (params?:any,doc?:Doct):TDoct=>{
     console.group(`${doc.name}:<${Doctypes[doc.type]}>`);
     let desc = doc.description;
     if(desc) console.info(`#说明:${desc}`);
+    let notice = doc.notice;
+    if(notice) console.info(`#注意:${notice}`);
+
     if(doc instanceof UsageDoct){
         for(const i in doc.codes){
             let code = doc.codes[i];
