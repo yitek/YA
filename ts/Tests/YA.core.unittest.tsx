@@ -1,7 +1,7 @@
 
 import {doct} from '../YA.doct';
 import YA, { template, action, ReactiveTypes, IComponentMeta } from "../YA.core";
-import {Observable, ProxyAccessModes,ObservableProxy,ObservableObject,ObservableArray, ObservableSchema,component,reactive}  from '../YA.core'
+import {Subject, ObservableModes,Observable,ObservableObject,ObservableArray, ObservableSchema,component,reactive}  from '../YA.core'
 //Unittest.debugging="component";
 let testObservable = (assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
     
@@ -9,7 +9,7 @@ let testObservable = (assert:(actual:any,expected:any,message?:string)=>any,info
 };
 let testObservableProxy = (assert:(actual:any,expected:any,message?:string)=>any,info:(msg:string,variable?:any)=>any)=>{
     let target = {x:1};
-    let proxy = new ObservableProxy((value?:any)=>(value===undefined) ?target.x:target.x=value);
+    let proxy = new Observable((value?:any)=>(value===undefined) ?target.x:target.x=value);
 
     
 
@@ -64,13 +64,13 @@ let testObserableObject = (assert:(expected:any,actual:any,message?:string)=>any
     assert(38,proxy.age,"代理的属性的值应该跟目标对象的值一样");
     let propAge;
     try{
-        ObservableProxy.accessMode=ProxyAccessModes.Proxy;
+        Observable.mode=ObservableModes.Proxy;
         propAge = proxy.age;
         
     }finally{
-        ObservableProxy.accessMode=ProxyAccessModes.Default;
+        Observable.mode=ObservableModes.Default;
     }
-    assert(true,propAge instanceof ObservableProxy,"当ValueProxy.gettingProxy开关打开时，属性返回的的是代理对象本身");
+    assert(true,propAge instanceof Observable,"当ValueProxy.gettingProxy开关打开时，属性返回的的是代理对象本身");
     let evtArgs;
     propAge.$subscribe((evt)=>evtArgs = evt);
     assert(proxy,propAge.$owner,"属性上的$owner应该是对象代理");
@@ -217,14 +217,14 @@ let proto=    {
         let idx1:any;
         let idx2 :any;
         try{
-            ObservableProxy.accessMode=ProxyAccessModes.Proxy;
+            Observable.mode=ObservableModes.Proxy;
             idx2 = proxy[2];
             idx1 = proxy[1];
         }finally{
-            ObservableProxy.accessMode=ProxyAccessModes.Default;
+            Observable.mode=ObservableModes.Default;
         }
-        assert(true,idx1 instanceof ObservableProxy,"可以获取到item代理");
-        assert(true,idx2 instanceof ObservableProxy,"可以获取到item代理");
+        assert(true,idx1 instanceof Observable,"可以获取到item代理");
+        assert(true,idx2 instanceof Observable,"可以获取到item代理");
 
         let newTarget =[11,22,33];
         proxy.$set(newTarget);

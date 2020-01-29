@@ -201,6 +201,34 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     $set(newValue: TData): IObservableObject<TData>;
     $update(): boolean;
 }
+export interface IObservableArray extends IObservable {
+    length: number;
+    [index: number]: any;
+    item(index: number, item_value?: any): any;
+    pop(): any;
+    push(item_value: any): IObservableArray;
+    shift(): any;
+    unshift(item_value: any): IObservableArray;
+    $item_convertor?: IObservable;
+}
+export declare class ObservableArray extends Observable {
+    $itemConvertor: (index: number, item_value: any, proxy: ObservableArray) => Observable;
+    $changes: IChangeEventArgs[];
+    [index: number]: any;
+    $length: number;
+    length: number;
+    constructor(raw: (val?: any) => any, item_convertor?: (index: number, item_value: any, proxy: ObservableArray) => IObservable, initValue?: any[], extras?: any);
+    clear(): IObservableArray;
+    resize(newLength: number): IObservableArray;
+    $set(newValue: any): IObservable;
+    item(index: number, item_value?: any): any;
+    push(item_value: any): ObservableArray;
+    pop(): any;
+    unshift(item_value: any): ObservableArray;
+    shift(): any;
+    $update(): boolean;
+    static structToken: string;
+}
 export declare function clone(src: any, deep?: boolean): any;
 export declare class ObservableSchema<TData> {
     [index: string]: any;
@@ -226,11 +254,101 @@ export declare class ObservableSchema<TData> {
         (val?: TData): any;
     }, owner?: ObservableObject<any> | any, extras?: any): Observable<any>;
 }
+export declare enum ComponentReadyStates {
+    Defined = 0,
+    Completed = 1,
+}
+export interface IComponentMeta {
+    $reactives?: {
+        [attr: string]: ReactiveTypes;
+    };
+    $templates?: {
+        [attr: string]: string | Function;
+    };
+    $actions?: {
+        [attr: string]: string;
+    };
+    $wrapType?: Function;
+    $rawType?: Function;
+    $tag?: string;
+    $render?: (component: IComponent, partial: string, container: any) => any;
+    $readyState?: ComponentReadyStates;
+}
+export declare type TComponentType = {
+    new (): any;
+} & IComponentMeta;
+export interface IComponent {
+    [attr: string]: any;
+}
+export declare enum ReactiveTypes {
+    Local = 0,
+    In = 1,
+    Out = 2,
+    Ref = 3,
+    Each = 4,
+}
+export declare const componentTypes: {
+    [tag: string]: {
+        new (): {};
+    };
+};
+export declare function reactive(type?: ReactiveTypes | string): any;
+export declare function action(async?: boolean): (target: any, propertyName: string) => void;
+export declare function template(partial?: string): (target: any, propertyName: string) => void;
+export declare function component(tag: string | TComponentType): any;
+export declare class VirtualNode {
+    tag?: string;
+    attrs?: {
+        [name: string]: any;
+    };
+    content?: any;
+    children?: VirtualNode[];
+    constructor();
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    render(component: IComponent, container?: any): any;
+    renderChildren(component: IComponent, container?: any): any;
+}
+export declare class VirtualTextNode extends VirtualNode {
+    content: any;
+    constructor(content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare class VirtualElementNode extends VirtualNode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    });
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare class VirtualComponentNode extends VirtualNode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    content: any;
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    }, content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare let ELEMENT: any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
     Observable: typeof Observable;
     ObservableObject: typeof ObservableObject;
-    ObservableSchema: typeof ObservableSchema;
+    ObservableArray: typeof ObservableArray;
+    Schema: typeof ObservableSchema;
+    component: (tag: string | TComponentType) => any;
+    reactive: (type?: string | ReactiveTypes) => any;
+    action: (async?: boolean) => (target: any, propertyName: string) => void;
+    ELEMENT: any;
 };
 export default YA;
