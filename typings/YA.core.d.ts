@@ -131,20 +131,21 @@ export declare enum DataTypes {
     Object = 1,
     Array = 2,
 }
-export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
-    $type: DataTypes;
-    $extras?: any;
-    $target?: TData;
-    $get(): TData | IObservable<TData>;
-    $set(newValue: TData): IObservable<TData>;
-    $update(): boolean;
-}
 export declare enum ObservableModes {
     Default = 0,
     Raw = 1,
     Proxy = 2,
 }
-export declare function usingMode(mode: ObservableModes, statement: () => any): void;
+export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
+    $type: DataTypes;
+    $extras?: any;
+    $target?: TData;
+    $get(accessMode?: ObservableModes): TData | IObservable<TData>;
+    $set(newValue: TData): IObservable<TData>;
+    $update(): boolean;
+}
+export declare function observableMode(mode: ObservableModes, statement: () => any): void;
+export declare function proxyMode(statement: () => any): void;
 export interface IChangeEventArgs<TData> {
     type: ChangeTypes;
     index?: string | number;
@@ -177,11 +178,11 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     constructor(init: ObservableObject<any> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
-    $get(): TData | IObservable<TData>;
+    $get(accessMode?: ObservableModes): TData | IObservable<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
     toString(): any;
-    static mode: ObservableModes;
+    static accessMode: ObservableModes;
 }
 export interface IObservableObject<TData extends {
     [index: string]: any;
@@ -193,7 +194,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     constructor(init: ObservableObject<any> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
-    $get(): any;
+    $get(accessMode?: ObservableModes): any;
     $set(newValue: TData): IObservableObject<TData>;
     $update(): boolean;
 }

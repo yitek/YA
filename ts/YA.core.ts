@@ -194,29 +194,39 @@ export enum DataTypes{
     Array
 }
 
-
-export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
-    $type:DataTypes;
-    $extras?:any;
-    $target?:TData;
-    $get():TData|IObservable<TData>;
-    $set(newValue:TData):IObservable<TData>;
-    $update():boolean;
-}
-
 export enum ObservableModes{
     Default,
     Raw,
     Proxy
 }
+export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
+    $type:DataTypes;
+    $extras?:any;
+    $target?:TData;
+    $get(accessMode?:ObservableModes):TData|IObservable<TData>;
+    $set(newValue:TData):IObservable<TData>;
+    $update():boolean;
+}
 
-export function usingMode(mode:ObservableModes,statement:()=>any) {
-    let accessMode = Observable.mode;
+
+
+export function observableMode(mode:ObservableModes,statement:()=>any) {
+    let accessMode = Observable.accessMode;
     try{
-        Observable.mode=mode;
+        Observable.accessMode=mode;
         statement();
     }finally{
-        Observable.mode = accessMode;
+        Observable.accessMode = accessMode;
+    }
+}
+
+export function  proxyMode(statement:()=>any) {
+    let accessMode = Observable.accessMode;
+    try{
+        Observable.accessMode=ObservableModes.Proxy;
+        statement();
+    }finally{
+        Observable.accessMode = accessMode;
     }
 }
 
@@ -303,14 +313,14 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
     
 
-    $get():TData|IObservable<TData>{
-        if( Observable.mode===ObservableModes.Proxy) return this;
-        if(Observable.mode===ObservableModes.Raw) return this.$_raw();
+    $get(accessMode?:ObservableModes):TData|IObservable<TData>{
+        if(accessMode == ObservableModes.Raw || Observable.accessMode===ObservableModes.Raw) return this.$_raw();
+        if( accessMode == ObservableModes.Proxy || Observable.accessMode===ObservableModes.Proxy) return this;
         return (this.$_modifiedValue===undefined)?this.$target:(this.$_modifiedValue===Undefined?undefined:this.$_modifiedValue);
     }
 
     $set(newValue:TData):IObservable<TData>{
-        if(Observable.mode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
+        if(Observable.accessMode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
         this.$_modifiedValue=newValue===undefined?Undefined:newValue;
         return this;
     }
@@ -331,7 +341,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
 
     toString(){let rawValue= this.$_raw();return rawValue?rawValue.toString():rawValue;}
-    static mode:ObservableModes = ObservableModes.Default; 
+    static accessMode:ObservableModes = ObservableModes.Default; 
 }
 //let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
 //defineMembers(ObservableProxy.prototype,ObservableProxy.prototype);
@@ -357,15 +367,15 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         this.$type = DataTypes.Object;
     }
 
-    $get():any{
-        if(Observable.mode===ObservableModes.Raw) return this.$_raw();
+    $get(accessMode?:ObservableModes):any{
+        if(accessMode=== ObservableModes.Raw || Observable.accessMode===ObservableModes.Raw) return this.$_raw();
         return this;
     }
 
     $set(newValue:TData):IObservableObject<TData>{
         super.$set(newValue||null);
-        if(!newValue || Observable.mode===ObservableModes.Raw) return this;
-        usingMode(ObservableModes.Proxy,()=>{
+        if(!newValue || Observable.accessMode===ObservableModes.Raw) return this;
+        proxyMode(()=>{
             for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof Observable) proxy.$set((newValue as any)[n] as any);
@@ -377,7 +387,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     $update():boolean{
         let result = super.$update();
         if(result===false) return false;
-        usingMode(ObservableModes.Proxy,()=>{
+        proxyMode(()=>{
             for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof Observable) proxy.$update();

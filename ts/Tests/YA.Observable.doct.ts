@@ -4,8 +4,9 @@ import * as YA from '../YA.core';
 @doct("YA.ObservableProxy")
 export class ObservableTest {
     constructor(cdoc:ClassDoct){
-        cdoc.description = `可观察的数据，可以通过$get/$set来操作它的值`;
-        cdoc.description =`它的本质是数据代理，在本文档中，有时候也用代理/数据代理等词代指该类型的实例`;
+        cdoc.description = `可观察的数据模型，可以通过$get/$set来操作它的值`;
+        cdoc.description =`它通常用作mvc中的模型model,本质上是一个数据代理。
+在本文档中，有时候也用模型/代理等词代指该类型的实例`;
         cdoc.usage("基本用法",(assert_statement:TAssertStatement)=>{
             //0 定义被代理的数据
             let raw_data = 12;
