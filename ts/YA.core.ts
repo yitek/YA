@@ -1,16 +1,5 @@
 
-function defineMembers(target:any,props?:any,des?:boolean|PropertyDecorator){
-    props ||(props=target);
-    let descriptor = {enumerable:false,writable:true,configurable:false,value:undefined};
-    if(des===true) descriptor.writable=true;
-    else if(des===false) descriptor.writable = false;
-    else if(des) for(const n in descriptor) descriptor[n] = des[n];
-    for(const n in props){
-        descriptor.value = props[n];
-        Object.defineProperty(target,n,descriptor);
-    } 
-    return target;
-}
+
 export function intimate(strong?:boolean|any,members?:any){
     if(members){
         for(const n in members){
@@ -714,10 +703,147 @@ export class ObservableSchema<TData>{
 
 
 //=======================================================================
+export interface IComponent{}
+export enum ReactiveTypes{
+    Internal,
+    In,
+    Out,
+    Ref
+}
+export interface IReactiveInfo{
+    name?:string;
+    type?:ReactiveTypes;
+    schema?:any;
+}
 
+/**
+ * 两种用法:
+ * 1 作为class member的装饰器 @reactive()
+ * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
+ * @param {(ReactiveTypes|Function)} [type]
+ * @param {{[prop:string]:IReactiveInfo}} [defs]
+ * @returns
+ */
+function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReactiveInfo}) {
+    function markReactiveInfo(target:IComponentMeta,info:string|IReactiveInfo) {
+        let reactives = target.$reactives;
+        if(!reactives) Object.defineProperty(target,"$reactives",{enumerable:false,writable:false,configurable:false,value:reactives={}});
+
+        if((info as IReactiveInfo).name){
+            if(!(info as IReactiveInfo).schema) (info as IReactiveInfo).schema = target[(info as IReactiveInfo).name];
+            reactives[(info as IReactiveInfo).name]= info as IReactiveInfo;
+        }else {
+            reactives[info as string] = {type :type as ReactiveTypes|| ReactiveTypes.Internal,name:info as string,schema:target[info as string]};
+        }
+    }
+    if(defs){
+        let target = (type as Function).prototype;
+        for(const n in defs){
+            let def = defs[n];def.name = n;
+            markReactiveInfo(target,def);
+        } 
+    }
+    return markReactiveInfo;
+}
+
+//==========================================================
+
+export interface ITemplateInfo{
+    name?:string;
+    vnode?:any;
+    partial?:string;
+    render?:Function;
+}
+
+function template(partial?:string|Function,defs?:{[prop:string]:ITemplateInfo}){
+    function markTemplateInfo(target:IComponentMeta,info:string|ITemplateInfo) {
+        let templates = target.$templates;
+        if(!templates) Object.defineProperty(target,"$templates",{enumerable:false,writable:false,configurable:false,value:templates={}});
+
+        if(defs){
+            templates[(info as ITemplateInfo).partial]= info as IReactiveInfo;
+        }else {
+            partial ||(partial=info as string);
+            templates[partial as string] = { name: info as string, partial:partial as string };
+        }
+    }
+    if(defs){
+        let target = (partial as Function).prototype;
+        for(const n in defs){
+            let def = defs[n];def.name = n;def.partial ||(def.partial=n);
+            markTemplateInfo(target,def);
+        } 
+    }
+    return markTemplateInfo;
+}
+
+//===============================================================================================
+
+export interface IActionInfo{
+    name?:string;
+    async?:boolean;
+    method?:Function;
+}
+
+function action(async?:boolean|Function,defs?:{[prop:string]:ITemplateInfo}){
+    function markTemplateInfo(target:IComponentMeta,info:string|ITemplateInfo) {
+        let infos = target.$actions;
+        if(!infos) Object.defineProperty(target,"$actions",{enumerable:false,writable:false,configurable:false,value:infos={}});
+
+        if(defs){
+            infos[(info as IActionInfo).name]= info as IActionInfo;
+        }else {
+            
+            infos[info as string] = { name: info as string, async:async as boolean };
+        }
+    }
+    if(defs){
+        let target = (async as Function).prototype;
+        for(const n in defs){
+            let def = defs[n];def.name = n;
+            markTemplateInfo(target,def);
+        } 
+    }
+    return markTemplateInfo;
+}
+
+export interface IComponentMeta {
+    $reactives?:{[prop:string]:IReactiveInfo};
+    $templates?:{[partial:string]:ITemplateInfo};
+    $actions?:{[methodname:string]:IActionInfo};
+    $iterators?:any; 
+    $wrapType?:Function;
+    $rawType?:Function;
+    $tag?:string;
+    $render?:Function;
+}
+
+export function component(tag:string|Function){
+    function decorator<T extends {new(...args: any[]):{}}>(RawType:T){
+        Object.defineProperty(RawType,"$tag",{
+            enumerable:false,writable:false,configurable:false,value:tag
+        });
+        let WrappedType= class extends RawType{
+            constructor(...args:any[]){
+                super();
+            }
+        };
+        return WrappedType;
+    }
+    
+    if(typeof tag==="function"){
+        let rawType = tag as Function;
+        return decorator(rawType as any);
+    }else return decorator;
+}
+
+
+
+//=======================================================================
 
 let YA={
-    Subject, ObservableModes,Observable,ObservableObject, ObservableSchema
+    Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
+    ,intimate,clone
     
 };
 if(typeof window!=='undefined') (window as any).YA = YA;

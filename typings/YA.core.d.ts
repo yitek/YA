@@ -243,11 +243,57 @@ export declare class ObservableSchema<TData> {
     $create(init: (val?: TData) => any, extras?: any): Observable<any>;
     static schemaToken: string;
 }
+export interface IComponent {
+}
+export declare enum ReactiveTypes {
+    Internal = 0,
+    In = 1,
+    Out = 2,
+    Ref = 3,
+}
+export interface IReactiveInfo {
+    name?: string;
+    type?: ReactiveTypes;
+    schema?: any;
+}
+export interface ITemplateInfo {
+    name?: string;
+    vnode?: any;
+    partial?: string;
+    render?: Function;
+}
+export interface IActionInfo {
+    name?: string;
+    async?: boolean;
+    method?: Function;
+}
+export interface IComponentMeta {
+    $reactives?: {
+        [prop: string]: IReactiveInfo;
+    };
+    $templates?: {
+        [partial: string]: ITemplateInfo;
+    };
+    $actions?: {
+        [methodname: string]: IActionInfo;
+    };
+    $iterators?: any;
+    $wrapType?: Function;
+    $rawType?: Function;
+    $tag?: string;
+    $render?: Function;
+}
+export declare function component(tag: string | Function): any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
+    observableMode: (mode: ObservableModes, statement: () => any) => void;
+    proxyMode: (statement: () => any) => void;
     Observable: typeof Observable;
     ObservableObject: typeof ObservableObject;
+    ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
+    intimate: (strong?: any, members?: any) => (target: any, propName?: string) => void;
+    clone: (src: any, deep?: boolean) => any;
 };
 export default YA;
