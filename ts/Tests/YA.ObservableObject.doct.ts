@@ -1,4 +1,4 @@
-import {doct, ClassDoct, TAssert,TAssertStatement} from '../YA.doct';
+import {doct, ClassDoct, TAssert,TAssertStatement, MemberDoct} from '../YA.doct';
 import * as YA from '../YA.core';
 
 @doct("YA.ObservableObject")
@@ -51,9 +51,19 @@ export class ObservableObjectTest {
                 assert(true,titleChangeInfo!==undefined,"注册在title上的事件被触发");
                 assert(true,titleChangeInfo.old==="YA framework" && titleChangeInfo.value==="YA framework v1.0","事件参数记录了新值与旧值:evt.value==='YA framework v1.0',evt.old==='YA framework'");
             });
+        });
 
-
+        cdoc.usage("非平坦对象",(assert_statement:TAssertStatement)=>{
+            let proxy = new YA.ObservableObject<any>({
+                author:{name:"yiy",email:"y-tec@qq.com"},
+                title:"YA"
+            });
+            
+            assert_statement((assert:TAssert)=>{
+                assert("yiy",proxy.author.name,"可以访问对象的对象:proxy.author.name==='yiy'");
+            });
         });
         
     }
+    
 }

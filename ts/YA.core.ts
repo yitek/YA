@@ -417,16 +417,16 @@ function prop_raw<TProp,TObj>(name:string|number):{(val?:any):any}{
 }
 
 function defineMember<TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
-    let prop_value:any;
+    let prop_value:any =Undefined;
     Object.defineProperty(target,name,{
         enumerable:true,
         configurable:false,
-        get:()=>{
-            if(prop_value===undefined) prop_value=accessorFactory.call(target,target,name);
-            return prop_value.get?prop_value.get():prop_value.$get();
+        get:function(param?:any){
+            if(prop_value===Undefined) prop_value=accessorFactory.call(this,target,name);
+            return prop_value.get?prop_value.get(param):prop_value.$get(param);
         },
         set:(val)=>{
-            if(prop_value===undefined) prop_value=accessorFactory.call(target,target,name);
+            if(prop_value===Undefined) prop_value=accessorFactory.call(this,target,name);
             return prop_value.set?prop_value.set(val):prop_value.$set(val);
         }
     });  
@@ -520,14 +520,14 @@ export class ObservableSchema<TData>{
         if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
         Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
-        defineMember<TData>(this.$ctor,propname,(owner,name)=>new propSchema.$ctor(owner,name));        
+        defineMember<TData>(this.$ctor.prototype,propname,function(owner,name){return new propSchema.$ctor(this,name);});        
         return propSchema;
     }
 
     $initObservable(ob:Observable<TData>){
         for(const n in this){
             let propSchema = this[n] as any as ObservableSchema<any>;
-            defineMember<TData>(ob,n,(owner,name)=>new propSchema.$ctor(owner,name));
+            defineMember<TData>(ob,n,function(owner,name){return new propSchema.$ctor(this,name);});
         }
     }
     
