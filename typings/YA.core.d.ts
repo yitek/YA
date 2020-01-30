@@ -166,6 +166,12 @@ export declare enum ChangeTypes {
     Unshift = 6,
     Remove = 7,
 }
+export interface IObservableIndexable<TData extends {
+    [index in keyof object]: any;
+}> extends IObservable<TData> {
+    $target: any;
+    $_modifiedValue: any;
+}
 export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData> {
     $type: DataTypes;
     $target: TData;
@@ -173,15 +179,15 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $schema?: ObservableSchema<TData>;
     $_index?: number | string;
     $_modifiedValue: TData;
-    $_owner?: ObservableObject<any>;
+    $_owner?: IObservableIndexable<TData>;
     $_raw: (value?: TData) => any;
-    constructor(init: ObservableObject<any> | {
+    constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
     $get(accessMode?: ObservableModes): TData | IObservable<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
-    toString(): any;
+    toString(): string;
     static accessMode: ObservableModes;
 }
 export interface IObservableObject<TData extends {
@@ -189,13 +195,30 @@ export interface IObservableObject<TData extends {
 }> extends IObservable<TData> {
     [index: string]: any;
 }
-export declare class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData> {
+export declare class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>, IObservableIndexable<TData> {
     [index: string]: any;
-    constructor(init: ObservableObject<any> | {
+    constructor(init: IObservableIndexable<any> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
     $get(accessMode?: ObservableModes): any;
     $set(newValue: TData): IObservableObject<TData>;
+    $update(): boolean;
+}
+export interface IObservableArray<TItem> extends IObservable<TItem[]> {
+    [index: number]: any;
+    length: number;
+}
+export declare class ObservableArray<TItem> extends Observable<TItem[]> implements IObservableArray<TItem>, IObservableIndexable<TItem[]> {
+    [index: number]: any;
+    length: number;
+    $_changes: IChangeEventArgs<TItem[]>[];
+    $_length: number;
+    $_itemSchema: ObservableSchema<TItem>;
+    constructor(init: IObservableIndexable<TItem[]> | {
+        (val?: TItem[]): any;
+    } | TItem[], index?: any, itemSchemaOrExtras?: any, extras?: any);
+    toString(): string;
+    clear(): ObservableArray<TItem>;
     $update(): boolean;
 }
 export declare function clone(src: any, deep?: boolean): any;
@@ -209,17 +232,16 @@ export declare class ObservableSchema<TData> {
             (val?: TData): any;
         }, owner?: ObservableObject<any> | any, extras?: any): Observable<any>;
     };
-    $item_ctor: {
-        new (raw?: Function, initData?: any, extras?: any, owner?: Observable<any>): Observable<any>;
-    };
     $owner?: ObservableSchema<TData>;
-    $item_schema?: ObservableSchema<TData>;
+    $itemSchema?: ObservableSchema<TData>;
     $initData?: any;
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
     $asObject(): ObservableSchema<TData>;
+    $asArray(): ObservableSchema<TData>;
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
-    $initObservable(ob: Observable<TData>): void;
+    $initObject(ob: Observable<TData>): void;
     $create(init: (val?: TData) => any, extras?: any): Observable<any>;
+    static schemaToken: string;
 }
 declare let YA: {
     Subject: typeof Subject;

@@ -199,6 +199,8 @@ export enum ObservableModes{
     Raw,
     Proxy
 }
+
+
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $type:DataTypes;
     $extras?:any;
@@ -258,7 +260,10 @@ export enum ChangeTypes{
 
 let Undefined:any = {};
 
-
+export interface IObservableIndexable<TData extends {[index in keyof object]:any}> extends IObservable<TData>{
+    $target:any;
+    $_modifiedValue:any;
+}
 @intimate()
 export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData>{
     $type:DataTypes;
@@ -273,18 +278,26 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 
     $_modifiedValue:TData;
     
-    $_owner?:ObservableObject<any>;
+    $_owner?:IObservableIndexable<TData>;
 
     $_raw:(value?:TData)=>any;
 
-    constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
+    constructor(init:IObservableIndexable<TData>|{(val?:TData):any}|TData,index?:any,extras?:any){
         super();
         
         if(init instanceof ObservableObject){
             //ctor(owner,index,extras)
-            this.$_owner= init as ObservableObject<any>;
+            this.$_owner= init as IObservableIndexable<TData>;
             this.$_index = index;
-            this.$_raw = prop_raw(index);
+            this.$_raw = (val:TData):any=>val===undefined
+                ?(this.$_owner.$_modifiedValue===undefined
+                    ?this.$_owner.$target
+                    :(this.$_owner.$_modifiedValue===Undefined?null:this.$_owner.$_modifiedValue)
+                )[this.$_index]
+                :((this.$_owner.$_modifiedValue===undefined
+                    ?this.$_owner.$target
+                    :(this.$_owner.$_modifiedValue===Undefined?null:this.$_owner.$_modifiedValue)
+                )as any)[this.$_index]=val as any;   
             this.$target = this.$_raw();
             this.$extras = extras;
         }else if(typeof init==="function"){
@@ -296,10 +309,10 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             if(typeof index==="function"){
                 this.$extras = extras;
                 this.$_raw = index;
-                this.$target = init;
+                this.$target = init as TData;
                 index.call(this,init);
             }else {
-                this.$target=init;
+                this.$target=init as TData;
                 this.$extras = index;
                 this.$_raw =(val:TData)=>val===undefined?init:init=val;
             }
@@ -340,11 +353,14 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         
     }
 
-    toString(){let rawValue= this.$_raw();return rawValue?rawValue.toString():rawValue;}
+    toString(){
+        let  currentValue = this.$get();
+        return currentValue===undefined || currentValue===null?"":currentValue.toString();
+    }
     static accessMode:ObservableModes = ObservableModes.Default; 
 }
-//let ValueProxyProps = ["$modifiedValue","$type","$raw","$extras","$owner"];
-//defineMembers(ObservableProxy.prototype,ObservableProxy.prototype);
+
+
 
 export interface IObservableObject<TData extends {[index:string]:any}> extends IObservable<TData>{
     //$prop(name:string,prop:IObservable<TData>|boolean|{(proxy:ObservableObject<TData>,name:string):any}|PropertyDecorator):IObservableObject<TData>;
@@ -354,17 +370,18 @@ export interface IObservableObject<TData extends {[index:string]:any}> extends I
 
 
 @intimate()
-export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>{
+export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>,IObservableIndexable<TData>{
     [index:string]:any;
-    constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
+    constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
         super(init,index,extras);
+        this.$type = DataTypes.Object;
         if(!this.$target) this.$_raw(this.$target={} as any);
         if(!this.$schema){
             this.$schema = new ObservableSchema<TData>(this.$target);
-            this.$schema.$initObservable(this);
+            this.$schema.$initObject(this);
         }
         
-        this.$type = DataTypes.Object;
+        
     }
 
     $get(accessMode?:ObservableModes):any{
@@ -396,27 +413,163 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         return true;
     }
 }
-
-
-
-function prop_raw<TProp,TObj>(name:string|number):{(val?:any):any}{
+export interface IObservableArray<TItem> extends IObservable<TItem[]>{
+    [index:number]:any;  
+    length:number; 
+}
+@intimate()
+export class ObservableArray<TItem> extends Observable<TItem[]> implements IObservableArray<TItem>,IObservableIndexable<TItem[]>{
+    [index:number]:any;
+    length:number;
+    $_changes:IChangeEventArgs<TItem[]>[];
+    $_length:number;
+    $_itemSchema:ObservableSchema<TItem>;
     
-    return function(val?:TProp){
-        let objProxy:ObservableObject<TObj> = (this as ObservableObject<TObj>).$_owner;
+    constructor(init:IObservableIndexable<TItem[]>|{(val?:TItem[]):any}|TItem[],index?:any,itemSchemaOrExtras?:any,extras?:any){
+        let target:any;
+        super(init,index,extras);
+        this.$type = DataTypes.Array;
+        target = this.$target;
+        if(Object.prototype.toString.call(target)!=="[object Array]") this.$_raw.call(this,target=this.$target=[]);
 
-        return val===undefined
-            ?(objProxy.$_modifiedValue===undefined
-                ?objProxy.$target
-                :(objProxy.$_modifiedValue===Undefined?null:objProxy.$_modifiedValue)
-            )[name]
-            :(objProxy.$_modifiedValue===undefined
-                ?objProxy.$target
-                :(objProxy.$_modifiedValue===Undefined?null:objProxy.$_modifiedValue)
-            )[name]=val;   
-    }      
+        if(!this.$schema){
+            this.$schema = new ObservableSchema<TItem[]>(this.$target);
+        }
+        let itemSchema :ObservableSchema<TItem>;
+        if(index instanceof ObservableSchema){
+            extras = itemSchemaOrExtras;
+            itemSchema = index;
+        } 
+        else if(itemSchemaOrExtras instanceof ObservableSchema) itemSchema= itemSchemaOrExtras;
+        else if(extras instanceof ObservableSchema){
+            itemSchema = extras;
+            extras = itemSchemaOrExtras;
+        }
+        this.$_itemSchema = itemSchema || this.$schema.$itemSchema as ObservableSchema<any>;
+        let item_index:number=0;
+        for(let i =0,j=target.length;i<j;i++) makeArrayItem(this,item_index++);
+        
+        intimate(this,{
+            $_changes:undefined,$_length:target.length,$_itemSchema:undefined
+        });
+        Object.defineProperty(this,"length",{
+            enumerable:false,configurable:false,get:()=>this.$_length,set:(val)=>{}
+        });
+    }
+
+    toString(){
+        let ret = "";
+        proxyMode(()=>{
+            for(let i =0,j=this.$_length;i<j;i++){
+                let item = this[i];
+                if(i!==0) ret +=",";
+                ret += `${item.$get()}`;
+            }
+        });
+        return ret;
+    }
+    
+
+    clear():ObservableArray<TItem>{
+        let old = this.$get() as TItem[];
+        let changes = this.$_changes|| (this.$_changes=[]);
+        let len = old.length;
+        if(changes)for(const i in changes){
+            let change = changes[i];
+            if(change.type ===ChangeTypes.Push || change.type===ChangeTypes.Unshift){
+                len++;
+            }
+        }
+        proxyMode(()=>{
+            for(let i = 0;i<len;i++){
+                let removeItem = this[i];
+                if(removeItem){
+                    delete this[i];
+                    changes.push({
+                        type:ChangeTypes.Remove,
+                        index:i,
+                        target:old,
+                        item:removeItem,
+                        sender:removeItem
+                    });
+                }
+            }
+        });
+              
+
+        return this;
+    }
+
+    $update():boolean{
+        if(!super.$update()) return true;
+        let changes = this.$_changes;
+        if(!changes || this.$_changes.length===0) return true;
+        this.$_changes = undefined;
+
+        let arr = this.$target;
+        for(const i in changes){
+            let change = changes[i];
+            switch(change.type){
+                case ChangeTypes.Push:
+                    arr.push(change.value);
+                    this.$notify(change);
+                    //if(change.cancel!==true && change.item) change.item.$notify(change);
+                    break;
+                case ChangeTypes.Pop:
+                    arr.pop();
+                    this.$notify(change);
+                    if(change.cancel!==true && change.item) {
+                        change.sender = change.item;
+                        change.item.$notify(change);
+                    }
+                    break;
+                case ChangeTypes.Unshift:
+                    arr.unshift(change.value);
+                    this.$notify(change);
+                    break;
+                case ChangeTypes.Shift:
+                    arr.shift();
+                    this.$notify(change);
+                    if(change.cancel!==true && change.item) {
+                        change.sender = change.item;
+                        change.item.$notify(change);
+                    }
+                    break;
+                case ChangeTypes.Replace:
+                    arr[change.index] = change.value;
+                    this.$notify(change);
+                    if(change.cancel!==true){
+                        change.sender =change.item;
+                        change.type = ChangeTypes.Value;
+                        change.sender.$notify(change);
+                    } 
+                    break;
+            }
+        }
+        return true;
+    }
+    
 }
 
-function defineMember<TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
+function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
+    let item = new obArray.$_itemSchema.$ctor(obArray.$target[index],obArray);
+    item.$_index = index;
+    Object.defineProperty(obArray,index as any as string,{enumerable:true,configurable:true
+        ,get:(mode?:ObservableModes) => item.$get(mode)
+        ,set:(item_value:TItem)=>{
+            (obArray.$_changes || (obArray.$_changes=[])).push({
+                sender:obArray,
+                type:ChangeTypes.Replace,
+                index:index,
+                item:item,
+                value:item_value
+            });
+            item.$set(item_value);
+        }
+    });
+}
+
+function defineProp<TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
     let prop_value:any =Undefined;
     Object.defineProperty(target,name,{
         enumerable:true,
@@ -462,10 +615,9 @@ export class ObservableSchema<TData>{
     $index:string|number;
     $path:string;
     $ctor:{new (initValue:TData|{(val?:TData):any},owner?:ObservableObject<any>|any,extras?:any):Observable<any>};
-    $item_ctor:{new (raw?:Function,initData?:any,extras?:any,owner?:Observable<any>):Observable<any>};
     //$prop_models:{[index:string]:Model};
     $owner?:ObservableSchema<TData>;
-    $item_schema?:ObservableSchema<TData>;
+    $itemSchema?:ObservableSchema<TData>;
     $initData?:any;
     constructor(initData:TData,index?:string|number,owner?:ObservableSchema<any>){
         let path;
@@ -481,7 +633,7 @@ export class ObservableSchema<TData>{
             ,"$path":path
             ,"$owner":owner
             ,"$ctor":Observable
-            ,"$item_schema":null
+            ,"$itemSchema":null
             ,"$initData":initData
         });
         if(initData){
@@ -493,19 +645,19 @@ export class ObservableSchema<TData>{
                 }
             }
             else if(t==="[object Array]"){
-                throw new Error("not implement.");
+                this.$asArray();
+            }else {
+                this.$type = DataTypes.Value;
+                this.$ctor = Observable;
             }
         }
     }
-    
-
-    
 
     $asObject():ObservableSchema<TData>{
         if(this.$type===DataTypes.Object) return this;
         if(this.$type === DataTypes.Array) throw new Error("无法将ObservableSchema从Array转化成Object.");
         this.$type = DataTypes.Object;
-        let objSchema = this;
+        
         class _ObservableObject extends ObservableObject<TData>{
             constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
                 super(init,index,extras);
@@ -516,24 +668,48 @@ export class ObservableSchema<TData>{
         return this;
     }
 
+    $asArray():ObservableSchema<TData>{
+        if(this.$type===DataTypes.Array) return this;
+        if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
+        this.$type = DataTypes.Array;
+        class _ObservableArray extends ObservableArray<any>{
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
+                super(init as any,index,extras);
+            }
+        };
+        if(this.$initData){
+            let item = this.$initData.shift();
+            if(item) {
+                this.$itemSchema = new ObservableSchema(item,-1,this);
+                if(!item[ObservableSchema.schemaToken])this.$initData.unshift(item);
+            }
+        }
+        if(!this.$itemSchema) this.$itemSchema = new ObservableSchema(undefined,-1,this);
+        _ObservableArray.prototype.$schema= this as any;
+        this.$ctor= _ObservableArray;
+
+    }
+
     $defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
         if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
         Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
-        defineMember<TData>(this.$ctor.prototype,propname,function(owner,name){return new propSchema.$ctor(this,name);});        
+        defineProp<TData>(this.$ctor.prototype,propname,function(owner,name){return new propSchema.$ctor(this,name);});        
         return propSchema;
     }
 
-    $initObservable(ob:Observable<TData>){
+    $initObject(ob:Observable<TData>){
         for(const n in this){
             let propSchema = this[n] as any as ObservableSchema<any>;
-            defineMember<TData>(ob,n,function(owner,name){return new propSchema.$ctor(this,name);});
+            defineProp<TData>(ob,n,function(owner,name){return new propSchema.$ctor(this,name);});
         }
     }
     
     $create(init:(val?:TData)=>any,extras?:any){
         return new this.$ctor(clone(this.$initData,true),init,extras);
     }
+
+    static schemaToken:string = "__ONLY_USED_BY_SCHEMA__";
 }
 
 
