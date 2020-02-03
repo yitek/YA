@@ -17,6 +17,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA_doct_1 = require("../YA.doct");
     var YA = require("../YA.core");
+    YA_doct_1.doct.output = YA_doct_1.outputToElement;
     var SubjectTest = /** @class */ (function () {
         function SubjectTest(doc) {
             doc.description = "\u4E3B\u9898\u5BF9\u8C61\u7C7B\n\u5B9E\u73B0\u8BA2\u9605/\u53D1\u5E03\u6A21\u5F0F\n\u5B83\u652F\u6301\u8BA2\u9605/\u53D1\u5E03\u67D0\u4E2A\u4E3B\u9898;\u5982\u679C\u672A\u6307\u5B9A\u4E3B\u9898\uFF0C\u9ED8\u8BA4\u4E3B\u9898\u4E3A\"\"\n\u5B83\u7684\u6240\u6709\u5173\u4E8E\u8BA2\u9605\u53D1\u5E03\u7684\u6210\u5458\u5B57\u6BB5/\u51FD\u6570\u90FD\u662Fenumerable=false\u7684\n\u4E00\u822C\u7528\u4F5C\u5176\u4ED6\u7C7B\u578B\u7684\u57FA\u7C7B\n";

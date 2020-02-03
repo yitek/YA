@@ -38,7 +38,7 @@ export declare class NamespaceDoct extends Doct {
 }
 export declare type TAssert = (expected: any, actual: any, message?: string) => any;
 export declare type TAssertStatement = (assert: TAssert) => any;
-export declare type TUsageStatement = (assert_statement: TAssertStatement) => any;
+export declare type TUsageStatement = (assert_statement: TAssertStatement, context?: any) => any;
 export interface IUsageCode {
     code: string;
     asserts?: string[];
@@ -92,3 +92,4 @@ export declare type TDoct = {
 };
 export declare let doct: TDoct;
 export default doct;
+export declare let outputToElement: (params?: any, doc?: Doct) => TDoct;

@@ -1,0 +1,6 @@
+{
+    "less.compile": {
+        "out": "${workspaceRoot}/dist/styles/"
+    },
+    "easysass.targetDir":"dist/styles/"
+}

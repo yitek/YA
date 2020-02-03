@@ -52,14 +52,14 @@ export class Doct {
         return this.descriptions.join("\n");
     }
     set description(value:string){
-        this.descriptions.push(value);
+        if(value)this.descriptions.push(value);
     }
 
     get notice():string{
         return this.notices.join("\n");
     }
     set notice(value:string){
-        this.notices.push(value);
+        if(value)this.notices.push(value);
     }
 }
 
@@ -185,7 +185,7 @@ export class NamespaceDoct extends Doct {
 
 export type TAssert = (expected:any,actual:any,message?:string)=>any;
 export type TAssertStatement = (assert:TAssert)=>any;
-export type TUsageStatement = (assert_statement:TAssertStatement)=>any;
+export type TUsageStatement = (assert_statement:TAssertStatement,context?:any)=>any;
 export interface IUsageCode{
     code:string;
     asserts?:string[];
@@ -608,6 +608,123 @@ doct.output = (params?:any,doc?:Doct):TDoct=>{
     console.info("#时间:",`${doc.ellapse}ms`,date_format(doc.start),date_format(doc.end));
     
     console.groupEnd();
+    return doct as TDoct;
+}
+
+function makeSection(dlElem:HTMLDListElement,title:string,content:any){
+    let domDoc = dlElem.ownerDocument;
+    let tit = domDoc.createElement("DT");dlElem.appendChild(tit);
+    tit.innerHTML=title;
+    let dd = domDoc.createElement("DD");dlElem.appendChild(dd);
+    function makeContents(content){
+        if(!content) return;
+        else if(typeof content==="function") makeContents(content(domDoc,dd));
+        else if(typeof content==="string") dd.innerHTML = content;
+        else if(Object.prototype.toString.call(content)==="[object Array]"){
+            for(const i in content) makeContents(content[i]);
+        }else dd.appendChild(content);
+    }
+    makeContents(content);
+    (tit as any).dd = dd;
+    return tit;
+}
+
+export let outputToElement = (params?:any,doc?:Doct):TDoct=>{
+    if(doc===undefined) doc = rootDoc;
+    params ||(params={});
+    let domDoc = params.document || document;
+    let group = domDoc.createElement("fieldset");group.className = "group " + Doctypes[doc.type];
+    let cotainerDom = params.containerDom || document.body;
+    group.setAttribute("doctype",Doctypes[doc.type]);cotainerDom.appendChild(group);
+    let legend = domDoc.createElement("legend");group.appendChild(legend);
+    legend.innerHTML = doc.name;
+
+    
+    
+    
+
+    let dlElem = domDoc.createElement("DL");group.appendChild(dlElem);
+    dlElem.className="statistics";
+    if(doc.type !== Doctypes.Usage){
+        let tit = makeSection(dlElem,"测试",`${doc.errorCount}/${doc.usageCount}=${doc.errorCount*100/doc.usageCount}%`);
+        if(doc.errorCount){
+            tit.className="warn"; (tit as any).dd.className="warn";
+        }            
+    }else {
+        if((doc as UsageDoct).exception) {
+            let tit= makeSection(dlElem,"错误",JSON.stringify((doc as UsageDoct).exception));
+            tit.className="error"; (tit as any).dd.className="error";
+        }
+    }
+    
+    let tit = makeSection(dlElem,"耗时",`${doc.ellapse}ms=${date_format(doc.end)}-${date_format(doc.start)}`);
+    tit.className="error"; (tit as any).dd.className="error";
+
+    dlElem = domDoc.createElement("DL");group.appendChild(dlElem);
+    let descs = doc.descriptions;
+    if(descs && descs.length){
+        makeSection(dlElem,"说明",(domDoc)=>{
+            let ul = domDoc.createElement("ul");ul.className = "descriptions";
+            for(const i in descs) {
+                let li = domDoc.createElement("li"); ul.appendChild(li); li.innerHTML = descs[i].replace(/\n/g,"<br />");
+            }return ul;
+        });
+    }
+    let notices = doc.notices;
+    if(notices && notices.length){
+        makeSection(dlElem,"注意",(domDoc)=>{
+            let ul = domDoc.createElement("ul");ul.className="notices";
+            for(const i in descs) {
+                let li = domDoc.createElement("li"); ul.appendChild(li); li.innerHTML = descs[i].replace(/\n/g,"<br />");
+            }return ul;
+        });
+    }
+    
+
+    if(doc instanceof UsageDoct){
+        if(doc.codes && doc.codes.length){
+            makeSection(dlElem,"示例",(domDoc)=>{
+                let ul = domDoc.createElement("ol");ul.className="samples";
+                for(const i in (doc as UsageDoct).codes) {
+                    let codeInfo = (doc as UsageDoct).codes[i];
+                    let li = domDoc.createElement("li"); ul.appendChild(li); 
+                    let preElem = domDoc.createElement("pre"); li.appendChild(preElem);
+                    let codeElem =domDoc.createElement("code"); preElem.appendChild(codeElem);
+                    codeElem.innerHTML = codeInfo.code;
+                    if(codeInfo.asserts && codeInfo.asserts.length){
+                        let asserts  = domDoc.createElement("ul"); asserts.className="asserts";li.appendChild(asserts);
+                        for(const n in codeInfo.asserts){
+                            let li = domDoc.createElement("li"); asserts.appendChild(li); li.innerHTML = (codeInfo.asserts[n].replace(/\n/g,"<br />"));
+                        }
+                    }
+                }
+                return ul;
+            });
+        }
+    }
+    if(doc instanceof StatementDoct && doc.usages){
+        makeSection(dlElem,"用法",(domDoc,dd)=>{
+            let ol = domDoc.createElement("ol"); dd.appendChild(ol);
+            for(const n in (doc as StatementDoct).usages){
+                let li = domDoc.createElement("li");params.containerDom = li;ol.appendChild(li);
+                doct.output(params,(doc as StatementDoct).usages[n]);
+            } 
+        });
+        
+    }
+
+    if(doc instanceof NamespaceDoct){
+        let subs = domDoc.createElement("ul"); group.appendChild(subs);subs.className="subs";
+        for(const n in doc.subs) {
+            let li = domDoc.createElement("li");subs.appendChild(li);
+            params.containerDom = li;
+            doct.output(params,doc.subs[n]);
+        }
+    }
+    
+
+    
+    
     return doct as TDoct;
 }
 

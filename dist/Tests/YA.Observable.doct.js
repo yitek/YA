@@ -22,7 +22,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             cdoc.description = "\u53EF\u89C2\u5BDF\u7684\u6570\u636E\u6A21\u578B\uFF0C\u53EF\u4EE5\u901A\u8FC7$get/$set\u6765\u64CD\u4F5C\u5B83\u7684\u503C";
             cdoc.description = "\u5B83\u901A\u5E38\u7528\u4F5Cmvc\u4E2D\u7684\u6A21\u578Bmodel,\u672C\u8D28\u4E0A\u662F\u4E00\u4E2A\u6570\u636E\u4EE3\u7406\u3002\n\u5728\u672C\u6587\u6863\u4E2D\uFF0C\u6709\u65F6\u5019\u4E5F\u7528\u6A21\u578B/\u4EE3\u7406\u7B49\u8BCD\u4EE3\u6307\u8BE5\u7C7B\u578B\u7684\u5B9E\u4F8B";
             cdoc.usage("基本用法", function (assert_statement) {
-                //0 定义被代理的数据
+                //0 定义被代理的数据 
                 var raw_data = 12;
                 //1 创建一个数据代理,它的第一个参数为读/写原始值的函数
                 var proxy = new YA.Observable(function (val) { return val === undefined ? raw_data : raw_data = val; });

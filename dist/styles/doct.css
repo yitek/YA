@@ -1,0 +1,14 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+fieldset {
+  margin: 5px;
+}
+
+fieldset legend {
+  font-size: 16.8px;
+  font-weight: bold;
+}

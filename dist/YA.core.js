@@ -493,33 +493,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         });
         return this;
     }
-    function clone(src, deep) {
-        if (!src)
-            return src;
-        var srcT = Object.prototype.toString.call(src);
-        if (srcT === "boolean" || srcT === "number" || srcT === "string")
-            return src;
-        var rs;
-        if (srcT === "function") {
-            var raw_1 = src;
-            if (src.$clone_raw)
-                raw_1 = src.$clone_raw;
-            var rs_1 = function () { return raw_1.apply(arguments); };
-            Object.defineProperty(rs_1, "$clone_raw", { enumerable: false, writable: false, configurable: false, value: raw_1 });
-        }
-        else if (srcT === "[object Object]")
-            rs = {};
-        else if (srcT === "[object Array]")
-            rs = [];
-        if (deep)
-            for (var n in src)
-                rs[n] = clone(src[n], true);
-        else
-            for (var n in src)
-                rs[n] = src[n];
-        return rs;
-    }
-    exports.clone = clone;
     //=======================================================================
     var ObservableSchema = /** @class */ (function () {
         function ObservableSchema(initData, index, owner) {
@@ -624,7 +597,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ObservableSchema.prototype.$create = function (init, extras) {
             return new this.$ctor(clone(this.$initData, true), init, extras);
         };
-        ObservableSchema.schemaToken = "__ONLY_USED_BY_SCHEMA__";
+        ObservableSchema.schemaToken = "$__ONLY_USED_BY_SCHEMA__";
         ObservableSchema = ObservableSchema_1 = __decorate([
             intimate()
         ], ObservableSchema);
@@ -632,33 +605,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var ObservableSchema_1;
     }());
     exports.ObservableSchema = ObservableSchema;
-    var ReactiveTypes;
-    (function (ReactiveTypes) {
-        ReactiveTypes[ReactiveTypes["Internal"] = 0] = "Internal";
-        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
-        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
-        ReactiveTypes[ReactiveTypes["Ref"] = 3] = "Ref";
-    })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
+    //=======================================================================
+    var StateTypes;
+    (function (StateTypes) {
+        StateTypes[StateTypes["Internal"] = 0] = "Internal";
+        StateTypes[StateTypes["Iterator"] = 1] = "Iterator";
+        StateTypes[StateTypes["In"] = 2] = "In";
+        StateTypes[StateTypes["Out"] = 3] = "Out";
+        StateTypes[StateTypes["Ref"] = 4] = "Ref";
+    })(StateTypes = exports.StateTypes || (exports.StateTypes = {}));
     /**
      * 两种用法:
      * 1 作为class member的装饰器 @reactive()
      * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
-     * @param {(ReactiveTypes|Function)} [type]
-     * @param {{[prop:string]:IReactiveInfo}} [defs]
+     * @param {(StateTypes|Function)} [type]
+     * @param {{[prop:string]:IStateInfo}} [defs]
      * @returns
      */
-    function reactive(type, defs) {
-        function markReactiveInfo(target, info) {
-            var reactives = target.$reactives;
-            if (!reactives)
-                Object.defineProperty(target, "$reactives", { enumerable: false, writable: false, configurable: false, value: reactives = {} });
+    function state(type, defs) {
+        function markStateInfo(target, info) {
+            var infos = sureMetaInfo(target, "states");
             if (info.name) {
                 if (!info.schema)
                     info.schema = target[info.name];
-                reactives[info.name] = info;
+                infos[info.name] = info;
             }
             else {
-                reactives[info] = { type: type || ReactiveTypes.Internal, name: info, schema: target[info] };
+                infos[info] = { type: type || StateTypes.Internal, name: info, schema: target[info] };
             }
         }
         if (defs) {
@@ -666,22 +639,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var n in defs) {
                 var def = defs[n];
                 def.name = n;
-                markReactiveInfo(target, def);
+                markStateInfo(target, def);
             }
         }
-        return markReactiveInfo;
+        return markStateInfo;
     }
     function template(partial, defs) {
         function markTemplateInfo(target, info) {
-            var templates = target.$templates;
-            if (!templates)
-                Object.defineProperty(target, "$templates", { enumerable: false, writable: false, configurable: false, value: templates = {} });
+            var infos = sureMetaInfo(target, "templates");
             if (defs) {
-                templates[info.partial] = info;
+                infos[info.partial] = info;
             }
             else {
                 partial || (partial = info);
-                templates[partial] = { name: info, partial: partial };
+                infos[partial] = { name: info, partial: partial };
             }
         }
         if (defs) {
@@ -696,10 +667,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return markTemplateInfo;
     }
     function action(async, defs) {
-        function markTemplateInfo(target, info) {
-            var infos = target.$actions;
-            if (!infos)
-                Object.defineProperty(target, "$actions", { enumerable: false, writable: false, configurable: false, value: infos = {} });
+        function markActionInfo(target, info) {
+            var infos = sureMetaInfo(target, "actions");
             if (defs) {
                 infos[info.name] = info;
             }
@@ -712,40 +681,347 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var n in defs) {
                 var def = defs[n];
                 def.name = n;
-                markTemplateInfo(target, def);
+                markActionInfo(target, def);
             }
         }
-        return markTemplateInfo;
+        return markActionInfo;
     }
-    function component(tag) {
-        function decorator(RawType) {
-            Object.defineProperty(RawType, "$tag", {
-                enumerable: false, writable: false, configurable: false, value: tag
-            });
-            var WrappedType = /** @class */ (function (_super) {
-                __extends(class_1, _super);
-                function class_1() {
-                    var args = [];
-                    for (var _i = 0; _i < arguments.length; _i++) {
-                        args[_i] = arguments[_i];
-                    }
-                    return _super.call(this) || this;
-                }
-                return class_1;
-            }(RawType));
-            return WrappedType;
-        }
-        if (typeof tag === "function") {
-            var rawType = tag;
-            return decorator(rawType);
+    function sureMetaInfo(target, name) {
+        var meta = target.$meta;
+        if (!meta)
+            Object.defineProperty(target, "$meta", { enumerable: false, configurable: false, writable: true, value: meta = {} });
+        if (!name)
+            return meta;
+        var info = meta[name];
+        if (!info)
+            Object.defineProperty(meta, info, { enumerable: false, configurable: false, writable: true, value: meta = {} });
+        return info;
+    }
+    var registeredComponentInfos = {};
+    function component(tag, ComponentType) {
+        var registerComponent = function (compoentType) {
+            var meta = sureMetaInfo(compoentType.prototype);
+            meta.tag = tag;
+            meta.ctor = ComponentType;
+            registeredComponentInfos[tag] = meta;
+        };
+        if (ComponentType) {
+            return registerComponent(ComponentType);
         }
         else
-            return decorator;
+            return registerComponent;
     }
     exports.component = component;
+    function initComponent(firstComponent) {
+        var meta = firstComponent.$meta;
+        if (!meta || meta.inited)
+            return firstComponent;
+        for (var name_1 in meta.states) {
+            var stateInfo = meta.states[name_1];
+            var initData = firstComponent[stateInfo.name];
+            var schema = stateInfo.schema;
+            if (!schema) {
+                schema = stateInfo.schema = new ObservableSchema(stateInfo.initData || initData, name_1);
+            }
+            stateInfo.initData = initData;
+            schema.$index = name_1;
+            initState(firstComponent, stateInfo);
+        }
+        meta.inited = true;
+    }
+    function initState(firstComponent, stateInfo) {
+        var descriptor = {
+            enumerable: true,
+            configurable: false,
+            get: function () {
+                var states = firstComponent.$states || (firstComponent.$states = {});
+                var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
+                return ob.$get();
+            },
+            set: function (val) {
+                var states = firstComponent.$states || (firstComponent.$states = {});
+                if (val instanceof Observable) {
+                    states[stateInfo.name] = val;
+                    return;
+                }
+                var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
+                ob.$set(val);
+            }
+        };
+        Object.defineProperty(firstComponent, stateInfo.name, descriptor);
+        Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
+    }
+    //=========================================================================
+    var evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+    var VirtualNode = /** @class */ (function () {
+        function VirtualNode() {
+        }
+        VirtualNode.prototype.genCodes = function (variables, codes, tabs) {
+            return null;
+        };
+        VirtualNode.prototype.genChildrenCodes = function (variables, codes, tabs) {
+            return null;
+        };
+        VirtualNode.prototype.render = function (component, container) {
+            var variables = [];
+            var codeText = this.genCodes(variables).join("");
+            console.log(codeText);
+            var actualRenderFn = new Function("variables", "HOST", "component", "container", codeText);
+            this.render = function (component, container) { return actualRenderFn(variables, HOST, component, container); };
+            return this.render(component, container);
+        };
+        VirtualNode.prototype.renderChildren = function (component, container) {
+            var variables = [];
+            var actualRenderFn = new Function("HOST", "component", "elem", this.genChildrenCodes(variables).join("") + "return children;\n");
+            this.renderChildren = function (component, container) { return actualRenderFn(HOST, component, container); };
+            return this.renderChildren(component, container);
+        };
+        VirtualNode.create = function (tag, attrs) {
+            var vnode;
+            var componentInfo = registeredComponentInfos[tag];
+            if (componentInfo)
+                vnode = new VirtualComponentNode(tag, attrs, componentInfo);
+            else
+                vnode = new VirtualElementNode(tag, attrs);
+            for (var i = 2, j = arguments.length; i < j; i++) {
+                var childNode = arguments[i];
+                if (!(childNode instanceof VirtualNode))
+                    childNode = new VirtualTextNode(childNode);
+                (vnode.children || (vnode.children = [])).push(childNode);
+            }
+            return vnode;
+        };
+        return VirtualNode;
+    }());
+    exports.VirtualNode = VirtualNode;
+    var virtualNode = VirtualNode.create;
+    var VirtualTextNode = /** @class */ (function (_super) {
+        __extends(VirtualTextNode, _super);
+        function VirtualTextNode(content) {
+            var _this = _super.call(this) || this;
+            _this.content = content;
+            return _this;
+        }
+        VirtualTextNode.prototype.genCodes = function (variables, codes, tabs) {
+            codes || (codes = []);
+            tabs || (tabs = "");
+            if (this.content instanceof Observable) {
+                if (this.content.$schema.path === "name")
+                    debugger;
+                codes.push(tabs + "var proxy=component." + this.content.$schema.path + ";\n");
+                codes.push(tabs + "var elem=HOST.createText(proxy.$get());\n");
+                codes.push(tabs + "proxy.$subscribe(function(e){elem.nodeValue = HOST.changeEventToText(e);})\n");
+            }
+            else {
+                codes.push(tabs + "var elem = HOST.createText('" + this.content.replace(/'/, "\\'") + "');\n");
+            }
+            codes.push(tabs + "if(container) HOST.appendChild(container,elem);\n");
+            codes.push(tabs + "return elem;\n");
+            return codes;
+        };
+        return VirtualTextNode;
+    }(VirtualNode));
+    exports.VirtualTextNode = VirtualTextNode;
+    var VirtualElementNode = /** @class */ (function (_super) {
+        __extends(VirtualElementNode, _super);
+        function VirtualElementNode(tag, attrs) {
+            var _this = _super.call(this) || this;
+            _this.tag = tag;
+            _this.attrs = attrs;
+            return _this;
+        }
+        VirtualElementNode.prototype.genCodes = function (variables, codes, tabs) {
+            codes || (codes = []);
+            tabs || (tabs = "");
+            codes.push(tabs + "var elem=HOST.createElement(\"" + this.tag + "\");\n");
+            var repeatPars;
+            for (var attrname in this.attrs) {
+                var attrValue = this.attrs[attrname];
+                if (attrname === "repeat") {
+                    repeatPars = [];
+                    for (var i in attrValue)
+                        repeatPars.push("component." + attrValue[i].$schema.path);
+                    continue;
+                }
+                if (attrValue && attrValue.$actionName) {
+                    var match = attrname.match(evtnameRegx);
+                    var evtName = match ? match[1] : attrname;
+                    codes.push(tabs + "HOST.attach(elem,\"" + evtName + "\",component." + attrValue.$actionName + ");\n");
+                }
+                else if (attrValue instanceof Observable) {
+                    var binder = attrBinders[name];
+                    if (binder)
+                        codes.push(tabs + "HOST.$attrBinders[\"" + attrname + "\"].call(component,elem,compnent." + attrValue.$schema.path + ");\n");
+                    else
+                        codes.push(tabs + "HOST.setAttribute(elem,\"" + attrname + "\",\"" + attrValue + "\");\n");
+                }
+                else {
+                    codes.push(tabs + "HOST.setAttribute(elem,\"" + attrname + "\",\"" + attrValue + "\");\n");
+                }
+            }
+            codes.push(tabs + "if(container) HOST.appendChild(container,elem);\n");
+            if (repeatPars) {
+                codes.push(tabs + "VirtualNode.repeat(component,elem,vars[" + variables.length + "]," + repeatPars.join(",") + ");\n");
+                variables.push(this);
+            }
+            else {
+                this.genChildrenCodes(variables, codes, tabs);
+            }
+            codes.push(tabs + "return elem;\n");
+            return codes;
+        };
+        VirtualElementNode.prototype.genChildrenCodes = function (variables, codes, tabs) {
+            codes || (codes = []);
+            tabs || (tabs = "");
+            if (this.children && this.children.length) {
+                codes.push(tabs + "var child;var children=[];\n");
+                var subTabs = tabs + "\t";
+                for (var i in this.children) {
+                    var child = this.children[i];
+                    codes.push(tabs + "children.push(child=(function(HOST,component,container){\n");
+                    child.genCodes(variables, codes, subTabs);
+                    codes.push(tabs + "})(HOST,component,elem));\n");
+                }
+            }
+            return codes;
+        };
+        return VirtualElementNode;
+    }(VirtualNode));
+    exports.VirtualElementNode = VirtualElementNode;
+    var VirtualComponentNode = /** @class */ (function (_super) {
+        __extends(VirtualComponentNode, _super);
+        function VirtualComponentNode(tag, attrs, content) {
+            var _this = _super.call(this) || this;
+            _this.tag = tag;
+            _this.attrs = attrs;
+            _this.content = content;
+            return _this;
+        }
+        VirtualComponentNode.prototype.genCodes = function (variables, codes, tabs) {
+            codes || (codes = []);
+            tabs || (tabs = "");
+            var typeAt = variables.length;
+            codes.push(tabs + "var subComponent = variables[" + typeAt + "].$create();\n");
+            variables.push(this.content);
+            var componentInfo = this.content;
+            for (var attrName in this.attrs) {
+                var attrValue = this.attrs[attrName];
+                var stateType = componentInfo.states[attrName];
+                if (stateType === StateTypes.Internal || stateType === StateTypes.Iterator)
+                    throw new Error(this.tag + "." + attrName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
+                if (stateType === StateTypes.Out) {
+                    if (attrValue instanceof Observable) {
+                        codes.push(tabs + "subComponent." + attrName + ".$subscribe(function(e){component." + attrValue.$schema.path + ".$set(e.item?e.item.$get():e.value);});\n");
+                    }
+                    else {
+                        codes.push(tabs + "subComponent." + attrName + ".$subscribe(function(e){component." + attrName + "=e.item?e.item.$get():e.value;});\n");
+                    }
+                }
+                else if (stateType === StateTypes.In) {
+                    if (attrValue instanceof Observable) {
+                        codes.push(tabs + "subComponent." + attrName + ".$set(component." + attrValue.$schema.path + ".$get());\n");
+                    }
+                    else {
+                        codes.push(tabs + "subComponent." + attrName + ".$set(component." + attrName + ");\n");
+                    }
+                }
+                else if (stateType === StateTypes.Ref) {
+                    if (attrValue instanceof Observable) {
+                        codes.push(tabs + "subComponent." + attrName + ".$subscribe(function(e){component." + attrValue.$schema.path + ".$set(e.item?e.item.$get():e.value);});\n");
+                        codes.push(tabs + "component." + attrValue.$schema.path + ".$subscribe(function(e){subComponent." + attrName + ".$set(e.item?e.item.$get():e.value);});\n");
+                    }
+                    else {
+                        codes.push(tabs + "subComponent." + attrName + ".$subscribe(function(e){component." + attrValue.$schema.path + ".$set(e.item?e.item.$get():e.value);});\n");
+                        console.warn("\u7236\u7EC4\u4EF6\u7684\u5C5E\u6027\u672A\u8BBE\u7F6E\u672A\u53EF\u89C2\u6D4B\u5BF9\u8C61\uFF0C\u7236\u7EC4\u4EF6\u7684\u503C\u53D1\u751F\u53D8\u5316\u540E\uFF0C\u65E0\u6CD5\u4F20\u5165" + this.tag + "." + attrName);
+                    }
+                }
+                else {
+                    codes.push(tabs + "if(subComponent." + attrName + ".$set) subComponent." + attrName + ".$set(variables[" + variables.length + "]);else subComponent." + attrName + "=variables[" + variables.length + "];\n");
+                    variables.push(attrValue);
+                }
+            }
+            ;
+            codes.push(tabs + "if(subComponent.initialize) setTimeout(function(){subComponent.initialize(elem);},0);\n");
+            codes.push(tabs + "var elem = variables[" + typeAt + "].$render.call(subComponent,variables[" + variables.length + "]);\n");
+            variables.push(this);
+            codes.push(tabs + "if(container) HOST.appendChild(container,elem);\n");
+            return codes;
+        };
+        return VirtualComponentNode;
+    }(VirtualNode));
+    exports.VirtualComponentNode = VirtualComponentNode;
+    VirtualNode.repeat =
+        function repeat(component, container, vnode, each, value, key) {
+            HOST.removeAllChildrens(container);
+            for (var k in each) {
+                if (key)
+                    key.$new(k);
+                if (value)
+                    value.$replace(each[k]);
+                vnode.renderChildren(component, container);
+            }
+        };
+    var attrBinders = {};
+    //===========================================================================
+    var HOST = {};
+    HOST.isElement = function (elem) {
+        return elem.nodeType === 1;
+    };
+    HOST.createElement = function (tag) {
+        return document.createElement(tag);
+    };
+    HOST.createText = function (txt) {
+        return document.createTextNode(txt);
+    };
+    HOST.setAttribute = function (elem, name, value) {
+        elem.setAttribute(name, value);
+    };
+    HOST.appendChild = function (elem, child) {
+        elem.appendChild(child);
+    };
+    HOST.removeAllChildrens = function (elem) {
+        elem.innerHTML = elem.nodeValue = "";
+    };
+    HOST.attach = function (elem, evtname, handler) {
+        if (elem.addEventListener)
+            elem.addEventListener(evtname, handler, false);
+        else if (elem.attachEvent)
+            elem.attachEvent('on' + evtname, handler);
+        else
+            elem['on' + evtname] = handler;
+    };
+    //======================================================================
+    function clone(src, deep) {
+        if (!src)
+            return src;
+        var srcT = Object.prototype.toString.call(src);
+        if (srcT === "boolean" || srcT === "number" || srcT === "string")
+            return src;
+        var rs;
+        if (srcT === "function") {
+            var raw_1 = src;
+            if (src.$clone_raw)
+                raw_1 = src.$clone_raw;
+            var rs_1 = function () { return raw_1.apply(arguments); };
+            Object.defineProperty(rs_1, "$clone_raw", { enumerable: false, writable: false, configurable: false, value: raw_1 });
+        }
+        else if (srcT === "[object Object]")
+            rs = {};
+        else if (srcT === "[object Array]")
+            rs = [];
+        if (deep)
+            for (var n in src)
+                rs[n] = clone(src[n], true);
+        else
+            for (var n in src)
+                rs[n] = src[n];
+        return rs;
+    }
+    exports.clone = clone;
     //=======================================================================
     var YA = {
         Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
+        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: virtualNode, HOST: HOST,
         intimate: intimate, clone: clone
     };
     if (typeof window !== 'undefined')

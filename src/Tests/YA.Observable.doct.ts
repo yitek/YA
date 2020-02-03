@@ -8,7 +8,7 @@ export class ObservableTest {
         cdoc.description =`它通常用作mvc中的模型model,本质上是一个数据代理。
 在本文档中，有时候也用模型/代理等词代指该类型的实例`;
         cdoc.usage("基本用法",(assert_statement:TAssertStatement)=>{
-            //0 定义被代理的数据
+            //0 定义被代理的数据 
             let raw_data = 12;
             //1 创建一个数据代理,它的第一个参数为读/写原始值的函数
             let proxy = new YA.Observable<number>((val)=>val===undefined?raw_data:raw_data=val);

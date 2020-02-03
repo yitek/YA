@@ -1,0 +1,15 @@
+$fontSize:14px;
+$spacing:5px;
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing: border-box;
+}
+fieldset{
+    margin:$spacing;
+    legend{
+        font-size:$fontSize*1.2;
+        font-weight: bold;
+    }
+} 

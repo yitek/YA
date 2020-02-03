@@ -221,7 +221,6 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     clear(): ObservableArray<TItem>;
     $update(): boolean;
 }
-export declare function clone(src: any, deep?: boolean): any;
 export declare class ObservableSchema<TData> {
     [index: string]: any;
     $type: DataTypes;
@@ -243,18 +242,18 @@ export declare class ObservableSchema<TData> {
     $create(init: (val?: TData) => any, extras?: any): Observable<any>;
     static schemaToken: string;
 }
-export interface IComponent {
-}
-export declare enum ReactiveTypes {
+export declare enum StateTypes {
     Internal = 0,
-    In = 1,
-    Out = 2,
-    Ref = 3,
+    Iterator = 1,
+    In = 2,
+    Out = 3,
+    Ref = 4,
 }
-export interface IReactiveInfo {
+export interface IStateInfo {
     name?: string;
-    type?: ReactiveTypes;
-    schema?: any;
+    type?: StateTypes;
+    schema?: ObservableSchema<any>;
+    initData?: any;
 }
 export interface ITemplateInfo {
     name?: string;
@@ -267,23 +266,78 @@ export interface IActionInfo {
     async?: boolean;
     method?: Function;
 }
-export interface IComponentMeta {
-    $reactives?: {
-        [prop: string]: IReactiveInfo;
+export interface IComponentInfo {
+    states?: {
+        [prop: string]: IStateInfo;
     };
-    $templates?: {
+    templates?: {
         [partial: string]: ITemplateInfo;
     };
-    $actions?: {
+    actions?: {
         [methodname: string]: IActionInfo;
     };
-    $iterators?: any;
-    $wrapType?: Function;
-    $rawType?: Function;
-    $tag?: string;
-    $render?: Function;
+    ctor?: Function;
+    statesCtor?: any;
+    tag?: string;
+    render?: Function;
+    inited?: boolean;
 }
-export declare function component(tag: string | Function): any;
+export interface IComponent {
+    [membername: string]: any;
+}
+export interface IInternalComponent extends IComponent {
+    $meta: IComponentInfo;
+    $states: {
+        [name: string]: Observable<any>;
+    };
+}
+export declare function component(tag: string, ComponentType?: Function): void | ((compoentType: Function) => void);
+export declare class VirtualNode {
+    tag?: string;
+    attrs?: {
+        [name: string]: any;
+    };
+    content?: any;
+    children?: VirtualNode[];
+    constructor();
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    render(component: IComponent, container?: any): any;
+    renderChildren(component: IComponent, container?: any): any;
+    static create(tag: string, attrs: {
+        [attrName: string]: any;
+    }): VirtualNode;
+}
+export declare class VirtualTextNode extends VirtualNode {
+    content: any;
+    constructor(content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare class VirtualElementNode extends VirtualNode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    });
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare class VirtualComponentNode extends VirtualNode {
+    tag: string;
+    attrs: {
+        [name: string]: any;
+    };
+    content: any;
+    children?: VirtualNode[];
+    constructor(tag: string, attrs: {
+        [name: string]: any;
+    }, content: any);
+    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+}
+export declare function clone(src: any, deep?: boolean): any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
@@ -293,6 +347,14 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
+    VirtualNode: typeof VirtualNode;
+    VirtualTextNode: typeof VirtualTextNode;
+    VirtualElementNode: typeof VirtualElementNode;
+    VirtualComponentNode: typeof VirtualComponentNode;
+    virtualNode: (tag: string, attrs: {
+        [attrName: string]: any;
+    }) => VirtualNode;
+    HOST: any;
     intimate: (strong?: any, members?: any) => (target: any, propName?: string) => void;
     clone: (src: any, deep?: boolean) => any;
 };

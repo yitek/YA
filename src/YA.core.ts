@@ -577,25 +577,6 @@ function defineProp<TObject>(target:any,name:string,accessorFactory:{(proxy:Obse
 
 
  
-export function  clone(src:any,deep?:boolean) {
-    if(!src) return src;
-    let srcT = Object.prototype.toString.call(src);
-    if(srcT==="boolean" || srcT==="number" || srcT==="string") return src;
-    let rs;
-    if(srcT==="function"){
-        let raw = src;
-        if(src.$clone_raw) raw = src.$clone_raw;
-        let rs = function () {return raw.apply(arguments);};
-        Object.defineProperty(rs,"$clone_raw",{enumerable:false,writable:false,configurable:false,value:raw});
-    }else if(srcT==="[object Object]") rs = {};
-    else if(srcT==="[object Array]") rs = [];
-
-    if(deep) for(const n in src)rs[n] = clone(src[n],true);
-    else for(const n in src)rs[n] = src[n];
-
-    return rs;
-}
- 
 //=======================================================================
 @intimate()
 export class ObservableSchema<TData>{
@@ -698,52 +679,53 @@ export class ObservableSchema<TData>{
         return new this.$ctor(clone(this.$initData,true),init,extras);
     }
 
-    static schemaToken:string = "__ONLY_USED_BY_SCHEMA__";
+    static schemaToken:string = "$__ONLY_USED_BY_SCHEMA__";
 }
 
 
 //=======================================================================
-export interface IComponent{}
-export enum ReactiveTypes{
+
+export enum StateTypes{
     Internal,
+    Iterator,
     In,
     Out,
     Ref
 }
-export interface IReactiveInfo{
+export interface IStateInfo{
     name?:string;
-    type?:ReactiveTypes;
-    schema?:any;
+    type?:StateTypes;
+    schema?:ObservableSchema<any>;
+    initData?:any;
 }
 
 /**
  * 两种用法:
  * 1 作为class member的装饰器 @reactive()
  * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
- * @param {(ReactiveTypes|Function)} [type]
- * @param {{[prop:string]:IReactiveInfo}} [defs]
+ * @param {(StateTypes|Function)} [type]
+ * @param {{[prop:string]:IStateInfo}} [defs]
  * @returns
  */
-function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReactiveInfo}) {
-    function markReactiveInfo(target:IComponentMeta,info:string|IReactiveInfo) {
-        let reactives = target.$reactives;
-        if(!reactives) Object.defineProperty(target,"$reactives",{enumerable:false,writable:false,configurable:false,value:reactives={}});
-
-        if((info as IReactiveInfo).name){
-            if(!(info as IReactiveInfo).schema) (info as IReactiveInfo).schema = target[(info as IReactiveInfo).name];
-            reactives[(info as IReactiveInfo).name]= info as IReactiveInfo;
+function state(type?:StateTypes|Function,defs?:{[prop:string]:IStateInfo}) {
+    function markStateInfo(target:IComponentInfo,info:string|IStateInfo) {
+        let infos = sureMetaInfo(target,"states");
+        
+        if((info as IStateInfo).name){
+            if(!(info as IStateInfo).schema) (info as IStateInfo).schema = target[(info as IStateInfo).name];
+            infos[(info as IStateInfo).name]= info as IStateInfo;
         }else {
-            reactives[info as string] = {type :type as ReactiveTypes|| ReactiveTypes.Internal,name:info as string,schema:target[info as string]};
+            infos[info as string] = {type :type as StateTypes|| StateTypes.Internal,name:info as string,schema:target[info as string]};
         }
     }
     if(defs){
         let target = (type as Function).prototype;
         for(const n in defs){
             let def = defs[n];def.name = n;
-            markReactiveInfo(target,def);
+            markStateInfo(target,def);
         } 
     }
-    return markReactiveInfo;
+    return markStateInfo;
 }
 
 //==========================================================
@@ -756,15 +738,13 @@ export interface ITemplateInfo{
 }
 
 function template(partial?:string|Function,defs?:{[prop:string]:ITemplateInfo}){
-    function markTemplateInfo(target:IComponentMeta,info:string|ITemplateInfo) {
-        let templates = target.$templates;
-        if(!templates) Object.defineProperty(target,"$templates",{enumerable:false,writable:false,configurable:false,value:templates={}});
-
+    function markTemplateInfo(target:IComponentInfo,info:string|ITemplateInfo) {
+        let infos = sureMetaInfo(target,"templates");
         if(defs){
-            templates[(info as ITemplateInfo).partial]= info as IReactiveInfo;
+            infos[(info as ITemplateInfo).partial]= info as IStateInfo;
         }else {
             partial ||(partial=info as string);
-            templates[partial as string] = { name: info as string, partial:partial as string };
+            infos[partial as string] = { name: info as string, partial:partial as string };
         }
     }
     if(defs){
@@ -786,9 +766,8 @@ export interface IActionInfo{
 }
 
 function action(async?:boolean|Function,defs?:{[prop:string]:ITemplateInfo}){
-    function markTemplateInfo(target:IComponentMeta,info:string|ITemplateInfo) {
-        let infos = target.$actions;
-        if(!infos) Object.defineProperty(target,"$actions",{enumerable:false,writable:false,configurable:false,value:infos={}});
+    function markActionInfo(target:IComponentInfo,info:string|ITemplateInfo) {
+        let infos = sureMetaInfo(target,"actions");
 
         if(defs){
             infos[(info as IActionInfo).name]= info as IActionInfo;
@@ -801,48 +780,351 @@ function action(async?:boolean|Function,defs?:{[prop:string]:ITemplateInfo}){
         let target = (async as Function).prototype;
         for(const n in defs){
             let def = defs[n];def.name = n;
-            markTemplateInfo(target,def);
+            markActionInfo(target,def);
         } 
     }
-    return markTemplateInfo;
+    return markActionInfo;
 }
 
-export interface IComponentMeta {
-    $reactives?:{[prop:string]:IReactiveInfo};
-    $templates?:{[partial:string]:ITemplateInfo};
-    $actions?:{[methodname:string]:IActionInfo};
-    $iterators?:any; 
-    $wrapType?:Function;
-    $rawType?:Function;
-    $tag?:string;
-    $render?:Function;
+export interface IComponentInfo {
+    states?:{[prop:string]:IStateInfo};
+    templates?:{[partial:string]:ITemplateInfo};
+    actions?:{[methodname:string]:IActionInfo};
+    ctor?:Function;
+    statesCtor?:any;
+    tag?:string;
+    render?:Function;
+    inited?:boolean;
+}
+function sureMetaInfo(target?:any,name?:string){
+    let meta = target.$meta;
+    if(!meta) Object.defineProperty(target,"$meta",{enumerable:false,configurable:false,writable:true,value:meta={}});
+    if(!name) return meta;
+    let info = meta[name];
+    if(!info) Object.defineProperty(meta,info,{enumerable:false,configurable:false,writable:true,value:meta={}});
+    return info;
 }
 
-export function component(tag:string|Function){
-    function decorator<T extends {new(...args: any[]):{}}>(RawType:T){
-        Object.defineProperty(RawType,"$tag",{
-            enumerable:false,writable:false,configurable:false,value:tag
-        });
-        let WrappedType= class extends RawType{
-            constructor(...args:any[]){
-                super();
+export interface IComponent{
+    [membername:string]:any;
+    
+}
+export interface IInternalComponent extends IComponent{
+    $meta:IComponentInfo;
+    $states:{[name:string]:Observable<any>};
+}
+
+let registeredComponentInfos : {[tag:string]:IComponentInfo}={};
+
+export function component(tag:string,ComponentType?:Function){
+    let registerComponent = function (compoentType:Function) {
+        let meta = sureMetaInfo(compoentType.prototype) as IComponentInfo;
+        meta.tag = tag;
+        meta.ctor = ComponentType;
+        registeredComponentInfos[tag]= meta;
+    }
+    if(ComponentType) {
+        return registerComponent(ComponentType);
+    }else return registerComponent;
+}
+
+function initComponent(firstComponent:IInternalComponent){
+    let meta:IComponentInfo = firstComponent.$meta;
+    if(!meta || meta.inited) return firstComponent;
+    for(const name in meta.states){
+        let stateInfo = meta.states[name];
+        let initData = firstComponent[stateInfo.name];
+        let schema = stateInfo.schema; 
+        if(!schema){
+            schema =stateInfo.schema = new ObservableSchema<any>(stateInfo.initData||initData,name);
+        }
+        stateInfo.initData = initData;
+        (schema as ObservableSchema<any>).$index= name;
+        initState(firstComponent,stateInfo);
+    }
+    meta.inited=true;
+}
+
+function initState(firstComponent:IInternalComponent,stateInfo:IStateInfo){
+    let descriptor = {
+        enumerable:true
+        ,configurable:false
+        ,get:function() {
+            let states = firstComponent.$states ||(firstComponent.$states={});
+            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
+            return ob.$get();
+        }
+        ,set:function(val:any){
+            let states = firstComponent.$states ||(firstComponent.$states={});
+            if(val instanceof Observable) {states[stateInfo.name] = val;return;}
+            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
+            ob.$set(val);
+        }
+    };
+    Object.defineProperty(firstComponent,stateInfo.name,descriptor);
+    Object.defineProperty(firstComponent.$meta.ctor.prototype,stateInfo.name,descriptor);
+}
+
+
+
+
+
+//=========================================================================
+
+
+let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+export class VirtualNode{
+    tag?:string;
+    attrs?:{[name:string]:any};
+    content?:any;
+    children?:VirtualNode[];
+    constructor(){}
+
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        return null;
+    }
+
+    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        return null;
+    }
+
+    render(component:IComponent,container?:any):any{
+        let variables :any[]=[];
+        let codeText = this.genCodes(variables).join("");
+        console.log(codeText);
+        let actualRenderFn = new Function("variables","HOST","component","container",codeText) as {(variables,HOST:any,component:IComponent,container?:any):any};
+        this.render =(component,container)=> actualRenderFn(variables,HOST,component,container);
+        return this.render(component,container);
+    }
+
+    renderChildren(component:IComponent,container?:any):any{
+        let variables :any[]=[];
+        let actualRenderFn = new Function("HOST","component","elem",this.genChildrenCodes(variables).join("")+"return children;\n") as {(HOST:any,component:IComponent,container?:any):any};
+        this.renderChildren =(component,container)=> actualRenderFn(HOST,component,container);
+        return this.renderChildren(component,container);
+    }
+
+    static create(tag:string,attrs:{[attrName:string]:any}){
+        let vnode :VirtualNode;
+        let componentInfo = registeredComponentInfos[tag];
+        if(componentInfo)vnode = new VirtualComponentNode(tag,attrs,componentInfo);
+        else vnode = new VirtualElementNode(tag,attrs);
+        for(let i=2,j=arguments.length;i<j;i++){
+            let childNode = arguments[i];
+            if(!(childNode instanceof VirtualNode)) childNode = new VirtualTextNode(childNode);
+            (vnode.children || (vnode.children=[])).push(childNode);
+        }       
+        return vnode;
+    }
+}
+let virtualNode = VirtualNode.create;
+
+export class VirtualTextNode extends VirtualNode{
+    
+    constructor(public content:any){
+        super();
+    }
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        if(this.content instanceof Observable){
+            if(this.content.$schema.path==="name") debugger;
+            codes.push(`${tabs}var proxy=component.${this.content.$schema.path};\n`);
+            codes.push(`${tabs}var elem=HOST.createText(proxy.$get());\n`);
+            codes.push(`${tabs}proxy.$subscribe(function(e){elem.nodeValue = HOST.changeEventToText(e);})\n`);
+        }else{
+            codes.push(`${tabs}var elem = HOST.createText('${this.content.replace(/'/,"\\'")}');\n`);
+        }
+        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
+        codes.push(`${tabs}return elem;\n`);
+        return codes;
+    }
+}
+export class VirtualElementNode extends VirtualNode{
+    
+    children?:VirtualNode[];
+
+    constructor(public tag:string,public attrs:{[name:string]:any}){
+        super();
+    }
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        codes.push(`${tabs}var elem=HOST.createElement("${this.tag}");\n`);
+        
+        let repeatPars :any[];
+        for(const attrname in this.attrs){
+            let attrValue= this.attrs[attrname];
+            if(attrname==="repeat") {
+                repeatPars = [];
+                for(let i in attrValue) repeatPars.push(`component.${attrValue[i].$schema.path}`);
+                continue;
+            }
+            
+            if(attrValue&& attrValue.$actionName){
+                let match = attrname.match(evtnameRegx);
+                let evtName = match?match[1]:attrname;
+                codes.push(`${tabs}HOST.attach(elem,"${evtName}",component.${attrValue.$actionName});\n`);
+            }else if(attrValue instanceof Observable){
+                let binder = attrBinders[name];
+                if(binder)
+                    codes.push(`${tabs}HOST.$attrBinders["${attrname}"].call(component,elem,compnent.${attrValue.$schema.path});\n`);
+                else 
+                    codes.push(`${tabs}HOST.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+            }else {
+                codes.push(`${tabs}HOST.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+            }
+        }
+        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
+
+        if(repeatPars){
+            codes.push(`${tabs}VirtualNode.repeat(component,elem,vars[${variables.length}],${repeatPars.join(",")});\n`);
+            variables.push(this);
+        }else{
+            this.genChildrenCodes(variables,codes,tabs);
+        }
+        
+        codes.push(`${tabs}return elem;\n`);
+        return codes;
+    }
+    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        if(this.children && this.children.length){
+            codes.push(tabs + "var child;var children=[];\n");
+            let subTabs = tabs+"\t";
+            for(let i in this.children){
+                let child = this.children[i];
+                codes.push(`${tabs}children.push(child=(function(HOST,component,container){\n`);
+                child.genCodes(variables,codes,subTabs);
+                codes.push(`${tabs}})(HOST,component,elem));\n`);
+            }
+        }
+        return codes;
+    }
+}
+
+export class VirtualComponentNode extends VirtualNode{
+    children?:VirtualNode[];
+    constructor(public tag:string,public attrs:{[name:string]:any},public content:any){
+        super();
+    }
+    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
+        codes || (codes=[]);tabs || (tabs="");
+        let typeAt = variables.length;
+        codes.push(`${tabs}var subComponent = variables[${typeAt}].$create();\n`);
+        variables.push(this.content);
+        let componentInfo = this.content as IComponentInfo;
+        for(const attrName in this.attrs){
+            let attrValue = this.attrs[attrName];
+            let stateType = componentInfo.states[attrName];
+            if(stateType===StateTypes.Internal || stateType===StateTypes.Iterator) throw new Error(`${this.tag}.${attrName}是内部变量，不可以在外部赋值`);
+            
+            if(stateType === StateTypes.Out){
+                if(attrValue instanceof Observable){
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    
+                }else {
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrName}=e.item?e.item.$get():e.value;});\n`);
+                }
+            }else if(stateType===StateTypes.In){
+                if(attrValue instanceof Observable){
+                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrValue.$schema.path}.$get());\n`);
+                }else{
+                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrName});\n`);
+                }
+                
+            }else if(stateType===StateTypes.Ref){
+                if(attrValue instanceof Observable){
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    codes.push(`${tabs}component.${attrValue.$schema.path}.$subscribe(function(e){subComponent.${attrName}.$set(e.item?e.item.$get():e.value);});\n`);
+                }else {
+                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
+                    console.warn(`父组件的属性未设置未可观测对象，父组件的值发生变化后，无法传入${this.tag}.${attrName}`);
+                }
+
+            }else{
+                codes.push(`${tabs}if(subComponent.${attrName}.$set) subComponent.${attrName}.$set(variables[${variables.length}]);else subComponent.${attrName}=variables[${variables.length}];\n`);
+                variables.push(attrValue);
             }
         };
-        return WrappedType;
+        codes.push(`${tabs}if(subComponent.initialize) setTimeout(function(){subComponent.initialize(elem);},0);\n`);
+        codes.push(`${tabs}var elem = variables[${typeAt}].$render.call(subComponent,variables[${variables.length}]);\n`);
+        variables.push(this);
+        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
+        return codes;
     }
+}
+(VirtualNode as any).repeat = 
+function repeat(component:IComponent,container:any,vnode:VirtualNode,each:IObservable<any>,value:IObservable<any>,key:IObservable<any>){
+    HOST.removeAllChildrens(container);
     
-    if(typeof tag==="function"){
-        let rawType = tag as Function;
-        return decorator(rawType as any);
-    }else return decorator;
+    for(let k in each){
+        if(key)(key as any).$new(k);
+        if(value) (value as any).$replace(each[k]);
+        vnode.renderChildren(component,container);
+    }
 }
 
+let attrBinders={};
 
+//===========================================================================
+let HOST:any={};
+HOST.isElement=(elem):any=>{
+    return (elem as HTMLElement).nodeType === 1;
+};
+
+HOST.createElement=(tag:string):any=>{
+    return document.createElement(tag);
+};
+
+HOST.createText=(txt:string):any=>{
+    return document.createTextNode(txt);
+};
+
+
+HOST.setAttribute=(elem:any,name:string,value:any)=>{
+    elem.setAttribute(name,value);
+};
+
+HOST.appendChild=(elem:any,child:any)=>{
+    elem.appendChild(child);
+};
+
+HOST.removeAllChildrens=(elem:any)=>{
+    elem.innerHTML = elem.nodeValue="";
+};
+
+HOST.attach = (elem:any,evtname:string,handler:Function)=>{
+    if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
+    else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
+    else elem['on'+evtname] = handler;
+}
+//======================================================================
+
+
+ 
+export function  clone(src:any,deep?:boolean) {
+    if(!src) return src;
+    let srcT = Object.prototype.toString.call(src);
+    if(srcT==="boolean" || srcT==="number" || srcT==="string") return src;
+    let rs;
+    if(srcT==="function"){
+        let raw = src;
+        if(src.$clone_raw) raw = src.$clone_raw;
+        let rs = function () {return raw.apply(arguments);};
+        Object.defineProperty(rs,"$clone_raw",{enumerable:false,writable:false,configurable:false,value:raw});
+    }else if(srcT==="[object Object]") rs = {};
+    else if(srcT==="[object Array]") rs = [];
+
+    if(deep) for(const n in src)rs[n] = clone(src[n],true);
+    else for(const n in src)rs[n] = src[n];
+
+    return rs;
+}
 
 //=======================================================================
 
 let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
+    ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,HOST
     ,intimate,clone
     
 };

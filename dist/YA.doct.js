@@ -59,7 +59,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return this.descriptions.join("\n");
             },
             set: function (value) {
-                this.descriptions.push(value);
+                if (value)
+                    this.descriptions.push(value);
             },
             enumerable: true,
             configurable: true
@@ -69,7 +70,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return this.notices.join("\n");
             },
             set: function (value) {
-                this.notices.push(value);
+                if (value)
+                    this.notices.push(value);
             },
             enumerable: true,
             configurable: true
@@ -643,6 +645,146 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         console.info("#时间:", doc.ellapse + "ms", date_format(doc.start), date_format(doc.end));
         console.groupEnd();
+        return exports.doct;
+    };
+    function makeSection(dlElem, title, content) {
+        var domDoc = dlElem.ownerDocument;
+        var tit = domDoc.createElement("DT");
+        dlElem.appendChild(tit);
+        tit.innerHTML = title;
+        var dd = domDoc.createElement("DD");
+        dlElem.appendChild(dd);
+        function makeContents(content) {
+            if (!content)
+                return;
+            else if (typeof content === "function")
+                makeContents(content(domDoc, dd));
+            else if (typeof content === "string")
+                dd.innerHTML = content;
+            else if (Object.prototype.toString.call(content) === "[object Array]") {
+                for (var i in content)
+                    makeContents(content[i]);
+            }
+            else
+                dd.appendChild(content);
+        }
+        makeContents(content);
+        tit.dd = dd;
+        return tit;
+    }
+    exports.outputToElement = function (params, doc) {
+        if (doc === undefined)
+            doc = rootDoc;
+        params || (params = {});
+        var domDoc = params.document || document;
+        var group = domDoc.createElement("fieldset");
+        group.className = "group " + Doctypes[doc.type];
+        var cotainerDom = params.containerDom || document.body;
+        group.setAttribute("doctype", Doctypes[doc.type]);
+        cotainerDom.appendChild(group);
+        var legend = domDoc.createElement("legend");
+        group.appendChild(legend);
+        legend.innerHTML = doc.name;
+        var dlElem = domDoc.createElement("DL");
+        group.appendChild(dlElem);
+        dlElem.className = "statistics";
+        if (doc.type !== Doctypes.Usage) {
+            var tit_1 = makeSection(dlElem, "测试", doc.errorCount + "/" + doc.usageCount + "=" + doc.errorCount * 100 / doc.usageCount + "%");
+            if (doc.errorCount) {
+                tit_1.className = "warn";
+                tit_1.dd.className = "warn";
+            }
+        }
+        else {
+            if (doc.exception) {
+                var tit_2 = makeSection(dlElem, "错误", JSON.stringify(doc.exception));
+                tit_2.className = "error";
+                tit_2.dd.className = "error";
+            }
+        }
+        var tit = makeSection(dlElem, "耗时", doc.ellapse + "ms=" + date_format(doc.end) + "-" + date_format(doc.start));
+        tit.className = "error";
+        tit.dd.className = "error";
+        dlElem = domDoc.createElement("DL");
+        group.appendChild(dlElem);
+        var descs = doc.descriptions;
+        if (descs && descs.length) {
+            makeSection(dlElem, "说明", function (domDoc) {
+                var ul = domDoc.createElement("ul");
+                ul.className = "descriptions";
+                for (var i in descs) {
+                    var li = domDoc.createElement("li");
+                    ul.appendChild(li);
+                    li.innerHTML = descs[i].replace(/\n/g, "<br />");
+                }
+                return ul;
+            });
+        }
+        var notices = doc.notices;
+        if (notices && notices.length) {
+            makeSection(dlElem, "注意", function (domDoc) {
+                var ul = domDoc.createElement("ul");
+                ul.className = "notices";
+                for (var i in descs) {
+                    var li = domDoc.createElement("li");
+                    ul.appendChild(li);
+                    li.innerHTML = descs[i].replace(/\n/g, "<br />");
+                }
+                return ul;
+            });
+        }
+        if (doc instanceof UsageDoct) {
+            if (doc.codes && doc.codes.length) {
+                makeSection(dlElem, "示例", function (domDoc) {
+                    var ul = domDoc.createElement("ol");
+                    ul.className = "samples";
+                    for (var i in doc.codes) {
+                        var codeInfo = doc.codes[i];
+                        var li = domDoc.createElement("li");
+                        ul.appendChild(li);
+                        var preElem = domDoc.createElement("pre");
+                        li.appendChild(preElem);
+                        var codeElem = domDoc.createElement("code");
+                        preElem.appendChild(codeElem);
+                        codeElem.innerHTML = codeInfo.code;
+                        if (codeInfo.asserts && codeInfo.asserts.length) {
+                            var asserts = domDoc.createElement("ul");
+                            asserts.className = "asserts";
+                            li.appendChild(asserts);
+                            for (var n in codeInfo.asserts) {
+                                var li_1 = domDoc.createElement("li");
+                                asserts.appendChild(li_1);
+                                li_1.innerHTML = (codeInfo.asserts[n].replace(/\n/g, "<br />"));
+                            }
+                        }
+                    }
+                    return ul;
+                });
+            }
+        }
+        if (doc instanceof StatementDoct && doc.usages) {
+            makeSection(dlElem, "用法", function (domDoc, dd) {
+                var ol = domDoc.createElement("ol");
+                dd.appendChild(ol);
+                for (var n in doc.usages) {
+                    var li = domDoc.createElement("li");
+                    params.containerDom = li;
+                    ol.appendChild(li);
+                    exports.doct.output(params, doc.usages[n]);
+                }
+            });
+        }
+        if (doc instanceof NamespaceDoct) {
+            var subs = domDoc.createElement("ul");
+            group.appendChild(subs);
+            subs.className = "subs";
+            for (var n in doc.subs) {
+                var li = domDoc.createElement("li");
+                subs.appendChild(li);
+                params.containerDom = li;
+                exports.doct.output(params, doc.subs[n]);
+            }
+        }
         return exports.doct;
     };
     var isSuspended;

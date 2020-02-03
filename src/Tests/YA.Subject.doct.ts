@@ -1,6 +1,7 @@
-import  {doct, ClassDoct, MemberDoct, TAssertStatement, TAssert} from '../YA.doct';
+import  {doct, ClassDoct, MemberDoct, TAssertStatement, TAssert,outputToElement} from '../YA.doct';
 import * as YA  from '../YA.core'
 
+doct.output = outputToElement;
 @doct("YA.Observable")
 export class SubjectTest {
     constructor(doc:ClassDoct){

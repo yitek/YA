@@ -9,30 +9,15 @@
         if(!window.exports)window.exports=module.exports;
         if(typeof require !=='function') require=function(){return window.exports;};
         </script>
-        <script type="text/javascript" src="../lib/YA.doct.js"></script>
-        <script type="text/javascript" src="../lib/YA.core.js"></script>
-        
+        <script type="text/javascript" src="../dist/YA.doct.js"></script>
+        <script type="text/javascript" src="../dist/YA.core.js"></script>
+        <link href="../dist/styles/doct.css" rel="stylesheet" type="text/css" />
         <style type="text/css">
-.validate-error{
-    color:red;
-}
-.validate-error input,.validate-error select,.validate-error textarea{
-    border-color: red;
-}
-.validate-success{
-    color:green;
-}
-.validate-success input,.validate-error select,.validate-error textarea{
-    border-color: green;
-}
 
-.validate-success{
-    color:green;
-}
         </style>
     </head>
     <body>
-        <script type="text/javascript" src="../lib/Tests/YA.Subject.doct.js"></script>
+        <script type="text/javascript" src="../dist/Tests/YA.Subject.doct.js"></script>
         <div id="demo"></div>
         <script type="text/javascript">
  //console.log(Object.prototype.toString.call(function(){}));
