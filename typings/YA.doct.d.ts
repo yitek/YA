@@ -38,7 +38,7 @@ export declare class NamespaceDoct extends Doct {
 }
 export declare type TAssert = (expected: any, actual: any, message?: string) => any;
 export declare type TAssertStatement = (assert: TAssert) => any;
-export declare type TUsageStatement = (assert_statement: TAssertStatement, context?: any) => any;
+export declare type TUsageStatement = (assert_statement: TAssertStatement, container?: any) => any;
 export interface IUsageCode {
     code: string;
     asserts?: string[];
@@ -48,6 +48,7 @@ export declare class UsageDoct extends Doct {
     exception: Error;
     codes: IUsageCode[];
     statement: TUsageStatement;
+    domContainer: any;
     constructor(statement: TUsageStatement, parent?: StatementDoct, name?: string);
     execute(params?: any): UsageDoct;
     reset(): UsageDoct;

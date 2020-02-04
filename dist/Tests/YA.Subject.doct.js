@@ -36,8 +36,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //5 发送/通知事件
                 ob.$notify(evtArgs);
                 assert_statement(function (assert) {
-                    assert(true, argPassToListener !== undefined, "监听函数会被调用");
-                    assert(evtArgs, argPassToListener, "监听函数中接收到的参数，就是$notify发送的参数");
+                    assert(true, argPassToListener !== undefined, "监听函数会被调用:evtArgs!==undefined");
+                    assert(evtArgs, argPassToListener, "监听函数中接收到的参数，就是$notify发送的参数:evtArgs===argPassToListener");
                 });
             });
             doc.usage("成员不可枚举", "所有成员enumerable==false", function (assert_statement) {

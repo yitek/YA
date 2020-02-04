@@ -31,8 +31,8 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             ob.$notify(evtArgs); 
 
             assert_statement((assert:TAssert)=>{
-                assert(true,argPassToListener!==undefined,"监听函数会被调用");
-                assert(evtArgs,argPassToListener,"监听函数中接收到的参数，就是$notify发送的参数");
+                assert(true,argPassToListener!==undefined,"监听函数会被调用:evtArgs!==undefined");
+                assert(evtArgs,argPassToListener,"监听函数中接收到的参数，就是$notify发送的参数:evtArgs===argPassToListener");
             });
         });
         doc.usage("成员不可枚举","所有成员enumerable==false",(assert_statement:TAssertStatement)=>{

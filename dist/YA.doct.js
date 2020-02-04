@@ -242,14 +242,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 _this.setEllapse(_this.end.valueOf() - _this.start.valueOf());
                 assert_statement(makeAssert(_this, index++));
             };
+            try {
+                this.domContainer = document.createElement("div");
+            }
+            catch (_a) { }
             this.start = new Date();
             try {
                 if (exports.doct.debugging) {
-                    this.statement.call(this, assert_proc);
+                    this.statement.call(this, assert_proc, this.domContainer);
                 }
                 else {
                     try {
-                        this.statement.call(this, assert_proc);
+                        this.statement.call(this, assert_proc, this.domContainer);
                     }
                     catch (ex) {
                         this.exception = ex;
@@ -267,6 +271,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     this.setEllapse(this.end.valueOf() - this.start.valueOf());
                 }
             }
+            if (!this.domContainer.hasChildNodes())
+                this.domContainer = null;
             return this;
         };
         UsageDoct.prototype.reset = function () {
@@ -311,7 +317,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (!assert_proce_name)
             return [{ code: statement_proc.substring(assert_proc_name_match[0].length, statement_proc.length - 1) }];
         var rs = [];
-        var assert_proc_regx = new RegExp("[;\\s]?" + assert_proce_name + "\\s?\\(");
+        var assert_proc_regx = new RegExp("[;\\s]?" + assert_proce_name.split(',')[0].replace(trimRegx, "") + "\\s?\\(");
         statement_proc = statement_proc.substring(assert_proc_name_match[0].length, statement_proc.length - 1);
         var stateBeginAt = 0;
         //let codes = "";
@@ -687,26 +693,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         legend.innerHTML = doc.name;
         var dlElem = domDoc.createElement("DL");
         group.appendChild(dlElem);
-        dlElem.className = "statistics";
-        if (doc.type !== Doctypes.Usage) {
-            var tit_1 = makeSection(dlElem, "测试", doc.errorCount + "/" + doc.usageCount + "=" + doc.errorCount * 100 / doc.usageCount + "%");
-            if (doc.errorCount) {
-                tit_1.className = "warn";
-                tit_1.dd.className = "warn";
-            }
-        }
-        else {
-            if (doc.exception) {
-                var tit_2 = makeSection(dlElem, "错误", JSON.stringify(doc.exception));
-                tit_2.className = "error";
-                tit_2.dd.className = "error";
-            }
-        }
-        var tit = makeSection(dlElem, "耗时", doc.ellapse + "ms=" + date_format(doc.end) + "-" + date_format(doc.start));
-        tit.className = "error";
-        tit.dd.className = "error";
-        dlElem = domDoc.createElement("DL");
-        group.appendChild(dlElem);
+        dlElem.className = "main";
         var descs = doc.descriptions;
         if (descs && descs.length) {
             makeSection(dlElem, "说明", function (domDoc) {
@@ -734,10 +721,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
         }
         if (doc instanceof UsageDoct) {
+            if (doc.domContainer) {
+                doc.domContainer.className = "demo";
+                makeSection(dlElem, "演示", doc.domContainer);
+            }
             if (doc.codes && doc.codes.length) {
-                makeSection(dlElem, "示例", function (domDoc) {
+                makeSection(dlElem, "示例", function (domDoc, container) {
                     var ul = domDoc.createElement("ol");
                     ul.className = "samples";
+                    container.appendChild(ul);
                     for (var i in doc.codes) {
                         var codeInfo = doc.codes[i];
                         var li = domDoc.createElement("li");
@@ -751,28 +743,43 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                             var asserts = domDoc.createElement("ul");
                             asserts.className = "asserts";
                             li.appendChild(asserts);
+                            var comment = domDoc.createElement("li");
+                            comment.className = "comment";
+                            comment.innerHTML = "/*";
+                            asserts.appendChild(comment);
                             for (var n in codeInfo.asserts) {
                                 var li_1 = domDoc.createElement("li");
                                 asserts.appendChild(li_1);
                                 li_1.innerHTML = (codeInfo.asserts[n].replace(/\n/g, "<br />"));
                             }
+                            comment = domDoc.createElement("li");
+                            comment.className = "comment";
+                            comment.innerHTML = "*/";
+                            asserts.appendChild(comment);
                         }
                     }
-                    return ul;
                 });
             }
         }
         if (doc instanceof StatementDoct && doc.usages) {
-            makeSection(dlElem, "用法", function (domDoc, dd) {
-                var ol = domDoc.createElement("ol");
-                dd.appendChild(ol);
-                for (var n in doc.usages) {
-                    var li = domDoc.createElement("li");
-                    params.containerDom = li;
-                    ol.appendChild(li);
-                    exports.doct.output(params, doc.usages[n]);
-                }
-            });
+            var hasUsage = false;
+            for (var n in doc.usages) {
+                hasUsage = true;
+                break;
+            }
+            ;
+            if (hasUsage)
+                makeSection(dlElem, "用法", function (domDoc, dd) {
+                    var ol = domDoc.createElement("ol");
+                    dd.appendChild(ol);
+                    ol.className = "usages";
+                    for (var n in doc.usages) {
+                        var li = domDoc.createElement("li");
+                        params.containerDom = li;
+                        ol.appendChild(li);
+                        exports.doct.output(params, doc.usages[n]);
+                    }
+                });
         }
         if (doc instanceof NamespaceDoct) {
             var subs = domDoc.createElement("ul");
@@ -785,6 +792,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 exports.doct.output(params, doc.subs[n]);
             }
         }
+        dlElem = domDoc.createElement("DL");
+        group.appendChild(dlElem);
+        dlElem.className = "statistics";
+        if (doc.type !== Doctypes.Usage) {
+            var tit_1 = makeSection(dlElem, "测试", doc.errorCount + "/" + doc.usageCount + "=" + doc.errorCount * 100 / doc.usageCount + "%");
+            if (doc.errorCount) {
+                tit_1.className = "warn";
+                tit_1.dd.className = "warn";
+            }
+        }
+        else {
+            if (doc.exception) {
+                var tit_2 = makeSection(dlElem, "错误", JSON.stringify(doc.exception));
+                tit_2.className = "error";
+                tit_2.dd.className = "error";
+            }
+        }
+        var tit = makeSection(dlElem, "耗时", doc.ellapse + "ms=" + date_format(doc.end) + "-" + date_format(doc.start));
+        tit.className = "error";
+        tit.dd.className = "error";
         return exports.doct;
     };
     var isSuspended;

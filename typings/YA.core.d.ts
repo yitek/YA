@@ -134,13 +134,14 @@ export declare enum DataTypes {
 export declare enum ObservableModes {
     Default = 0,
     Raw = 1,
-    Proxy = 2,
+    Observable = 2,
+    Schema = 3,
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
     $extras?: any;
     $target?: TData;
-    $get(accessMode?: ObservableModes): TData | IObservable<TData>;
+    $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
 }
@@ -184,7 +185,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
-    $get(accessMode?: ObservableModes): TData | IObservable<TData>;
+    $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
     toString(): string;
@@ -225,7 +226,7 @@ export declare class ObservableSchema<TData> {
     [index: string]: any;
     $type: DataTypes;
     $index: string | number;
-    $path: string;
+    $paths: string[];
     $ctor: {
         new (initValue: TData | {
             (val?: TData): any;
@@ -235,6 +236,7 @@ export declare class ObservableSchema<TData> {
     $itemSchema?: ObservableSchema<TData>;
     $initData?: any;
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
+    $getFromRoot(root: any): any;
     $asObject(): ObservableSchema<TData>;
     $asArray(): ObservableSchema<TData>;
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
@@ -242,33 +244,47 @@ export declare class ObservableSchema<TData> {
     $create(init: (val?: TData) => any, extras?: any): Observable<any>;
     static schemaToken: string;
 }
-export declare enum StateTypes {
+export declare enum ReactiveTypes {
     Internal = 0,
     Iterator = 1,
     In = 2,
     Out = 3,
     Ref = 4,
 }
-export interface IStateInfo {
+export interface IReactiveInfo {
     name?: string;
-    type?: StateTypes;
+    type?: ReactiveTypes;
     schema?: ObservableSchema<any>;
     initData?: any;
 }
+/**
+ * 两种用法:
+ * 1 作为class member的装饰器 @reactive()
+ * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
+ * @param {(ReactiveTypes|Function)} [type]
+ * @param {{[prop:string]:IReactiveInfo}} [defs]
+ * @returns
+ */
+export declare function reactive(type?: ReactiveTypes | Function, defs?: {
+    [prop: string]: IReactiveInfo;
+}): any;
 export interface ITemplateInfo {
     name?: string;
     vnode?: any;
     partial?: string;
     render?: Function;
 }
+export declare function template(partial?: string | Function, defs?: {
+    [prop: string]: ITemplateInfo;
+}): (target: IComponentInfo, info: string | ITemplateInfo) => void;
 export interface IActionInfo {
     name?: string;
     async?: boolean;
     method?: Function;
 }
 export interface IComponentInfo {
-    states?: {
-        [prop: string]: IStateInfo;
+    reactives?: {
+        [prop: string]: IReactiveInfo;
     };
     templates?: {
         [partial: string]: ITemplateInfo;
@@ -276,8 +292,10 @@ export interface IComponentInfo {
     actions?: {
         [methodname: string]: IActionInfo;
     };
-    ctor?: Function;
-    statesCtor?: any;
+    ctor?: {
+        new (...args: any[]): IComponent;
+    };
+    wrapper?: Function;
     tag?: string;
     render?: Function;
     inited?: boolean;
@@ -287,11 +305,14 @@ export interface IComponent {
 }
 export interface IInternalComponent extends IComponent {
     $meta: IComponentInfo;
-    $states: {
+    $childNodes: VirtualNode[];
+    $reactives: {
         [name: string]: Observable<any>;
     };
 }
-export declare function component(tag: string, ComponentType?: Function): void | ((compoentType: Function) => void);
+export declare function component(tag: string, ComponentType?: {
+    new (...args: any[]): IComponent;
+}): any;
 export declare class VirtualNode {
     tag?: string;
     attrs?: {
@@ -300,18 +321,16 @@ export declare class VirtualNode {
     content?: any;
     children?: VirtualNode[];
     constructor();
-    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
-    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
     render(component: IComponent, container?: any): any;
-    renderChildren(component: IComponent, container?: any): any;
     static create(tag: string, attrs: {
         [attrName: string]: any;
     }): VirtualNode;
 }
+export declare let virtualNode: typeof VirtualNode.create;
 export declare class VirtualTextNode extends VirtualNode {
     content: any;
     constructor(content: any);
-    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    render(component: IComponent, container?: any): any;
 }
 export declare class VirtualElementNode extends VirtualNode {
     tag: string;
@@ -322,20 +341,30 @@ export declare class VirtualElementNode extends VirtualNode {
     constructor(tag: string, attrs: {
         [name: string]: any;
     });
-    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
-    genChildrenCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    render(component: IComponent, container?: any): any;
 }
 export declare class VirtualComponentNode extends VirtualNode {
     tag: string;
     attrs: {
         [name: string]: any;
     };
-    content: any;
     children?: VirtualNode[];
     constructor(tag: string, attrs: {
         [name: string]: any;
-    }, content: any);
-    genCodes(variables: any[], codes?: string[], tabs?: string): string[];
+    });
+    render(component: IComponent, container?: any): any;
+}
+export declare function NOT(params: any): void;
+export declare function EXP(...args: any[]): void;
+export interface IHost {
+    isElement(elem: any): boolean;
+    createElement(tag: string): any;
+    createText(text: string): any;
+    setAttribute(elem: any, name: string, value: any): any;
+    getAttribute(elem: any, name: string): any;
+    appendChild(parent: any, child: any): any;
+    removeAllChildrens(parent: any): any;
+    attach(elem: any, evtname: string, handler: Function): any;
 }
 export declare function clone(src: any, deep?: boolean): any;
 declare let YA: {
@@ -347,6 +376,13 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
+    component: (tag: string, ComponentType?: new (...args: any[]) => IComponent) => any;
+    state: (type?: Function | ReactiveTypes, defs?: {
+        [prop: string]: IReactiveInfo;
+    }) => any;
+    template: (partial?: string | Function, defs?: {
+        [prop: string]: ITemplateInfo;
+    }) => (target: IComponentInfo, info: string | ITemplateInfo) => void;
     VirtualNode: typeof VirtualNode;
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
@@ -354,7 +390,9 @@ declare let YA: {
     virtualNode: (tag: string, attrs: {
         [attrName: string]: any;
     }) => VirtualNode;
-    HOST: any;
+    HOST: IHost;
+    NOT: (params: any) => void;
+    EXP: (...args: any[]) => void;
     intimate: (strong?: any, members?: any) => (target: any, propName?: string) => void;
     clone: (src: any, deep?: boolean) => any;
 };

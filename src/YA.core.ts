@@ -186,7 +186,8 @@ export enum DataTypes{
 export enum ObservableModes{
     Default,
     Raw,
-    Proxy
+    Observable,
+    Schema
 }
 
 
@@ -194,7 +195,7 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $type:DataTypes;
     $extras?:any;
     $target?:TData;
-    $get(accessMode?:ObservableModes):TData|IObservable<TData>;
+    $get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
     $set(newValue:TData):IObservable<TData>;
     $update():boolean;
 }
@@ -214,12 +215,13 @@ export function observableMode(mode:ObservableModes,statement:()=>any) {
 export function  proxyMode(statement:()=>any) {
     let accessMode = Observable.accessMode;
     try{
-        Observable.accessMode=ObservableModes.Proxy;
+        Observable.accessMode=ObservableModes.Observable;
         statement();
     }finally{
         Observable.accessMode = accessMode;
     }
 }
+
 
 
 
@@ -315,9 +317,11 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
     
 
-    $get(accessMode?:ObservableModes):TData|IObservable<TData>{
-        if(accessMode == ObservableModes.Raw || Observable.accessMode===ObservableModes.Raw) return this.$_raw();
-        if( accessMode == ObservableModes.Proxy || Observable.accessMode===ObservableModes.Proxy) return this;
+    $get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>{
+        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode == ObservableModes.Raw ) return this.$_raw();
+        if( accessMode == ObservableModes.Schema ) return this.$schema;
+        if( accessMode == ObservableModes.Observable ) return this as IObservable<TData>;
         return (this.$_modifiedValue===undefined)?this.$target:(this.$_modifiedValue===Undefined?undefined:this.$_modifiedValue);
     }
 
@@ -343,7 +347,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
 
     toString(){
-        let  currentValue = this.$get();
+        let  currentValue = this.$get(ObservableModes.Default);
         return currentValue===undefined || currentValue===null?"":currentValue.toString();
     }
     static accessMode:ObservableModes = ObservableModes.Default; 
@@ -374,7 +378,11 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     }
 
     $get(accessMode?:ObservableModes):any{
-        if(accessMode=== ObservableModes.Raw || Observable.accessMode===ObservableModes.Raw) return this.$_raw();
+        if(accessMode===undefined) accessMode = Observable.accessMode;
+        
+        if(accessMode=== ObservableModes.Raw ) return this.$_raw();
+        if( accessMode == ObservableModes.Schema ) return this.$schema;
+        
         return this;
     }
 
@@ -452,7 +460,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
             for(let i =0,j=this.$_length;i<j;i++){
                 let item = this[i];
                 if(i!==0) ret +=",";
-                ret += `${item.$get()}`;
+                ret += `${item.$get(ObservableModes.Default)}`;
             }
         });
         return ret;
@@ -583,29 +591,34 @@ export class ObservableSchema<TData>{
     [index:string]:any;
     $type:DataTypes;
     $index:string|number;
-    $path:string;
+    
+    $paths:string[];
     $ctor:{new (initValue:TData|{(val?:TData):any},owner?:ObservableObject<any>|any,extras?:any):Observable<any>};
     //$prop_models:{[index:string]:Model};
     $owner?:ObservableSchema<TData>;
     $itemSchema?:ObservableSchema<TData>;
     $initData?:any;
     constructor(initData:TData,index?:string|number,owner?:ObservableSchema<any>){
-        let path;
+        let paths=[];
         index = index===undefined|| index===null?"":index;
         if(owner){
-            let ppath = owner.$path;
-            path = ppath?ppath + "." + index:index;
-        }else path = index;
+            let ppaths = owner.$paths;
+            if(ppaths && ppaths.length>0){
+                for(const i in ppaths) paths.push(ppaths[i]);
+            }
+        };
+        if(index!=="")paths.push(index);
 
         intimate(this,{
             "$type":DataTypes.Value
             ,"$index":index
-            ,"$path":path
+            ,"$paths":paths
             ,"$owner":owner
             ,"$ctor":Observable
             ,"$itemSchema":null
             ,"$initData":initData
         });
+        Object.defineProperty(this,"$path",{enumerable:false,configurable:false,get:()=>this.$paths.join(".")});
         if(initData){
             let t = Object.prototype.toString.call(initData);
             if(t==="[object Object]") {
@@ -621,6 +634,17 @@ export class ObservableSchema<TData>{
                 this.$ctor = Observable;
             }
         }
+    }
+
+    
+
+    $getFromRoot(root:any):any{
+        let data = root;
+        for(const i in this.$paths){
+            data = data[this.$paths[i]];
+            if(data===undefined || data===Undefined) return undefined;
+        }
+        return data;
     }
 
     $asObject():ObservableSchema<TData>{
@@ -679,22 +703,26 @@ export class ObservableSchema<TData>{
         return new this.$ctor(clone(this.$initData,true),init,extras);
     }
 
+    
+
     static schemaToken:string = "$__ONLY_USED_BY_SCHEMA__";
 }
 
 
+
+
 //=======================================================================
 
-export enum StateTypes{
+export enum ReactiveTypes{
     Internal,
     Iterator,
     In,
     Out,
     Ref
 }
-export interface IStateInfo{
+export interface IReactiveInfo{
     name?:string;
-    type?:StateTypes;
+    type?:ReactiveTypes;
     schema?:ObservableSchema<any>;
     initData?:any;
 }
@@ -703,29 +731,29 @@ export interface IStateInfo{
  * 两种用法:
  * 1 作为class member的装饰器 @reactive()
  * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
- * @param {(StateTypes|Function)} [type]
- * @param {{[prop:string]:IStateInfo}} [defs]
+ * @param {(ReactiveTypes|Function)} [type]
+ * @param {{[prop:string]:IReactiveInfo}} [defs]
  * @returns
  */
-function state(type?:StateTypes|Function,defs?:{[prop:string]:IStateInfo}) {
-    function markStateInfo(target:IComponentInfo,info:string|IStateInfo) {
-        let infos = sureMetaInfo(target,"states");
+export function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReactiveInfo}):any {
+    function makeReactiveInfo(target:any,info:string|IReactiveInfo):any {
+        let infos = sureMetaInfo(target,"reactives");
         
-        if((info as IStateInfo).name){
-            if(!(info as IStateInfo).schema) (info as IStateInfo).schema = target[(info as IStateInfo).name];
-            infos[(info as IStateInfo).name]= info as IStateInfo;
+        if((info as IReactiveInfo).name){
+            if(!(info as IReactiveInfo).schema) (info as IReactiveInfo).schema = target[(info as IReactiveInfo).name];
+            infos[(info as IReactiveInfo).name]= info as IReactiveInfo;
         }else {
-            infos[info as string] = {type :type as StateTypes|| StateTypes.Internal,name:info as string,schema:target[info as string]};
+            infos[info as string] = {type :type as ReactiveTypes|| ReactiveTypes.Internal,name:info as string,schema:target[info as string]};
         }
     }
     if(defs){
         let target = (type as Function).prototype;
         for(const n in defs){
             let def = defs[n];def.name = n;
-            markStateInfo(target,def);
+            makeReactiveInfo(target,def);
         } 
     }
-    return markStateInfo;
+    return makeReactiveInfo;
 }
 
 //==========================================================
@@ -737,11 +765,11 @@ export interface ITemplateInfo{
     render?:Function;
 }
 
-function template(partial?:string|Function,defs?:{[prop:string]:ITemplateInfo}){
+export function template(partial?:string|Function,defs?:{[prop:string]:ITemplateInfo}){
     function markTemplateInfo(target:IComponentInfo,info:string|ITemplateInfo) {
         let infos = sureMetaInfo(target,"templates");
         if(defs){
-            infos[(info as ITemplateInfo).partial]= info as IStateInfo;
+            infos[(info as ITemplateInfo).partial]= info as IReactiveInfo;
         }else {
             partial ||(partial=info as string);
             infos[partial as string] = { name: info as string, partial:partial as string };
@@ -787,11 +815,11 @@ function action(async?:boolean|Function,defs?:{[prop:string]:ITemplateInfo}){
 }
 
 export interface IComponentInfo {
-    states?:{[prop:string]:IStateInfo};
+    reactives?:{[prop:string]:IReactiveInfo};
     templates?:{[partial:string]:ITemplateInfo};
     actions?:{[methodname:string]:IActionInfo};
-    ctor?:Function;
-    statesCtor?:any;
+    ctor?:{new(...args:any[]):IComponent};
+    wrapper?:Function;
     tag?:string;
     render?:Function;
     inited?:boolean;
@@ -801,7 +829,7 @@ function sureMetaInfo(target?:any,name?:string){
     if(!meta) Object.defineProperty(target,"$meta",{enumerable:false,configurable:false,writable:true,value:meta={}});
     if(!name) return meta;
     let info = meta[name];
-    if(!info) Object.defineProperty(meta,info,{enumerable:false,configurable:false,writable:true,value:meta={}});
+    if(!info) Object.defineProperty(meta,name,{enumerable:false,configurable:false,writable:true,value:info={}});
     return info;
 }
 
@@ -811,28 +839,56 @@ export interface IComponent{
 }
 export interface IInternalComponent extends IComponent{
     $meta:IComponentInfo;
-    $states:{[name:string]:Observable<any>};
+    $childNodes:VirtualNode[];
+    $reactives:{[name:string]:Observable<any>};
 }
 
 let registeredComponentInfos : {[tag:string]:IComponentInfo}={};
 
-export function component(tag:string,ComponentType?:Function){
-    let registerComponent = function (compoentType:Function) {
-        let meta = sureMetaInfo(compoentType.prototype) as IComponentInfo;
+function inherits(extendCls, basCls) {
+    function __() { this.constructor = extendCls; }
+    extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
+}
+
+export function component(tag:string,ComponentType?:{new(...args:any[]):IComponent}):any{
+    let makeComponent = function (componentType:{new(...args:any[]):IComponent}) {
+        let meta = sureMetaInfo(componentType.prototype) as IComponentInfo;
+        let _Component = function () {
+            let ret = componentType.apply(this,arguments);
+            if(!this.$meta.inited){
+                initComponent(this);
+            }
+            return ret;
+        }
+        for(let k in ComponentType) _Component[k] = componentType[k];
+        inherits(_Component,componentType);
+        Object.defineProperty(_Component.prototype,"$meta",{enumerable:false,configurable:false,get:()=>componentType.prototype["$meta"],set:(val)=>componentType.prototype["$meta"]=val});
         meta.tag = tag;
-        meta.ctor = ComponentType;
+        meta.ctor = componentType;
+        meta.wrapper = _Component;
         registeredComponentInfos[tag]= meta;
+        return _Component;
     }
     if(ComponentType) {
-        return registerComponent(ComponentType);
-    }else return registerComponent;
+        return makeComponent(ComponentType);
+    }else return makeComponent;
+}
+
+function createComponent(tag:string,context?:any) {
+    let componentInfo = registeredComponentInfos[tag];
+    if(!componentInfo) throw new Error(`${tag}不是Component,请调用component注册或标记为@component`);
+    let instance = new componentInfo.ctor();
+    if(!componentInfo.inited){
+        initComponent(instance as IInternalComponent);
+    }
+    return instance;
 }
 
 function initComponent(firstComponent:IInternalComponent){
     let meta:IComponentInfo = firstComponent.$meta;
     if(!meta || meta.inited) return firstComponent;
-    for(const name in meta.states){
-        let stateInfo = meta.states[name];
+    for(const name in meta.reactives){
+        let stateInfo = meta.reactives[name];
         let initData = firstComponent[stateInfo.name];
         let schema = stateInfo.schema; 
         if(!schema){
@@ -840,22 +896,27 @@ function initComponent(firstComponent:IInternalComponent){
         }
         stateInfo.initData = initData;
         (schema as ObservableSchema<any>).$index= name;
-        initState(firstComponent,stateInfo);
+        initReactive(firstComponent,stateInfo);
+    }
+
+    for(const name in meta.templates){
+        initTemplate(firstComponent,meta.templates[name]);
     }
     meta.inited=true;
 }
 
-function initState(firstComponent:IInternalComponent,stateInfo:IStateInfo){
+function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo){
     let descriptor = {
         enumerable:true
         ,configurable:false
         ,get:function() {
-            let states = firstComponent.$states ||(firstComponent.$states={});
+            if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
+            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
             let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
             return ob.$get();
         }
         ,set:function(val:any){
-            let states = firstComponent.$states ||(firstComponent.$states={});
+            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
             if(val instanceof Observable) {states[stateInfo.name] = val;return;}
             let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
             ob.$set(val);
@@ -864,15 +925,53 @@ function initState(firstComponent:IInternalComponent,stateInfo:IStateInfo){
     Object.defineProperty(firstComponent,stateInfo.name,descriptor);
     Object.defineProperty(firstComponent.$meta.ctor.prototype,stateInfo.name,descriptor);
 }
+//<table rows={rows} take={10} skip={start} ><col name="name" type='text' label='名称' onchange={abc}/></table>
+function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
+    let rawMethod = firstComponent[tplInfo.name];
+    let tplMethod = function (container:any) {
+        let component = this;
+        if(tplInfo.render) return tplInfo.render.call(component,container);
+        let result :any;
+        observableMode(ObservableModes.Schema,()=>{
+            let vnode = rawMethod.call(component,container);
+            if(Host.isElement(vnode)) {tplInfo.render = rawMethod;result=vnode;}
+            else {tplInfo.vnode = vnode;result=Undefined;}
+
+        });
+        if(result===Undefined){
+            observableMode(ObservableModes.Observable,()=>{
+                result = tplInfo.vnode.render(component,container);
+            });
+            tplInfo.render = function (container?:any) {
+                return tplInfo.vnode.render.call(this,container,tplInfo.vnode);
+            }
+            
+        }
+        return result;
+
+    }
+    Object.defineProperty(tplMethod,"$orign",{configurable:false,writable:false,enumerable:false,value:rawMethod});
+    let des = {configurable:false,writable:false,enumerable:false,value:tplMethod};
+    Object.defineProperty(firstComponent,tplInfo.name,des);
+    Object.defineProperty(firstComponent.$meta.ctor.prototype,tplInfo.name,des);
+}
 
 
-
+function makeAction(component:IComponent,method){
+    return function () {
+        let rs= method.apply(component,arguments);
+        for(const n in component.$reactives){
+            component.$reactives[n].$update();
+        }
+        return rs;
+    }
+}
 
 
 //=========================================================================
 
 
-let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+
 export class VirtualNode{
     tag?:string;
     attrs?:{[name:string]:any};
@@ -880,34 +979,16 @@ export class VirtualNode{
     children?:VirtualNode[];
     constructor(){}
 
-    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        return null;
-    }
-
-    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        return null;
-    }
+    
 
     render(component:IComponent,container?:any):any{
-        let variables :any[]=[];
-        let codeText = this.genCodes(variables).join("");
-        console.log(codeText);
-        let actualRenderFn = new Function("variables","HOST","component","container",codeText) as {(variables,HOST:any,component:IComponent,container?:any):any};
-        this.render =(component,container)=> actualRenderFn(variables,HOST,component,container);
-        return this.render(component,container);
-    }
-
-    renderChildren(component:IComponent,container?:any):any{
-        let variables :any[]=[];
-        let actualRenderFn = new Function("HOST","component","elem",this.genChildrenCodes(variables).join("")+"return children;\n") as {(HOST:any,component:IComponent,container?:any):any};
-        this.renderChildren =(component,container)=> actualRenderFn(HOST,component,container);
-        return this.renderChildren(component,container);
+        
     }
 
     static create(tag:string,attrs:{[attrName:string]:any}){
         let vnode :VirtualNode;
         let componentInfo = registeredComponentInfos[tag];
-        if(componentInfo)vnode = new VirtualComponentNode(tag,attrs,componentInfo);
+        if(componentInfo)vnode = new VirtualComponentNode(tag,attrs);
         else vnode = new VirtualElementNode(tag,attrs);
         for(let i=2,j=arguments.length;i<j;i++){
             let childNode = arguments[i];
@@ -917,27 +998,28 @@ export class VirtualNode{
         return vnode;
     }
 }
-let virtualNode = VirtualNode.create;
+export let virtualNode = VirtualNode.create;
 
 export class VirtualTextNode extends VirtualNode{
     
     constructor(public content:any){
         super();
     }
-    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        codes || (codes=[]);tabs || (tabs="");
-        if(this.content instanceof Observable){
-            if(this.content.$schema.path==="name") debugger;
-            codes.push(`${tabs}var proxy=component.${this.content.$schema.path};\n`);
-            codes.push(`${tabs}var elem=HOST.createText(proxy.$get());\n`);
-            codes.push(`${tabs}proxy.$subscribe(function(e){elem.nodeValue = HOST.changeEventToText(e);})\n`);
+    render(component:IComponent,container?:any):any{
+        let elem;
+        if(this.content instanceof ObservableSchema){
+            let ob = this.content.$getFromRoot(component);
+            elem = Host.createText(ob.$get());
+            ob.$subscribe((e)=>{
+                elem.nodeValue = e.value;
+            });
         }else{
-            codes.push(`${tabs}var elem = HOST.createText('${this.content.replace(/'/,"\\'")}');\n`);
+            elem = Host.createText(this.content);
         }
-        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
-        codes.push(`${tabs}return elem;\n`);
-        return codes;
+        if(container) Host.appendChild(container,elem);
+        return elem;
     }
+    
 }
 export class VirtualElementNode extends VirtualNode{
     
@@ -946,153 +1028,177 @@ export class VirtualElementNode extends VirtualNode{
     constructor(public tag:string,public attrs:{[name:string]:any}){
         super();
     }
-    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        codes || (codes=[]);tabs || (tabs="");
-        codes.push(`${tabs}var elem=HOST.createElement("${this.tag}");\n`);
-        
-        let repeatPars :any[];
-        for(const attrname in this.attrs){
-            let attrValue= this.attrs[attrname];
-            if(attrname==="repeat") {
-                repeatPars = [];
-                for(let i in attrValue) repeatPars.push(`component.${attrValue[i].$schema.path}`);
+
+    render(component:IComponent,container?:any):any{
+        let elem = Host.createElement(this.tag);
+        let forPars :any[];
+        for(const attrName in this.attrs){
+            let attrValue= this.attrs[attrName];
+            if(attrName==="for") {
+                forPars= attrValue;
+            }
+            let match = attrName.match(evtnameRegx);
+            if(match){
+                let evtName = match[1];
+                Host.attach(elem,evtName,makeAction(component,attrValue));
                 continue;
             }
-            
-            if(attrValue&& attrValue.$actionName){
-                let match = attrname.match(evtnameRegx);
-                let evtName = match?match[1]:attrname;
-                codes.push(`${tabs}HOST.attach(elem,"${evtName}",component.${attrValue.$actionName});\n`);
-            }else if(attrValue instanceof Observable){
-                let binder = attrBinders[name];
+            if(attrValue instanceof ObservableSchema){
+                let binder:Function = attrBinders[name];
+                let proxy = attrValue.$getFromRoot(component);
                 if(binder)
-                    codes.push(`${tabs}HOST.$attrBinders["${attrname}"].call(component,elem,compnent.${attrValue.$schema.path});\n`);
-                else 
-                    codes.push(`${tabs}HOST.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+                    binder.call(component,proxy);
+                else (function(name,value) {
+                    Host.setAttribute(elem,name,value.$get());
+                    value.$subscribe((e)=>{
+                        Host.setAttribute(elem,name,e.value);
+                    });
+                })(attrName,proxy);
+                    
             }else {
-                codes.push(`${tabs}HOST.setAttribute(elem,"${attrname}","${attrValue}");\n`);
+                Host.setAttribute(elem,attrName,attrValue);
             }
         }
-        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
+        if(container)Host.appendChild(container,elem);
 
-        if(repeatPars){
-            codes.push(`${tabs}VirtualNode.repeat(component,elem,vars[${variables.length}],${repeatPars.join(",")});\n`);
-            variables.push(this);
-        }else{
-            this.genChildrenCodes(variables,codes,tabs);
-        }
-        
-        codes.push(`${tabs}return elem;\n`);
-        return codes;
-    }
-    genChildrenCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        codes || (codes=[]);tabs || (tabs="");
-        if(this.children && this.children.length){
-            codes.push(tabs + "var child;var children=[];\n");
-            let subTabs = tabs+"\t";
-            for(let i in this.children){
-                let child = this.children[i];
-                codes.push(`${tabs}children.push(child=(function(HOST,component,container){\n`);
-                child.genCodes(variables,codes,subTabs);
-                codes.push(`${tabs}})(HOST,component,elem));\n`);
+        if(!this.children || this.children.length===0) return elem;
+
+        if(forPars){
+            let each = forPars[0];
+            let value = forPars[1];
+            let key = forPars[2];
+            for(const k in each){
+                if(key)  key.$getFromRoot(component).$renew(k);
+                value.$getFromRoot(component).$replace(each[k]);
+                for(const i in this.children){
+                    this.children[i].render(component,elem);
+                }
+            }
+        }else {
+            for(const i in this.children){
+                this.children[i].render(component,elem);
             }
         }
-        return codes;
+
+        return elem;
+
+    }
+    
+}
+
+function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
+    let subMeta = subComponent.$meta as IComponentInfo;
+
+    let stateInfo = subMeta.reactives[subAttrName];
+    let subStateType = stateInfo?stateInfo.type:undefined;
+    if(subStateType===ReactiveTypes.Internal || subStateType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${subAttrName}是内部变量，不可以在外部赋值`);
+    
+    let subAttr = subComponent[subAttrName];
+
+    if(subStateType === ReactiveTypes.Out){
+        if(bindValue instanceof ObservableSchema){
+            subAttr.$subscribe(e=>bindValue.$getFromRoot(component).$set(e.value));
+        }else{
+            throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
+        }
+    } else if(subStateType===ReactiveTypes.In){
+        if(bindValue instanceof ObservableSchema){
+            let bindOb = bindValue.$getFromRoot(component);
+            bindOb.$subscribe((e)=>subAttr.$set(e.value));
+            subAttr.$_raw(bindOb.$get());
+        }else{
+            subAttr.$_raw(bindValue);
+            console.warn(`未能绑定[IN]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    } else if(subStateType===ReactiveTypes.Ref){
+        if(bindValue instanceof ObservableSchema){
+            let bindOb = bindValue.$getFromRoot(component);
+            bindOb.$subscribe((e)=>subAttr.$set(e.value));
+            subAttr.$_raw(bindOb.$get());
+            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value));
+        }else{
+            subAttr.$_raw(bindValue);
+            console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    }else{
+        let value =bindValue instanceof ObservableSchema?bindValue.$getFromRoot(component).$get():bindValue;
+        value = clone(value,true);
+        if(subAttr instanceof Observable) subAttr.$_raw(value);
+        else subComponent[subAttrName] = value;
     }
 }
 
 export class VirtualComponentNode extends VirtualNode{
     children?:VirtualNode[];
-    constructor(public tag:string,public attrs:{[name:string]:any},public content:any){
+    constructor(public tag:string,public attrs:{[name:string]:any}){
         super();
     }
-    genCodes(variables:any[],codes?:string[],tabs?:string):string[]{
-        codes || (codes=[]);tabs || (tabs="");
-        let typeAt = variables.length;
-        codes.push(`${tabs}var subComponent = variables[${typeAt}].$create();\n`);
-        variables.push(this.content);
-        let componentInfo = this.content as IComponentInfo;
-        for(const attrName in this.attrs){
-            let attrValue = this.attrs[attrName];
-            let stateType = componentInfo.states[attrName];
-            if(stateType===StateTypes.Internal || stateType===StateTypes.Iterator) throw new Error(`${this.tag}.${attrName}是内部变量，不可以在外部赋值`);
-            
-            if(stateType === StateTypes.Out){
-                if(attrValue instanceof Observable){
-                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
-                    
-                }else {
-                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrName}=e.item?e.item.$get():e.value;});\n`);
-                }
-            }else if(stateType===StateTypes.In){
-                if(attrValue instanceof Observable){
-                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrValue.$schema.path}.$get());\n`);
-                }else{
-                    codes.push(`${tabs}subComponent.${attrName}.$set(component.${attrName});\n`);
-                }
-                
-            }else if(stateType===StateTypes.Ref){
-                if(attrValue instanceof Observable){
-                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
-                    codes.push(`${tabs}component.${attrValue.$schema.path}.$subscribe(function(e){subComponent.${attrName}.$set(e.item?e.item.$get():e.value);});\n`);
-                }else {
-                    codes.push(`${tabs}subComponent.${attrName}.$subscribe(function(e){component.${attrValue.$schema.path}.$set(e.item?e.item.$get():e.value);});\n`);
-                    console.warn(`父组件的属性未设置未可观测对象，父组件的值发生变化后，无法传入${this.tag}.${attrName}`);
-                }
 
-            }else{
-                codes.push(`${tabs}if(subComponent.${attrName}.$set) subComponent.${attrName}.$set(variables[${variables.length}]);else subComponent.${attrName}=variables[${variables.length}];\n`);
-                variables.push(attrValue);
-            }
+    render(component:IComponent,container?:any):any{
+        let subComponent = createComponent(this.tag);
+        for(const subAttrName in this.attrs){
+            bindComponentAttr(component,subComponent,subAttrName,this.attrs[subAttrName]);
         };
-        codes.push(`${tabs}if(subComponent.initialize) setTimeout(function(){subComponent.initialize(elem);},0);\n`);
-        codes.push(`${tabs}var elem = variables[${typeAt}].$render.call(subComponent,variables[${variables.length}]);\n`);
-        variables.push(this);
-        codes.push(`${tabs}if(container) HOST.appendChild(container,elem);\n`);
-        return codes;
+        let subMeta = subComponent.$meta as IComponentInfo;
+        for(const n in subMeta.templates){
+            let tpl = subMeta.templates[n];
+            subComponent[tpl.name].call(subComponent,container);
+        }
+
     }
 }
-(VirtualNode as any).repeat = 
-function repeat(component:IComponent,container:any,vnode:VirtualNode,each:IObservable<any>,value:IObservable<any>,key:IObservable<any>){
-    HOST.removeAllChildrens(container);
-    
-    for(let k in each){
-        if(key)(key as any).$new(k);
-        if(value) (value as any).$replace(each[k]);
-        vnode.renderChildren(component,container);
-    }
+
+
+export function NOT(params:any) {
+    return;
 }
+export function EXP(...args:any[]) {
+    return;
+}
+
+let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+
 
 let attrBinders={};
 
 //===========================================================================
-let HOST:any={};
-HOST.isElement=(elem):any=>{
+export interface IHost{
+    isElement(elem):boolean;
+    createElement(tag:string):any;
+    createText(text:string):any;
+    setAttribute(elem:any,name:string,value:any);
+    getAttribute(elem:any,name:string):any;
+    appendChild(parent:any,child:any);
+    removeAllChildrens(parent:any);
+    attach(elem:any,evtname:string,handler:Function);
+}
+let Host:IHost={} as any;
+Host.isElement=(elem):boolean=>{
     return (elem as HTMLElement).nodeType === 1;
 };
 
-HOST.createElement=(tag:string):any=>{
+Host.createElement=(tag:string):any=>{
     return document.createElement(tag);
 };
 
-HOST.createText=(txt:string):any=>{
+Host.createText=(txt:string):any=>{
     return document.createTextNode(txt);
 };
 
 
-HOST.setAttribute=(elem:any,name:string,value:any)=>{
+Host.setAttribute=(elem:any,name:string,value:any)=>{
     elem.setAttribute(name,value);
 };
 
-HOST.appendChild=(elem:any,child:any)=>{
+Host.appendChild=(elem:any,child:any)=>{
     elem.appendChild(child);
 };
 
-HOST.removeAllChildrens=(elem:any)=>{
+Host.removeAllChildrens=(elem:any)=>{
     elem.innerHTML = elem.nodeValue="";
 };
 
-HOST.attach = (elem:any,evtname:string,handler:Function)=>{
+Host.attach = (elem:any,evtname:string,handler:Function)=>{
     if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
     else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
     else elem['on'+evtname] = handler;
@@ -1124,7 +1230,8 @@ export function  clone(src:any,deep?:boolean) {
 
 let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
-    ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,HOST
+    ,component,state: reactive,template
+    ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,HOST: Host,NOT,EXP
     ,intimate,clone
     
 };

@@ -185,7 +185,7 @@ export class NamespaceDoct extends Doct {
 
 export type TAssert = (expected:any,actual:any,message?:string)=>any;
 export type TAssertStatement = (assert:TAssert)=>any;
-export type TUsageStatement = (assert_statement:TAssertStatement,context?:any)=>any;
+export type TUsageStatement = (assert_statement:TAssertStatement,container?:any)=>any;
 export interface IUsageCode{
     code:string;
     asserts?:string[];
@@ -204,6 +204,8 @@ export class UsageDoct extends Doct{
     
     @enumerable(false)
     statement:TUsageStatement;
+
+    domContainer:any;
     constructor(statement:TUsageStatement,parent?:StatementDoct,name?:string){
         super(Doctypes.Usage,parent);
         let p :Doct= this;
@@ -228,14 +230,17 @@ export class UsageDoct extends Doct{
             
         };
         
+        try{
+            this.domContainer = document.createElement("div");
+        }catch{}
         this.start = new Date();
         try{
             if((doct as TDoct).debugging){
-                this.statement.call(this,assert_proc);
                 
+                this.statement.call(this,assert_proc,this.domContainer);
             }else {
                 try{
-                    this.statement.call(this,assert_proc);
+                    this.statement.call(this,assert_proc,this.domContainer);
                 }catch(ex){
                     this.exception = ex;
                     let p :Doct= this;
@@ -251,6 +256,7 @@ export class UsageDoct extends Doct{
                 this.setEllapse(this.end.valueOf()- this.start.valueOf());
             }
         }
+        if(!(this.domContainer as HTMLElement).hasChildNodes())this.domContainer=null;
         return this;
     }
     @enumerable(false)
@@ -288,7 +294,7 @@ function makeCodes(func:Function):IUsageCode[]{
 
     let rs = [];
     
-    let assert_proc_regx = new RegExp(`[;\\s]?${assert_proce_name}\\s?\\(`);
+    let assert_proc_regx = new RegExp(`[;\\s]?${assert_proce_name.split(',')[0].replace(trimRegx,"")}\\s?\\(`);
     statement_proc = statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1);
     let stateBeginAt = 0;
     //let codes = "";
@@ -639,28 +645,8 @@ export let outputToElement = (params?:any,doc?:Doct):TDoct=>{
     let legend = domDoc.createElement("legend");group.appendChild(legend);
     legend.innerHTML = doc.name;
 
-    
-    
-    
-
     let dlElem = domDoc.createElement("DL");group.appendChild(dlElem);
-    dlElem.className="statistics";
-    if(doc.type !== Doctypes.Usage){
-        let tit = makeSection(dlElem,"测试",`${doc.errorCount}/${doc.usageCount}=${doc.errorCount*100/doc.usageCount}%`);
-        if(doc.errorCount){
-            tit.className="warn"; (tit as any).dd.className="warn";
-        }            
-    }else {
-        if((doc as UsageDoct).exception) {
-            let tit= makeSection(dlElem,"错误",JSON.stringify((doc as UsageDoct).exception));
-            tit.className="error"; (tit as any).dd.className="error";
-        }
-    }
-    
-    let tit = makeSection(dlElem,"耗时",`${doc.ellapse}ms=${date_format(doc.end)}-${date_format(doc.start)}`);
-    tit.className="error"; (tit as any).dd.className="error";
-
-    dlElem = domDoc.createElement("DL");group.appendChild(dlElem);
+    dlElem.className="main";
     let descs = doc.descriptions;
     if(descs && descs.length){
         makeSection(dlElem,"说明",(domDoc)=>{
@@ -682,9 +668,14 @@ export let outputToElement = (params?:any,doc?:Doct):TDoct=>{
     
 
     if(doc instanceof UsageDoct){
+        if(doc.domContainer){
+            doc.domContainer.className = "demo";
+            makeSection(dlElem,"演示",doc.domContainer);
+        }
+
         if(doc.codes && doc.codes.length){
-            makeSection(dlElem,"示例",(domDoc)=>{
-                let ul = domDoc.createElement("ol");ul.className="samples";
+            makeSection(dlElem,"示例",(domDoc,container:any)=>{
+                let ul = domDoc.createElement("ol");ul.className="samples";container.appendChild(ul);
                 for(const i in (doc as UsageDoct).codes) {
                     let codeInfo = (doc as UsageDoct).codes[i];
                     let li = domDoc.createElement("li"); ul.appendChild(li); 
@@ -692,19 +683,26 @@ export let outputToElement = (params?:any,doc?:Doct):TDoct=>{
                     let codeElem =domDoc.createElement("code"); preElem.appendChild(codeElem);
                     codeElem.innerHTML = codeInfo.code;
                     if(codeInfo.asserts && codeInfo.asserts.length){
+
                         let asserts  = domDoc.createElement("ul"); asserts.className="asserts";li.appendChild(asserts);
+                        let comment = domDoc.createElement("li");comment.className="comment";comment.innerHTML = "/*";asserts.appendChild(comment);
                         for(const n in codeInfo.asserts){
                             let li = domDoc.createElement("li"); asserts.appendChild(li); li.innerHTML = (codeInfo.asserts[n].replace(/\n/g,"<br />"));
                         }
+
+                        comment = domDoc.createElement("li");comment.className="comment";comment.innerHTML = "*/";asserts.appendChild(comment);
                     }
                 }
-                return ul;
+                
             });
         }
+        
     }
     if(doc instanceof StatementDoct && doc.usages){
-        makeSection(dlElem,"用法",(domDoc,dd)=>{
-            let ol = domDoc.createElement("ol"); dd.appendChild(ol);
+        let hasUsage=false;
+        for(const n in doc.usages) {hasUsage=true;break;};
+        if(hasUsage) makeSection(dlElem,"用法",(domDoc,dd)=>{
+            let ol = domDoc.createElement("ol"); dd.appendChild(ol);ol.className="usages";
             for(const n in (doc as StatementDoct).usages){
                 let li = domDoc.createElement("li");params.containerDom = li;ol.appendChild(li);
                 doct.output(params,(doc as StatementDoct).usages[n]);
@@ -723,7 +721,22 @@ export let outputToElement = (params?:any,doc?:Doct):TDoct=>{
     }
     
 
+    dlElem = domDoc.createElement("DL");group.appendChild(dlElem);
+    dlElem.className="statistics";
+    if(doc.type !== Doctypes.Usage){
+        let tit = makeSection(dlElem,"测试",`${doc.errorCount}/${doc.usageCount}=${doc.errorCount*100/doc.usageCount}%`);
+        if(doc.errorCount){
+            tit.className="warn"; (tit as any).dd.className="warn";
+        }            
+    }else {
+        if((doc as UsageDoct).exception) {
+            let tit= makeSection(dlElem,"错误",JSON.stringify((doc as UsageDoct).exception));
+            tit.className="error"; (tit as any).dd.className="error";
+        }
+    }
     
+    let tit = makeSection(dlElem,"耗时",`${doc.ellapse}ms=${date_format(doc.end)}-${date_format(doc.start)}`);
+    tit.className="error"; (tit as any).dd.className="error";
     
     return doct as TDoct;
 }
