@@ -220,6 +220,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     } | TItem[], index?: any, itemSchemaOrExtras?: any, extras?: any);
     toString(): string;
     clear(): ObservableArray<TItem>;
+    $set(newValue: any): ObservableArray<TItem>;
     $update(): boolean;
 }
 export declare class ObservableSchema<TData> {

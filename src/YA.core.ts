@@ -497,6 +497,20 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
+    $set(newValue:any):ObservableArray<TItem>{
+        newValue || (newValue=[]);
+        this.clear();
+        super.$set(newValue);
+        if(Observable.accessMode=== ObservableModes.Raw){
+            this.$_raw(newValue);return this;
+        }
+        
+        for(const i in newValue)makeArrayItem(this,i as any as number);;
+        this.$_length = newValue.length;
+        
+        return this;
+    }
+
     $update():boolean{
         if(!super.$update()) return true;
         let changes = this.$_changes;
@@ -906,7 +920,8 @@ function initComponent(firstComponent:IInternalComponent){
 }
 
 function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo){
-    let descriptor = {
+    let descriptor:any;
+    if(stateInfo.type!==ReactiveTypes.Iterator) descriptor = {
         enumerable:true
         ,configurable:false
         ,get:function() {
@@ -914,6 +929,21 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             let states = firstComponent.$reactives ||(firstComponent.$reactives={});
             let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
             return ob.$get();
+        }
+        ,set:function(val:any){
+            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
+            if(val instanceof Observable) {throw new Error("不可以把Observable对象赋予给标记为@reactive的属性");}
+            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
+            ob.$set(val);
+        }
+    };else descriptor = {
+        enumerable:false
+        ,configurable:false
+        ,get:function() {
+            if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
+            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
+            let ob = states[stateInfo.name]  
+            return ob?ob.$get():undefined;
         }
         ,set:function(val:any){
             let states = firstComponent.$reactives ||(firstComponent.$reactives={});
@@ -1067,13 +1097,20 @@ export class VirtualElementNode extends VirtualNode{
             let each = forPars[0];
             let value = forPars[1];
             let key = forPars[2];
-            for(const k in each){
-                if(key)  key.$getFromRoot(component).$renew(k);
-                value.$getFromRoot(component).$replace(each[k]);
+            let eachOb = each.$getFromRoot(component);
+            eachOb.$subscribe((e)=>{
+                
+            });
+
+            for(const k in eachOb){
+                //if(key)  key.$getFromRoot(component).$renew(k);
+                component[value.paths[0]] = eachOb[k];
+                //value.$getFromRoot(component).$replace(each[k]);
                 for(const i in this.children){
                     this.children[i].render(component,elem);
                 }
             }
+            
         }else {
             for(const i in this.children){
                 this.children[i].render(component,elem);

@@ -66,6 +66,70 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     //assert("id,title",membernames.join(","),"可以且只可以枚举原始数据的字段:membernames=['1','title']");
                 });
             });
+            cdoc.usage("模板函数中的for", function (assert_statement, container) {
+                var MyComponent = /** @class */ (function () {
+                    function MyComponent() {
+                        this.rows = [{ "$__ONLY_USED_BY_SCHEMA__": true, title: "YA-v1.0", author: { name: "yiy" } }];
+                        this.item = this.rows[0];
+                        this.data = [
+                            { title: "YA-v1.0", author: { name: "yiy1" } },
+                            { title: "YA-v2.0", author: { name: "yiy2" } },
+                            { title: "YA-v3.0", author: { name: "yiy3" } },
+                            { title: "YA-v4.0", author: { name: "yiy1" } },
+                            { title: "YA-v5.0", author: { name: "yiy2" } },
+                            { title: "YA-v6.0", author: { name: "yiy3" } },
+                            { title: "YA-v7.0", author: { name: "yiy1" } }
+                        ];
+                    }
+                    MyComponent.prototype.render = function (container) {
+                        return YA.virtualNode("div", null,
+                            YA.virtualNode("div", null,
+                                YA.virtualNode("input", { type: "text", placeholder: "标题", value: this.queries.title, onclick: this.changeTitle }),
+                                YA.virtualNode("input", { type: 'button', value: "过滤", onclick: this.doFilter })),
+                            YA.virtualNode("table", null,
+                                YA.virtualNode("thead", null,
+                                    YA.virtualNode("tr", null,
+                                        YA.virtualNode("th", null, "\u6807\u9898"),
+                                        YA.virtualNode("th", null, "\u4F5C\u8005"))),
+                                YA.virtualNode("tbody", { for: [this.rows, this.item] },
+                                    YA.virtualNode("tr", null,
+                                        YA.virtualNode("td", null, this.item.title),
+                                        YA.virtualNode("td", null, this.item.author.name)))));
+                    };
+                    MyComponent.prototype.changeTitle = function (e) {
+                        this.queries.title = e.target.value;
+                    };
+                    MyComponent.prototype.doFilter = function (e) {
+                        var rows = [];
+                        for (var i in this.data) {
+                            var item = this.data[i];
+                            if (item.title.indexOf(this.queries.title) >= 0)
+                                rows.push(item);
+                        }
+                        this.rows = rows;
+                    };
+                    __decorate([
+                        YA.reactive()
+                    ], MyComponent.prototype, "queries", void 0);
+                    __decorate([
+                        YA.reactive()
+                    ], MyComponent.prototype, "rows", void 0);
+                    __decorate([
+                        YA.reactive(YA.ReactiveTypes.Iterator)
+                    ], MyComponent.prototype, "item", void 0);
+                    __decorate([
+                        YA.template()
+                    ], MyComponent.prototype, "render", null);
+                    MyComponent = __decorate([
+                        YA.component("My")
+                    ], MyComponent);
+                    return MyComponent;
+                }());
+                ;
+                var myComponent = new MyComponent();
+                myComponent.rows = myComponent.data;
+                myComponent.render(container);
+            });
         }
         componentTest = __decorate([
             YA_doct_1.doct("YA.component")

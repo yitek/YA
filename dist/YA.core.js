@@ -411,6 +411,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
             return this;
         };
+        ObservableArray.prototype.$set = function (newValue) {
+            newValue || (newValue = []);
+            this.clear();
+            _super.prototype.$set.call(this, newValue);
+            if (Observable.accessMode === ObservableModes.Raw) {
+                this.$_raw(newValue);
+                return this;
+            }
+            for (var i in newValue)
+                makeArrayItem(this, i);
+            ;
+            this.$_length = newValue.length;
+            return this;
+        };
         ObservableArray.prototype.$update = function () {
             if (!_super.prototype.$update.call(this))
                 return true;
@@ -786,26 +800,48 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         meta.inited = true;
     }
     function initReactive(firstComponent, stateInfo) {
-        var descriptor = {
-            enumerable: true,
-            configurable: false,
-            get: function () {
-                if (Observable.accessMode === ObservableModes.Schema)
-                    return stateInfo.schema;
-                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
-                return ob.$get();
-            },
-            set: function (val) {
-                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                if (val instanceof Observable) {
-                    states[stateInfo.name] = val;
-                    return;
+        var descriptor;
+        if (stateInfo.type !== ReactiveTypes.Iterator)
+            descriptor = {
+                enumerable: true,
+                configurable: false,
+                get: function () {
+                    if (Observable.accessMode === ObservableModes.Schema)
+                        return stateInfo.schema;
+                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                    var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
+                    return ob.$get();
+                },
+                set: function (val) {
+                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                    if (val instanceof Observable) {
+                        throw new Error("不可以把Observable对象赋予给标记为@reactive的属性");
+                    }
+                    var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
+                    ob.$set(val);
                 }
-                var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
-                ob.$set(val);
-            }
-        };
+            };
+        else
+            descriptor = {
+                enumerable: false,
+                configurable: false,
+                get: function () {
+                    if (Observable.accessMode === ObservableModes.Schema)
+                        return stateInfo.schema;
+                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                    var ob = states[stateInfo.name];
+                    return ob ? ob.$get() : undefined;
+                },
+                set: function (val) {
+                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                    if (val instanceof Observable) {
+                        states[stateInfo.name] = val;
+                        return;
+                    }
+                    var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData, stateInfo));
+                    ob.$set(val);
+                }
+            };
         Object.defineProperty(firstComponent, stateInfo.name, descriptor);
         Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
     }
@@ -950,10 +986,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var each = forPars[0];
                 var value = forPars[1];
                 var key = forPars[2];
+                var eachOb = each.$getFromRoot(component);
+                eachOb.$subscribe(function (e) {
+                });
                 for (var k in each) {
-                    if (key)
-                        key.$getFromRoot(component).$renew(k);
-                    value.$getFromRoot(component).$replace(each[k]);
+                    //if(key)  key.$getFromRoot(component).$renew(k);
+                    component[value.paths[0]] = each[k];
+                    //value.$getFromRoot(component).$replace(each[k]);
                     for (var i in this.children) {
                         this.children[i].render(component, elem);
                     }

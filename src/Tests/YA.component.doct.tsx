@@ -54,7 +54,68 @@ export class componentTest {
         });
 
         
-        
+        cdoc.usage("模板函数中的for",(assert_statement:TAssertStatement,container:any)=>{
+            @YA.component("My")
+            class MyComponent{
+                @YA.reactive()
+                queries:{title:""};
+                @YA.reactive()
+                rows=[{"$__ONLY_USED_BY_SCHEMA__":true,title:"YA-v1.0",author:{name:"yiy"}}];
+                @YA.reactive(YA.ReactiveTypes.Iterator)
+                item=this.rows[0];
+
+                data=[
+                    {title:"YA-v1.0",author:{name:"yiy1"}}
+                    ,{title:"YA-v2.0",author:{name:"yiy2"}}
+                    ,{title:"YA-v3.0",author:{name:"yiy3"}}
+                    ,{title:"YA-v4.0",author:{name:"yiy1"}}
+                    ,{title:"YA-v5.0",author:{name:"yiy2"}}
+                    ,{title:"YA-v6.0",author:{name:"yiy3"}}
+                    ,{title:"YA-v7.0",author:{name:"yiy1"}}
+
+                ];
+                
+                @YA.template()
+                render(container?:any){
+                    return <div>
+                        <div>
+                            <input type="text" placeholder="标题" value={this.queries.title} onclick={this.changeTitle}/>
+                            <input type='button' value="过滤"  onclick={this.doFilter}/>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr><th>标题</th><th>作者</th></tr>
+                            </thead>
+                            <tbody for={[this.rows,this.item]}>
+                <tr><td>{this.item.title}</td><td>{this.item.author.name}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>;
+                }
+               
+                
+                
+                changeTitle(e){
+                    this.queries.title = e.target.value;
+                }
+                doFilter(e){
+                    let rows = [];
+                    for(const i in this.data){
+                        let item = this.data[i];
+                        if(item.title.indexOf(this.queries.title)>=0) rows.push(item);
+                    }
+                    this.rows=rows;
+                }
+
+            };
+
+            let myComponent = new MyComponent();
+            myComponent.rows= myComponent.data as any;
+            myComponent.render(container);
+            
+            
+            
+        });
     }
     
 }
