@@ -989,9 +989,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var eachOb = each.$getFromRoot(component);
                 eachOb.$subscribe(function (e) {
                 });
-                for (var k in each) {
+                for (var k in eachOb) {
                     //if(key)  key.$getFromRoot(component).$renew(k);
-                    component[value.paths[0]] = each[k];
+                    component[value.paths[0]] = eachOb[k];
                     //value.$getFromRoot(component).$replace(each[k]);
                     for (var i in this.children) {
                         this.children[i].render(component, elem);
