@@ -145,8 +145,8 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
 }
-export declare function observableMode(mode: ObservableModes, statement: () => any): void;
-export declare function proxyMode(statement: () => any): void;
+export declare function observableMode(mode: ObservableModes, statement: () => any): any;
+export declare function proxyMode(statement: () => any): any;
 export interface IChangeEventArgs<TData> {
     type: ChangeTypes;
     index?: string | number;
@@ -195,12 +195,14 @@ export interface IObservableObject<TData extends {
     [index: string]: any;
 }> extends IObservable<TData> {
     [index: string]: any;
+    $prop(name: string): Observable<any>;
 }
 export declare class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>, IObservableIndexable<TData> {
     [index: string]: any;
     constructor(init: IObservableIndexable<any> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any);
+    $prop(name: string): any;
     $get(accessMode?: ObservableModes): any;
     $set(newValue: TData): IObservableObject<TData>;
     $update(): boolean;
@@ -239,10 +241,11 @@ export declare class ObservableSchema<TData> {
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
     $getFromRoot(root: any): any;
     $asObject(): ObservableSchema<TData>;
-    $asArray(): ObservableSchema<TData>;
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
+    $asArray(): ObservableSchema<TData>;
     $initObject(ob: Observable<TData>): void;
     $create(init: (val?: TData) => any, extras?: any): Observable<any>;
+    $createItem<TItem>(owner: ObservableArray<TItem>, index: number, initData?: any): Observable<any>;
     static schemaToken: string;
 }
 export declare enum ReactiveTypes {
@@ -371,8 +374,8 @@ export declare function clone(src: any, deep?: boolean): any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
-    observableMode: (mode: ObservableModes, statement: () => any) => void;
-    proxyMode: (statement: () => any) => void;
+    observableMode: (mode: ObservableModes, statement: () => any) => any;
+    proxyMode: (statement: () => any) => any;
     Observable: typeof Observable;
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;

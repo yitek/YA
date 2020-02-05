@@ -202,21 +202,21 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
 
 
 
-export function observableMode(mode:ObservableModes,statement:()=>any) {
+export function observableMode(mode:ObservableModes,statement:()=>any):any {
     let accessMode = Observable.accessMode;
     try{
         Observable.accessMode=mode;
-        statement();
+        return statement();
     }finally{
         Observable.accessMode = accessMode;
     }
 }
 
-export function  proxyMode(statement:()=>any) {
+export function  proxyMode(statement:()=>any):any {
     let accessMode = Observable.accessMode;
     try{
         Observable.accessMode=ObservableModes.Observable;
-        statement();
+        return statement();
     }finally{
         Observable.accessMode = accessMode;
     }
@@ -358,6 +358,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 export interface IObservableObject<TData extends {[index:string]:any}> extends IObservable<TData>{
     //$prop(name:string,prop:IObservable<TData>|boolean|{(proxy:ObservableObject<TData>,name:string):any}|PropertyDecorator):IObservableObject<TData>;
     [index:string]:any;   
+    $prop(name:string):Observable<any>;
 }
 
 
@@ -375,6 +376,12 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         }
         
         
+    }
+
+    $prop(name:string):any{
+        observableMode(ObservableModes.Observable,()=>{
+            return this[name];
+        });
     }
 
     $get(accessMode?:ObservableModes):any{
@@ -447,7 +454,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         for(let i =0,j=target.length;i<j;i++) makeArrayItem(this,item_index++);
         
         intimate(this,{
-            $_changes:undefined,$_length:target.length,$_itemSchema:undefined
+            $_changes:undefined,$_length:target.length,$_itemSchema:this.$_itemSchema
         });
         Object.defineProperty(this,"length",{
             enumerable:false,configurable:false,get:()=>this.$_length,set:(val)=>{}
@@ -563,6 +570,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
 }
 
 function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
+    obArray.$_itemSchema.$index = index;
     let item = new obArray.$_itemSchema.$ctor(obArray.$target[index],obArray);
     item.$_index = index;
     Object.defineProperty(obArray,index as any as string,{enumerable:true,configurable:true
@@ -581,17 +589,25 @@ function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
 }
 
 function defineProp<TObject>(target:any,name:string,accessorFactory:{(proxy:ObservableObject<TObject>,name:string):any}|PropertyDecorator){
-    let prop_value:any =Undefined;
+    let rnd = parseInt((Math.random()*1000000).toString());
+    let private_prop_name = "$_PRIVATE_" + name + "_" + rnd;
     Object.defineProperty(target,name,{
         enumerable:true,
         configurable:false,
         get:function(param?:any){
-            if(prop_value===Undefined) prop_value=accessorFactory.call(this,target,name);
-            return prop_value.get?prop_value.get(param):prop_value.$get(param);
+            let ob = this[private_prop_name];
+            if(!ob) Object.defineProperty(this,private_prop_name,{
+                enumerable:false,configurable:false,writable:false,value:ob=accessorFactory.call(this,target,name)
+            });
+            
+            return ob.get?ob.get(param):ob.$get(param);
         },
-        set:(val)=>{
-            if(prop_value===Undefined) prop_value=accessorFactory.call(this,target,name);
-            return prop_value.set?prop_value.set(val):prop_value.$set(val);
+        set:function(val){
+            let ob = this[private_prop_name];
+            if(!ob) Object.defineProperty(this,private_prop_name,{
+                enumerable:false,configurable:false,writable:false,value:ob=accessorFactory.call(this,target,name)
+            });
+            return ob.set?ob.set(val):ob.$set(val);
         }
     });  
     return this;
@@ -676,6 +692,15 @@ export class ObservableSchema<TData>{
         return this;
     }
 
+    $defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
+        if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
+        let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
+        Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
+        defineProp<TData>(this.$ctor.prototype,propname,function(owner,name){return new propSchema.$ctor(this,name);});        
+        return propSchema;
+    }
+
+
     $asArray():ObservableSchema<TData>{
         if(this.$type===DataTypes.Array) return this;
         if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
@@ -698,14 +723,7 @@ export class ObservableSchema<TData>{
 
     }
 
-    $defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
-        if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
-        let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
-        Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
-        defineProp<TData>(this.$ctor.prototype,propname,function(owner,name){return new propSchema.$ctor(this,name);});        
-        return propSchema;
-    }
-
+    
     $initObject(ob:Observable<TData>){
         for(const n in this){
             let propSchema = this[n] as any as ObservableSchema<any>;
@@ -715,6 +733,13 @@ export class ObservableSchema<TData>{
     
     $create(init:(val?:TData)=>any,extras?:any){
         return new this.$ctor(clone(this.$initData,true),init,extras);
+    }
+
+    $createItem<TItem>(owner:ObservableArray<TItem>,index:number,initData?:any){
+        let itemSchema = this.$itemSchema;
+        itemSchema.$index = index;
+        if(initData!==undefined) itemSchema.$initData= initData;
+        return new itemSchema.$ctor(initData,owner);
     }
 
     

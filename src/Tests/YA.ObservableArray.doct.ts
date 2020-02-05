@@ -50,5 +50,45 @@ export class ObservableArrayTest {
 
         
     }
+    @doct()
+    objectArray(mdoc:MemberDoct){
+        mdoc.description="数组项为对象的ObservableArray";
+        mdoc.usage((assert_statement:TAssertStatement)=>{
+            let data = [
+                {title:"YA-v1.0",author:{name:"yiy1"}}
+                    ,{title:"YA-v2.0",author:{name:"yiy2"}}
+                    ,{title:"YA-v3.0",author:{name:"yiy3"}}
+                    ,{title:"YA-v4.0",author:{name:"yiy1"}}
+                    
+
+            ];
+            // 1 创建一个ObservableArray代理/模型
+            let obArray = new YA.ObservableArray<any>(data);
+
+            assert_statement((assert:TAssert)=>{
+                assert(4,obArray.length,"有4个项:proxy.length===4");
+                let item0 = obArray[0];
+                debugger;
+                let item0Value = item0.title + item0.author.name;
+                assert("YA-v1.0yiy1",item0Value,"obArray[0]=={title:'YA-v1.0',author:{name:'yiy1'}}");
+                let item3 = obArray[3];
+                let item3Value = item3.title + item3.author.name;
+                assert("YA-v4.0yiy1",item3Value,"obArray[3]=={title:'YA-v4.0',author:{name:'yiy1'}}");
+            });
+
+            obArray[3].author={name:"yiy4"};
+            assert_statement((assert:TAssert)=>{
+                assert("yiy4",obArray[3].author.name,`代理上的值变更为新值:obArray[3].author.name="yiy4"`);
+                assert("yiy1",data[3].author.name,`原始数据的值还未变化:data[3].author.name="yiy1"`);
+            });
+            
+            let newData = [
+                {title:"YA-v5.0",author:{name:"yiy2"}}
+                ,{title:"YA-v6.0",author:{name:"yiy3"}}
+                ,{title:"YA-v7.0",author:{name:"yiy1"}}
+            ];
+            obArray.$set(newData);
+        });
+    }
     
 }

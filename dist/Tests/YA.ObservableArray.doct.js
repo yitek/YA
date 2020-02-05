@@ -55,6 +55,43 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 });
             });
         }
+        ObservableArrayTest.prototype.objectArray = function (mdoc) {
+            mdoc.description = "数组项为对象的ObservableArray";
+            mdoc.usage(function (assert_statement) {
+                var data = [
+                    { title: "YA-v1.0", author: { name: "yiy1" } },
+                    { title: "YA-v2.0", author: { name: "yiy2" } },
+                    { title: "YA-v3.0", author: { name: "yiy3" } },
+                    { title: "YA-v4.0", author: { name: "yiy1" } }
+                ];
+                // 1 创建一个ObservableArray代理/模型
+                var obArray = new YA.ObservableArray(data);
+                assert_statement(function (assert) {
+                    assert(4, obArray.length, "有4个项:proxy.length===4");
+                    var item0 = obArray[0];
+                    debugger;
+                    var item0Value = item0.title + item0.author.name;
+                    assert("YA-v1.0yiy1", item0Value, "obArray[0]=={title:'YA-v1.0',author:{name:'yiy1'}}");
+                    var item3 = obArray[3];
+                    var item3Value = item3.title + item3.author.name;
+                    assert("YA-v4.0yiy1", item3Value, "obArray[3]=={title:'YA-v4.0',author:{name:'yiy1'}}");
+                });
+                obArray[3].author = { name: "yiy4" };
+                assert_statement(function (assert) {
+                    assert("yiy4", obArray[3].author.name, "\u4EE3\u7406\u4E0A\u7684\u503C\u53D8\u66F4\u4E3A\u65B0\u503C:obArray[3].author.name=\"yiy4\"");
+                    assert("yiy1", data[3].author.name, "\u539F\u59CB\u6570\u636E\u7684\u503C\u8FD8\u672A\u53D8\u5316:data[3].author.name=\"yiy1\"");
+                });
+                var newData = [
+                    { title: "YA-v5.0", author: { name: "yiy2" } },
+                    { title: "YA-v6.0", author: { name: "yiy3" } },
+                    { title: "YA-v7.0", author: { name: "yiy1" } }
+                ];
+                obArray.$set(newData);
+            });
+        };
+        __decorate([
+            YA_doct_1.doct()
+        ], ObservableArrayTest.prototype, "objectArray", null);
         ObservableArrayTest = __decorate([
             YA_doct_1.doct("YA.ObservableArray")
         ], ObservableArrayTest);

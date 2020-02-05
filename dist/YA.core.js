@@ -157,7 +157,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var accessMode = Observable.accessMode;
         try {
             Observable.accessMode = mode;
-            statement();
+            return statement();
         }
         finally {
             Observable.accessMode = accessMode;
@@ -168,7 +168,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var accessMode = Observable.accessMode;
         try {
             Observable.accessMode = ObservableModes.Observable;
-            statement();
+            return statement();
         }
         finally {
             Observable.accessMode = accessMode;
@@ -290,6 +290,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             return _this;
         }
+        ObservableObject.prototype.$prop = function (name) {
+            var _this = this;
+            observableMode(ObservableModes.Observable, function () {
+                return _this[name];
+            });
+        };
         ObservableObject.prototype.$get = function (accessMode) {
             if (accessMode === undefined)
                 accessMode = Observable.accessMode;
@@ -362,7 +368,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var i = 0, j = target.length; i < j; i++)
                 makeArrayItem(_this, item_index++);
             intimate(_this, {
-                $_changes: undefined, $_length: target.length, $_itemSchema: undefined
+                $_changes: undefined, $_length: target.length, $_itemSchema: _this.$_itemSchema
             });
             Object.defineProperty(_this, "length", {
                 enumerable: false, configurable: false, get: function () { return _this.$_length; }, set: function (val) { }
@@ -481,6 +487,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }(Observable));
     exports.ObservableArray = ObservableArray;
     function makeArrayItem(obArray, index) {
+        obArray.$_itemSchema.$index = index;
         var item = new obArray.$_itemSchema.$ctor(obArray.$target[index], obArray);
         item.$_index = index;
         Object.defineProperty(obArray, index, { enumerable: true, configurable: true,
@@ -498,20 +505,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         });
     }
     function defineProp(target, name, accessorFactory) {
-        var _this = this;
-        var prop_value = Undefined;
+        var rnd = parseInt((Math.random() * 1000000).toString());
+        var private_prop_name = "$_PRIVATE_" + name + "_" + rnd;
         Object.defineProperty(target, name, {
             enumerable: true,
             configurable: false,
             get: function (param) {
-                if (prop_value === Undefined)
-                    prop_value = accessorFactory.call(this, target, name);
-                return prop_value.get ? prop_value.get(param) : prop_value.$get(param);
+                var ob = this[private_prop_name];
+                if (!ob)
+                    Object.defineProperty(this, private_prop_name, {
+                        enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
+                    });
+                return ob.get ? ob.get(param) : ob.$get(param);
             },
             set: function (val) {
-                if (prop_value === Undefined)
-                    prop_value = accessorFactory.call(_this, target, name);
-                return prop_value.set ? prop_value.set(val) : prop_value.$set(val);
+                var ob = this[private_prop_name];
+                if (!ob)
+                    Object.defineProperty(this, private_prop_name, {
+                        enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
+                    });
+                return ob.set ? ob.set(val) : ob.$set(val);
             }
         });
         return this;
@@ -587,6 +600,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this.$ctor = _ObservableObject;
             return this;
         };
+        ObservableSchema.prototype.$defineProp = function (propname, initValue) {
+            if (this.$type !== DataTypes.Object)
+                throw new Error("调用$defineProp之前，要首先调用$asObject");
+            var propSchema = new ObservableSchema_1(initValue, propname, this);
+            Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
+            defineProp(this.$ctor.prototype, propname, function (owner, name) { return new propSchema.$ctor(this, name); });
+            return propSchema;
+        };
         ObservableSchema.prototype.$asArray = function () {
             if (this.$type === DataTypes.Array)
                 return this;
@@ -614,14 +635,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _ObservableArray.prototype.$schema = this;
             this.$ctor = _ObservableArray;
         };
-        ObservableSchema.prototype.$defineProp = function (propname, initValue) {
-            if (this.$type !== DataTypes.Object)
-                throw new Error("调用$defineProp之前，要首先调用$asObject");
-            var propSchema = new ObservableSchema_1(initValue, propname, this);
-            Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
-            defineProp(this.$ctor.prototype, propname, function (owner, name) { return new propSchema.$ctor(this, name); });
-            return propSchema;
-        };
         ObservableSchema.prototype.$initObject = function (ob) {
             var _loop_1 = function (n) {
                 var propSchema = this_1[n];
@@ -634,6 +647,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         ObservableSchema.prototype.$create = function (init, extras) {
             return new this.$ctor(clone(this.$initData, true), init, extras);
+        };
+        ObservableSchema.prototype.$createItem = function (owner, index, initData) {
+            var itemSchema = this.$itemSchema;
+            itemSchema.$index = index;
+            if (initData !== undefined)
+                itemSchema.$initData = initData;
+            return new itemSchema.$ctor(initData, owner);
         };
         ObservableSchema.schemaToken = "$__ONLY_USED_BY_SCHEMA__";
         ObservableSchema = ObservableSchema_1 = __decorate([
