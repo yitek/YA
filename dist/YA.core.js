@@ -1053,13 +1053,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         VirtualElementNode.prototype.render = function (component, container) {
             var elem = Host.createElement(this.tag);
-            var forPars;
+            var ignoreChildren = false;
             for (var attrName in this.attrs) {
                 var attrValue = this.attrs[attrName];
-                if (attrName === "for") {
-                    forPars = attrValue;
-                    continue;
-                }
                 var match = attrName.match(evtnameRegx);
                 if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
                     var evtName = match[1];
@@ -1070,7 +1066,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 if (attrValue instanceof ObservableSchema) {
                     var proxy = attrValue.$getFromRoot(component);
                     if (binder)
-                        binder.call(component, elem, proxy, component);
+                        ignoreChildren = ignoreChildren || binder.call(component, elem, proxy, component, this) === false;
                     else
                         (function (name, value) {
                             Host.setAttribute(elem, name, value.$get());
@@ -1081,7 +1077,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 else {
                     if (binder)
-                        binder.call(component, elem, attrValue, component);
+                        ignoreChildren = ignoreChildren || binder.call(component, elem, attrValue, component, this) === false;
                     else
                         Host.setAttribute(elem, attrName, attrValue);
                 }
@@ -1090,10 +1086,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 Host.appendChild(container, elem);
             if (!this.children || this.children.length === 0)
                 return elem;
-            if (forPars) {
-                bindRepeat(component, elem, this, forPars[0], forPars[1], forPars[2], false);
-            }
-            else {
+            if (!ignoreChildren) {
                 for (var i in this.children) {
                     this.children[i].render(component, elem);
                 }
@@ -1103,49 +1096,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return VirtualElementNode;
     }(VirtualNode));
     exports.VirtualElementNode = VirtualElementNode;
-    function bindRepeat(component, elem, vnode, each, value, key, ignoreAddRel) {
-        if (each instanceof ObservableSchema) {
-            each = each.$getFromRoot(component);
-            if (!ignoreAddRel)
-                addRelElements(each, elem);
-            each.$subscribe(function (e) {
-                if (e.type === ChangeTypes.Value) {
-                    elem.innerHTML = "";
-                    observableMode(ObservableModes.Observable, function () {
-                        bindRepeat(component, elem, vnode, each, value, key, false);
-                    });
-                    e.cancel = true;
-                }
-            });
-        }
-        if (!(value instanceof ObservableSchema))
-            throw new Error("迭代变量必须被iterator装饰");
-        var iterator_name = value.$paths[0];
-        for (var k in each) {
-            if (k === "constructor" || k[0] === "$")
-                continue;
-            //if(key)  key.$getFromRoot(component).$renew(k);
-            var item = each[k];
-            component[iterator_name] = item;
-            //value.$getFromRoot(component).$replace(each[k]);
-            var obItem = component[iterator_name];
-            for (var i in vnode.children) {
-                var childElements = vnode.children[i].render(component, elem);
-                addRelElements(obItem, childElements);
-                obItem.$subscribe(function (e) {
-                    if (e.type === ChangeTypes.Remove) {
-                        var obItem_1 = e.sender;
-                        var nodes = getRelElements(obItem_1);
-                        for (var i_1 in nodes) {
-                            var node = nodes[i_1];
-                            if (node.parentNode)
-                                node.parentNode.removeChild(node);
-                        }
-                    }
-                });
-            }
-        }
-    }
     function bindComponentAttr(component, subComponent, subAttrName, bindValue) {
         var subMeta = subComponent.$meta;
         var stateInfo = subMeta.reactives[subAttrName];
@@ -1230,6 +1180,53 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.EXP = EXP;
     var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
     var attrBinders = {};
+    attrBinders.for = function bindFor(elem, bindValue, component, vnode, ignoreAddRel) {
+        var each = bindValue[0];
+        var value = bindValue[1];
+        var key = bindValue[2];
+        if (each instanceof ObservableSchema) {
+            each = each.$getFromRoot(component);
+            if (!ignoreAddRel)
+                addRelElements(each, elem);
+            each.$subscribe(function (e) {
+                if (e.type === ChangeTypes.Value) {
+                    elem.innerHTML = "";
+                    observableMode(ObservableModes.Observable, function () {
+                        bindFor.call(component, elem, bindValue, component, vnode, false);
+                    });
+                    e.cancel = true;
+                }
+            });
+        }
+        if (!(value instanceof ObservableSchema))
+            throw new Error("迭代变量必须被iterator装饰");
+        var iterator_name = value.$paths[0];
+        for (var k in each) {
+            if (k === "constructor" || k[0] === "$")
+                continue;
+            //if(key)  key.$getFromRoot(component).$renew(k);
+            var item = each[k];
+            component[iterator_name] = item;
+            //value.$getFromRoot(component).$replace(each[k]);
+            var obItem = component[iterator_name];
+            for (var i in vnode.children) {
+                var childElements = vnode.children[i].render(component, elem);
+                addRelElements(obItem, childElements);
+                obItem.$subscribe(function (e) {
+                    if (e.type === ChangeTypes.Remove) {
+                        var obItem_1 = e.sender;
+                        var nodes = getRelElements(obItem_1);
+                        for (var i_1 in nodes) {
+                            var node = nodes[i_1];
+                            if (node.parentNode)
+                                node.parentNode.removeChild(node);
+                        }
+                    }
+                });
+            }
+        }
+        return false;
+    };
     attrBinders.style = function (elem, bindValue, component) {
         for (var styleName in bindValue)
             (function (styleName, subValue, elem, component) {

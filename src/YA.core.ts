@@ -1161,13 +1161,10 @@ export class VirtualElementNode extends VirtualNode{
 
     render(component:IComponent,container?:any):any{
         let elem = Host.createElement(this.tag);
-        let forPars :any[];
+        let ignoreChildren:boolean = false;
         for(const attrName in this.attrs){
             let attrValue= this.attrs[attrName];
-            if(attrName==="for") {
-                forPars= attrValue;
-                continue;
-            }
+            
             let match = attrName.match(evtnameRegx);
             if(match && elem[attrName]!==undefined && typeof attrValue==="function"){
                 let evtName = match[1];
@@ -1178,8 +1175,7 @@ export class VirtualElementNode extends VirtualNode{
             if(attrValue instanceof ObservableSchema){
                 
                 let proxy = attrValue.$getFromRoot(component);
-                if(binder)
-                    binder.call(component,elem,proxy,component);
+                if(binder) ignoreChildren = ignoreChildren || binder.call(component,elem,proxy,component,this)===false;
                 else (function(name,value) {
                     Host.setAttribute(elem,name,value.$get());
                     value.$subscribe((e)=>{
@@ -1187,7 +1183,7 @@ export class VirtualElementNode extends VirtualNode{
                     });
                 })(attrName,proxy);
             }else {
-                if(binder) binder.call(component,elem,attrValue,component);
+                if(binder) ignoreChildren = ignoreChildren || binder.call(component,elem,attrValue,component,this)===false;
                 else Host.setAttribute(elem,attrName,attrValue);
             }
         }
@@ -1195,10 +1191,7 @@ export class VirtualElementNode extends VirtualNode{
 
         if(!this.children || this.children.length===0) return elem;
 
-        if(forPars){
-            bindRepeat(component,elem,this,forPars[0],forPars[1],forPars[2],false);
-            
-        }else {
+        if(!ignoreChildren) {
             for(const i in this.children){
                 this.children[i].render(component,elem);
             }
@@ -1210,47 +1203,10 @@ export class VirtualElementNode extends VirtualNode{
     
 }
 
-function bindRepeat(component:IComponent,elem:any,vnode:VirtualNode,each:any,value:any,key:any,ignoreAddRel?:boolean){
-    if(each instanceof ObservableSchema){
-        each = each.$getFromRoot(component);
-        if(!ignoreAddRel)addRelElements(each,elem);
-        each.$subscribe((e:IChangeEventArgs<any>)=>{
-            if(e.type===ChangeTypes.Value){
-                elem.innerHTML = "";
-                observableMode(ObservableModes.Observable,()=>{
-                    bindRepeat(component,elem,vnode,each,value,key,false);
-                });
-               
-                e.cancel = true;
-            } 
-        });
-    }
-    if(!(value instanceof ObservableSchema)) throw new Error("迭代变量必须被iterator装饰");
-    let iterator_name = value.$paths[0];
-    for(const k in each){
-        if(k==="constructor" || k[0]==="$") continue;
-        //if(key)  key.$getFromRoot(component).$renew(k);
-        let item =each[k];
-        component[iterator_name] = item;
-        //value.$getFromRoot(component).$replace(each[k]);
-        let obItem = component[iterator_name];
-        for(const i in vnode.children){
-            let childElements = vnode.children[i].render(component,elem);
-            addRelElements(obItem,childElements);
-            obItem.$subscribe((e:IChangeEventArgs<any>)=>{
-                if(e.type===ChangeTypes.Remove) {
-                    let obItem = e.sender;
-                    let nodes = getRelElements(obItem);
-                    for(const i in nodes) {
-                        let node = nodes[i];if(node.parentNode) node.parentNode.removeChild(node);
-                    }
-                }
-            });
-        }
-    }
 
-            
-}
+
+
+
 
 function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
     let subMeta = subComponent.$meta as IComponentInfo;
@@ -1325,7 +1281,52 @@ export function EXP(...args:any[]) {
 let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
 
 
-let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent)=>any}={};
+let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode)=>any}={};
+
+attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode,ignoreAddRel?:boolean){
+    let each = bindValue[0];
+    let value = bindValue[1];
+    let key = bindValue[2];
+    if(each instanceof ObservableSchema){
+        each = each.$getFromRoot(component);
+        if(!ignoreAddRel)addRelElements(each,elem);
+        each.$subscribe((e:IChangeEventArgs<any>)=>{
+            if(e.type===ChangeTypes.Value){
+                elem.innerHTML = "";
+                observableMode(ObservableModes.Observable,()=>{
+                    bindFor.call(component,elem,bindValue,component,vnode,false);
+                });
+               
+                e.cancel = true;
+            } 
+        });
+    }
+    if(!(value instanceof ObservableSchema)) throw new Error("迭代变量必须被iterator装饰");
+    let iterator_name = value.$paths[0];
+    for(const k in each){
+        if(k==="constructor" || k[0]==="$") continue;
+        //if(key)  key.$getFromRoot(component).$renew(k);
+        let item =each[k];
+        component[iterator_name] = item;
+        //value.$getFromRoot(component).$replace(each[k]);
+        let obItem = component[iterator_name];
+        for(const i in vnode.children){
+            let childElements = vnode.children[i].render(component,elem);
+            addRelElements(obItem,childElements);
+            obItem.$subscribe((e:IChangeEventArgs<any>)=>{
+                if(e.type===ChangeTypes.Remove) {
+                    let obItem = e.sender;
+                    let nodes = getRelElements(obItem);
+                    for(const i in nodes) {
+                        let node = nodes[i];if(node.parentNode) node.parentNode.removeChild(node);
+                    }
+                }
+            });
+        }
+    }      
+    return false;
+}
+
 attrBinders.style=function (elem:any,bindValue:any,component:IComponent) {
     for(const styleName in bindValue)((styleName,subValue,elem,component)=>{
         let ob:Observable<any>;
