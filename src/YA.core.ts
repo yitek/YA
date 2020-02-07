@@ -1162,6 +1162,8 @@ export class VirtualElementNode extends VirtualNode{
     render(component:IComponent,container?:any):any{
         let elem = Host.createElement(this.tag);
         let ignoreChildren:boolean = false;
+        if(container)Host.appendChild(container,elem);
+        let anchorElem = elem;
         for(const attrName in this.attrs){
             let attrValue= this.attrs[attrName];
             
@@ -1172,22 +1174,24 @@ export class VirtualElementNode extends VirtualNode{
                 continue;
             }
             let binder:Function = attrBinders[attrName];
+            let bindResult:any;
             if(attrValue instanceof ObservableSchema){
-                
-                let proxy = attrValue.$getFromRoot(component);
-                if(binder) ignoreChildren = ignoreChildren || binder.call(component,elem,proxy,component,this)===false;
-                else (function(name,value) {
-                    Host.setAttribute(elem,name,value.$get());
-                    value.$subscribe((e)=>{
+                if(binder) bindResult= binder.call(component,elem,attrValue,component,this)===false;
+                else (function(name,attrValue) {
+                    let ob = attrValue.$getFromRoot(component);
+                    Host.setAttribute(elem,name,ob.$get());
+                    ob.$subscribe((e)=>{
                         Host.setAttribute(elem,name,e.value);
                     });
-                })(attrName,proxy);
+                })(attrName,attrValue);
             }else {
-                if(binder) ignoreChildren = ignoreChildren || binder.call(component,elem,attrValue,component,this)===false;
+                if(binder) bindResult= binder.call(component,elem,attrValue,component,this)===false;
                 else Host.setAttribute(elem,attrName,attrValue);
             }
+            if(bindResult === RenderDirectives.IgnoreChildren) ignoreChildren=true;
+            
         }
-        if(container)Host.appendChild(container,elem);
+        
 
         if(!this.children || this.children.length===0) return elem;
 
@@ -1280,6 +1284,16 @@ export function EXP(...args:any[]) {
 
 let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
 
+export enum RenderDirectives{
+    Default,
+    IgnoreChildren,
+    Replaced
+}
+
+export class Placeholder{
+    constructor(public replace:any,public before?:any,public after?:any){}
+}
+
 
 let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode)=>any}={};
 
@@ -1327,7 +1341,49 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
     return false;
 }
 
-attrBinders.style=function (elem:any,bindValue:any,component:IComponent) {
+attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode) {
+    if(bindValue instanceof ObservableSchema){
+        let ob = bindValue.$getFromRoot(component);
+        let placeholder = Host.createPlaceholder();
+        let isElementInContainer=ob.$get();
+        if(!isElementInContainer){
+            let p = Host.getParent(elem);
+            if(p){
+                Host.insertBefore(p,placeholder,elem);
+                Host.removeChild(p,elem);
+            }else Host.hide(elem);
+        }
+        ob.$subscribe((e)=>{
+            if(e.value){
+                if(!isElementInContainer){
+                    let p = Host.getParent(placeholder);
+                    if(p){
+                        Host.insertBefore(p,elem,placeholder);
+                        Host.removeChild(p,placeholder);
+                        isElementInContainer=true;
+                    }
+                    
+                }
+            }else{
+                if(isElementInContainer){
+                    let p = Host.getParent(elem);
+                    if(p){
+                        Host.insertBefore(p,placeholder,elem);
+                        Host.removeChild(p,elem);
+                        isElementInContainer=false;
+                    }else Host.hide(elem);
+                }
+            }
+        });
+    }else {
+        if(!bindValue){
+            let p = Host.getParent(elem);
+            if(p)Host.removeChild(p,elem);
+        }
+    }
+}
+
+attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent) {
     for(const styleName in bindValue)((styleName,subValue,elem,component)=>{
         let ob:Observable<any>;
         let styleValue :any;
@@ -1362,11 +1418,19 @@ export interface IHost{
     isElement(elem):boolean;
     createElement(tag:string):any;
     createText(text:string):any;
+    createPlaceholder():any;
     setAttribute(elem:any,name:string,value:any);
     getAttribute(elem:any,name:string):any;
     appendChild(parent:any,child:any);
+    insertBefore(container:any,child:any,anchor:any);
+    insertAfter(container:any,child:any,anchor:any);
+    removeChild(container:any,child:any);
+    getParent(elem:any):any;
+    hide(elem:any,immeditately?:boolean);
+    show(elem:any,immeditately?:boolean);
     removeAllChildrens(parent:any);
     attach(elem:any,evtname:string,handler:Function);
+    
 }
 let Host:IHost={} as any;
 Host.isElement=(elem):boolean=>{
@@ -1380,18 +1444,38 @@ Host.createElement=(tag:string):any=>{
 Host.createText=(txt:string):any=>{
     return document.createTextNode(txt);
 };
-
+Host.createPlaceholder=():any=>{
+    let rs = document.createElement("span");
+    rs.className="YA-PLACEHOLDER";
+    rs.style.display = "none";
+    return rs;
+};
 
 Host.setAttribute=(elem:any,name:string,value:any)=>{
     elem.setAttribute(name,value);
 };
 
-Host.appendChild=(elem:any,child:any)=>{
-    elem.appendChild(child);
+Host.appendChild=(container:any,child:any)=>{
+    container.appendChild(child);
 };
 
+Host.insertBefore=(container:any,child:any,anchor:any)=>{
+    container.insertBefore(child,anchor);
+};
+
+Host.insertAfter=(container:any,child:any,anchor:any)=>{
+    container.insertAfter(child,anchor);
+};
+Host.getParent=(elem:any)=>elem.parentNode;
+Host.removeChild = (container:any,child:any)=>container.removeChild(child);
 Host.removeAllChildrens=(elem:any)=>{
     elem.innerHTML = elem.nodeValue="";
+};
+Host.show = (elem:any,immeditately?:boolean)=>{
+    elem.style.display="";
+}
+Host.hide = (elem:any,immeditately?:boolean)=>{
+    elem.style.display="none";
 };
 
 Host.attach = (elem:any,evtname:string,handler:Function)=>{

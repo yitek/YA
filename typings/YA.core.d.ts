@@ -361,13 +361,31 @@ export declare class VirtualComponentNode extends VirtualNode {
 }
 export declare function NOT(params: any): void;
 export declare function EXP(...args: any[]): void;
+export declare enum RenderDirectives {
+    Default = 0,
+    IgnoreChildren = 1,
+    Replaced = 2,
+}
+export declare class Placeholder {
+    replace: any;
+    before: any;
+    after: any;
+    constructor(replace: any, before?: any, after?: any);
+}
 export interface IHost {
     isElement(elem: any): boolean;
     createElement(tag: string): any;
     createText(text: string): any;
+    createPlaceholder(): any;
     setAttribute(elem: any, name: string, value: any): any;
     getAttribute(elem: any, name: string): any;
     appendChild(parent: any, child: any): any;
+    insertBefore(container: any, child: any, anchor: any): any;
+    insertAfter(container: any, child: any, anchor: any): any;
+    removeChild(container: any, child: any): any;
+    getParent(elem: any): any;
+    hide(elem: any, immeditately?: boolean): any;
+    show(elem: any, immeditately?: boolean): any;
     removeAllChildrens(parent: any): any;
     attach(elem: any, evtname: string, handler: Function): any;
 }

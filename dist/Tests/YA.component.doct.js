@@ -66,6 +66,39 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     //assert("id,title",membernames.join(","),"可以且只可以枚举原始数据的字段:membernames=['1','title']");
                 });
             });
+            cdoc.usage("模板函数中的if", function (assert_statement, container) {
+                var MyComponent = /** @class */ (function () {
+                    function MyComponent() {
+                        this.model = { title: "YA framework", showTitle: true };
+                    }
+                    MyComponent.prototype.render = function (container) {
+                        return YA.virtualNode("div", null,
+                            YA.virtualNode("input", { type: "checkbox", checked: this.model.showTitle, onclick: this.changeState }),
+                            "\u53EF\u4EE5\u7528checkbox\u63A7\u5236\u540E\u9762\u7684\u6587\u672C\u7684\u663E\u793A:",
+                            YA.virtualNode("div", { if: this.model.showTitle },
+                                "[",
+                                this.model.title,
+                                "]"),
+                            YA.virtualNode("span", null, "---->\u8FD9\u662F\u6587\u672C\u540E\u9762\u7684\u6587\u5B57"));
+                    };
+                    MyComponent.prototype.changeState = function (e) {
+                        this.model.showTitle = !this.model.showTitle;
+                    };
+                    __decorate([
+                        YA.reactive()
+                    ], MyComponent.prototype, "model", void 0);
+                    __decorate([
+                        YA.template()
+                    ], MyComponent.prototype, "render", null);
+                    MyComponent = __decorate([
+                        YA.component("My")
+                    ], MyComponent);
+                    return MyComponent;
+                }());
+                ;
+                var myComponent = new MyComponent();
+                myComponent.render(container);
+            });
             cdoc.usage("模板函数中的for", function (assert_statement, container) {
                 var MyComponent = /** @class */ (function () {
                     function MyComponent() {

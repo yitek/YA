@@ -53,6 +53,29 @@ export class componentTest {
             
         });
 
+        cdoc.usage("模板函数中的if",(assert_statement:TAssertStatement,container:any)=>{
+            @YA.component("My")
+            class MyComponent{
+                @YA.reactive()
+                model={title:"YA framework",showTitle:true};
+                @YA.template()
+                render(container?:any){
+                    return <div>
+                        <input type="checkbox" checked={this.model.showTitle} onclick={this.changeState} />可以用checkbox控制后面的文本的显示:
+                        <div if={this.model.showTitle}>[{this.model.title}]</div>
+                        <span>---->这是文本后面的文字</span>
+                    </div>;
+                }
+                changeState(e){
+                    this.model.showTitle = !this.model.showTitle;
+                }
+
+            };
+
+            let myComponent = new MyComponent();
+            myComponent.render(container);
+        });
+
         
         cdoc.usage("模板函数中的for",(assert_statement:TAssertStatement,container:any)=>{
             @YA.component("My")

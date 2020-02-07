@@ -1054,6 +1054,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         VirtualElementNode.prototype.render = function (component, container) {
             var elem = Host.createElement(this.tag);
             var ignoreChildren = false;
+            if (container)
+                Host.appendChild(container, elem);
+            var anchorElem = elem;
             for (var attrName in this.attrs) {
                 var attrValue = this.attrs[attrName];
                 var match = attrName.match(evtnameRegx);
@@ -1063,27 +1066,28 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     continue;
                 }
                 var binder = attrBinders[attrName];
+                var bindResult = void 0;
                 if (attrValue instanceof ObservableSchema) {
-                    var proxy = attrValue.$getFromRoot(component);
                     if (binder)
-                        ignoreChildren = ignoreChildren || binder.call(component, elem, proxy, component, this) === false;
+                        bindResult = binder.call(component, elem, attrValue, component, this) === false;
                     else
-                        (function (name, value) {
-                            Host.setAttribute(elem, name, value.$get());
-                            value.$subscribe(function (e) {
+                        (function (name, attrValue) {
+                            var ob = attrValue.$getFromRoot(component);
+                            Host.setAttribute(elem, name, ob.$get());
+                            ob.$subscribe(function (e) {
                                 Host.setAttribute(elem, name, e.value);
                             });
-                        })(attrName, proxy);
+                        })(attrName, attrValue);
                 }
                 else {
                     if (binder)
-                        ignoreChildren = ignoreChildren || binder.call(component, elem, attrValue, component, this) === false;
+                        bindResult = binder.call(component, elem, attrValue, component, this) === false;
                     else
                         Host.setAttribute(elem, attrName, attrValue);
                 }
+                if (bindResult === RenderDirectives.IgnoreChildren)
+                    ignoreChildren = true;
             }
-            if (container)
-                Host.appendChild(container, elem);
             if (!this.children || this.children.length === 0)
                 return elem;
             if (!ignoreChildren) {
@@ -1179,6 +1183,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.EXP = EXP;
     var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
+    var RenderDirectives;
+    (function (RenderDirectives) {
+        RenderDirectives[RenderDirectives["Default"] = 0] = "Default";
+        RenderDirectives[RenderDirectives["IgnoreChildren"] = 1] = "IgnoreChildren";
+        RenderDirectives[RenderDirectives["Replaced"] = 2] = "Replaced";
+    })(RenderDirectives = exports.RenderDirectives || (exports.RenderDirectives = {}));
+    var Placeholder = /** @class */ (function () {
+        function Placeholder(replace, before, after) {
+            this.replace = replace;
+            this.before = before;
+            this.after = after;
+        }
+        return Placeholder;
+    }());
+    exports.Placeholder = Placeholder;
     var attrBinders = {};
     attrBinders.for = function bindFor(elem, bindValue, component, vnode, ignoreAddRel) {
         var each = bindValue[0];
@@ -1227,7 +1246,54 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return false;
     };
-    attrBinders.style = function (elem, bindValue, component) {
+    attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
+        if (bindValue instanceof ObservableSchema) {
+            var ob = bindValue.$getFromRoot(component);
+            var placeholder_1 = Host.createPlaceholder();
+            var isElementInContainer_1 = ob.$get();
+            if (!isElementInContainer_1) {
+                var p = Host.getParent(elem);
+                if (p) {
+                    Host.insertBefore(p, placeholder_1, elem);
+                    Host.removeChild(p, elem);
+                }
+                else
+                    Host.hide(elem);
+            }
+            ob.$subscribe(function (e) {
+                if (e.value) {
+                    if (!isElementInContainer_1) {
+                        var p = Host.getParent(placeholder_1);
+                        if (p) {
+                            Host.insertBefore(p, elem, placeholder_1);
+                            Host.removeChild(p, placeholder_1);
+                            isElementInContainer_1 = true;
+                        }
+                    }
+                }
+                else {
+                    if (isElementInContainer_1) {
+                        var p = Host.getParent(elem);
+                        if (p) {
+                            Host.insertBefore(p, placeholder_1, elem);
+                            Host.removeChild(p, elem);
+                            isElementInContainer_1 = false;
+                        }
+                        else
+                            Host.hide(elem);
+                    }
+                }
+            });
+        }
+        else {
+            if (!bindValue) {
+                var p = Host.getParent(elem);
+                if (p)
+                    Host.removeChild(p, elem);
+            }
+        }
+    };
+    attrBinders.style = function bindStyle(elem, bindValue, component) {
         for (var styleName in bindValue)
             (function (styleName, subValue, elem, component) {
                 var ob;
@@ -1273,14 +1339,34 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     Host.createText = function (txt) {
         return document.createTextNode(txt);
     };
+    Host.createPlaceholder = function () {
+        var rs = document.createElement("span");
+        rs.className = "YA-PLACEHOLDER";
+        rs.style.display = "none";
+        return rs;
+    };
     Host.setAttribute = function (elem, name, value) {
         elem.setAttribute(name, value);
     };
-    Host.appendChild = function (elem, child) {
-        elem.appendChild(child);
+    Host.appendChild = function (container, child) {
+        container.appendChild(child);
     };
+    Host.insertBefore = function (container, child, anchor) {
+        container.insertBefore(child, anchor);
+    };
+    Host.insertAfter = function (container, child, anchor) {
+        container.insertAfter(child, anchor);
+    };
+    Host.getParent = function (elem) { return elem.parentNode; };
+    Host.removeChild = function (container, child) { return container.removeChild(child); };
     Host.removeAllChildrens = function (elem) {
         elem.innerHTML = elem.nodeValue = "";
+    };
+    Host.show = function (elem, immeditately) {
+        elem.style.display = "";
+    };
+    Host.hide = function (elem, immeditately) {
+        elem.style.display = "none";
     };
     Host.attach = function (elem, evtname, handler) {
         if (elem.addEventListener)
