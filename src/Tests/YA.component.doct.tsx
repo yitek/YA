@@ -138,5 +138,55 @@ export class componentTest {
             
         });
     }
+    @doct()
+    composite(mdoc:MemberDoct){
+        mdoc.usage("控件组合使用",(assert_statement:TAssertStatement,container:any)=>{
+            @YA.component("CompA")
+            class CompA{
+                @YA.reactive(YA.ReactiveTypes.In)
+                name="";
+                @YA.reactive(YA.ReactiveTypes.Out)
+                signture="";
+                @YA.template()
+                render(){
+                    return <div>  My name is {this.name},my signture is here:
+                        <input type="text" value={this.signture} onblur={this.onblur}/>
+                    </div>
+                }
+
+                onblur(e){
+                    this.signture = e.target.value;
+                }
+            }
+
+            @YA.component("CompB")
+            class CompB{
+                @YA.reactive()
+                myname="yiy";
+                @YA.reactive()
+                mysignture="";
+
+                @YA.template()
+                render(container:any){
+                    return <div>
+                        <button onclick={this.changeMyName}>点击这里修改名称</button>
+                        <fieldset>
+                            <legend>签名</legend>
+                            <CompA name={this.myname} signture={this.mysignture}/>
+                        </fieldset>
+                        你的签名:{this.mysignture}
+                    </div>
+                }
+
+                changeMyName(){
+                    let newName = prompt("修改我的名字",this.myname);
+                    this.myname= newName;
+                }
+            }
+
+            let b = new CompB();
+            b.render(container);
+        });
+    }
     
 }

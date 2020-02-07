@@ -202,7 +202,7 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $extras?:any;
     $target?:TData;
     $get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
-    $set(newValue:TData):IObservable<TData>;
+    $set(newValue:TData,updateImmediately?:boolean):IObservable<TData>;
     $update():boolean;
 }
 
@@ -344,10 +344,11 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         return (this.$_modifiedValue===undefined)?this.$target:(this.$_modifiedValue===Undefined?undefined:this.$_modifiedValue);
     }
 
-    $set(newValue:TData):IObservable<TData>{
+    $set(newValue:TData,updateImmediately?:boolean):IObservable<TData>{
         if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
         if(Observable.accessMode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
         this.$_modifiedValue=newValue===undefined?Undefined:newValue;
+        if(updateImmediately) this.$update();
         return this;
     }
     $update():boolean{
@@ -422,7 +423,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         return this;
     }
 
-    $set(newValue:TData):IObservableObject<TData>{
+    $set(newValue:TData,updateImmediately?:boolean):IObservableObject<TData>{
         super.$set(newValue||null);
         if(!newValue || Observable.accessMode===ObservableModes.Raw) return this;
         proxyMode(()=>{
@@ -431,6 +432,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
                 if(proxy instanceof Observable) proxy.$set((newValue as any)[n] as any);
             }
         });
+        if(updateImmediately) this.$update();
         return this;
     }
 
@@ -552,7 +554,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
-    $set(newValue:any):ObservableArray<TItem>{
+    $set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
         newValue || (newValue=[]);
         this.clear();
         super.$set(newValue);
@@ -562,7 +564,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         
         for(const i in newValue)makeArrayItem(this,i as any as number);;
         this.$_length = newValue.length;
-        
+        if(updateImmediately) this.$update();
         return this;
     }
 
@@ -719,13 +721,15 @@ export class ObservableSchema<TData>{
 
     
 
-    $getFromRoot(root:any):any{
-        let data = root;
-        for(const i in this.$paths){
-            data = data[this.$paths[i]];
-            if(data===undefined || data===Undefined) return undefined;
-        }
-        return data;
+    $getFromRoot(root:any ,mode:ObservableModes=ObservableModes.Observable):any{
+        return observableMode(mode,()=>{
+            let data = root;
+            for(const i in this.$paths){
+                data = data[this.$paths[i]];
+                if(data===undefined || data===Undefined) return undefined;
+            }
+            return data;
+        });
     }
 
     $asObject():ObservableSchema<TData>{
@@ -799,7 +803,7 @@ export enum ReactiveTypes{
     Iterator,
     In,
     Out,
-    Ref
+    Parameter
 }
 export interface IReactiveInfo{
     name?:string;
@@ -924,7 +928,7 @@ export interface IInternalComponent extends IComponent{
     $reactives:{[name:string]:Observable<any>};
 }
 
-let registeredComponentInfos : {[tag:string]:IComponentInfo}={};
+let componentInfos : {[tag:string]:IComponentInfo}={};
 
 function inherits(extendCls, basCls) {
     function __() { this.constructor = extendCls; }
@@ -943,11 +947,12 @@ export function component(tag:string,ComponentType?:{new(...args:any[]):ICompone
         }
         for(let k in ComponentType) _Component[k] = componentType[k];
         inherits(_Component,componentType);
+        Object.defineProperty(_Component,"$tag",{enumerable:false,configurable:false,writable:false,value:tag});
         Object.defineProperty(_Component.prototype,"$meta",{enumerable:false,configurable:false,get:()=>componentType.prototype["$meta"],set:(val)=>componentType.prototype["$meta"]=val});
         meta.tag = tag;
         meta.ctor = componentType;
         meta.wrapper = _Component;
-        registeredComponentInfos[tag]= meta;
+        componentInfos[tag]= meta;
         return _Component;
     }
     if(ComponentType) {
@@ -955,9 +960,9 @@ export function component(tag:string,ComponentType?:{new(...args:any[]):ICompone
     }else return makeComponent;
 }
 
-function createComponent(tag:string,context?:any) {
-    let componentInfo = registeredComponentInfos[tag];
-    if(!componentInfo) throw new Error(`${tag}不是Component,请调用component注册或标记为@component`);
+function createComponent(componentInfo:IComponentInfo,context?:any) {
+    //let componentInfo = componentInfos[tag];
+    if(!componentInfo) throw new Error(`不是Component,请调用component注册或标记为@component`);
     let instance = new componentInfo.ctor();
     if(!componentInfo.inited){
         initComponent(instance as IInternalComponent);
@@ -1115,11 +1120,17 @@ export class VirtualNode{
         
     }
 
-    static create(tag:string,attrs:{[attrName:string]:any}){
+    static create(tag:string|{new(...args:any[]):IComponent},attrs:{[attrName:string]:any}){
+        
         let vnode :VirtualNode;
-        let componentInfo = registeredComponentInfos[tag];
-        if(componentInfo)vnode = new VirtualComponentNode(tag,attrs);
-        else vnode = new VirtualElementNode(tag,attrs);
+        if(tag && (tag as any).$tag ){
+            vnode = new VirtualComponentNode(tag as {new(...args:any[]):IComponent},attrs);
+        }else {
+            let componentInfo = componentInfos[tag as string];
+            if(componentInfo)vnode = new VirtualComponentNode(tag as string,attrs);
+            else vnode = new VirtualElementNode(tag as string,attrs);
+        }
+        
         for(let i=2,j=arguments.length;i<j;i++){
             let childNode = arguments[i];
             if(!(childNode instanceof VirtualNode)) childNode = new VirtualTextNode(childNode);
@@ -1179,7 +1190,7 @@ export class VirtualElementNode extends VirtualNode{
                 if(binder) bindResult= binder.call(component,elem,attrValue,component,this)===false;
                 else (function(name,attrValue) {
                     let ob = attrValue.$getFromRoot(component);
-                    Host.setAttribute(elem,name,ob.$get());
+                    Host.setAttribute(elem,name,ob.$get(ObservableModes.Raw));
                     ob.$subscribe((e)=>{
                         Host.setAttribute(elem,name,e.value);
                     });
@@ -1207,61 +1218,22 @@ export class VirtualElementNode extends VirtualNode{
     
 }
 
-
-
-
-
-
-function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
-    let subMeta = subComponent.$meta as IComponentInfo;
-
-    let stateInfo = subMeta.reactives[subAttrName];
-    let subStateType = stateInfo?stateInfo.type:undefined;
-    if(subStateType===ReactiveTypes.Internal || subStateType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${subAttrName}是内部变量，不可以在外部赋值`);
-    
-    let subAttr = subComponent[subAttrName];
-
-    if(subStateType === ReactiveTypes.Out){
-        if(bindValue instanceof ObservableSchema){
-            subAttr.$subscribe(e=>bindValue.$getFromRoot(component).$set(e.value));
-        }else{
-            throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
-        }
-    } else if(subStateType===ReactiveTypes.In){
-        if(bindValue instanceof ObservableSchema){
-            let bindOb = bindValue.$getFromRoot(component);
-            bindOb.$subscribe((e)=>subAttr.$set(e.value));
-            subAttr.$_raw(bindOb.$get());
-        }else{
-            subAttr.$_raw(bindValue);
-            console.warn(`未能绑定[IN]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
-        }
-    } else if(subStateType===ReactiveTypes.Ref){
-        if(bindValue instanceof ObservableSchema){
-            let bindOb = bindValue.$getFromRoot(component);
-            bindOb.$subscribe((e)=>subAttr.$set(e.value));
-            subAttr.$_raw(bindOb.$get());
-            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value));
-        }else{
-            subAttr.$_raw(bindValue);
-            console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
-        }
-    }else{
-        let value =bindValue instanceof ObservableSchema?bindValue.$getFromRoot(component).$get():bindValue;
-        value = clone(value,true);
-        if(subAttr instanceof Observable) subAttr.$_raw(value);
-        else subComponent[subAttrName] = value;
-    }
-}
-
 export class VirtualComponentNode extends VirtualNode{
     children?:VirtualNode[];
-    constructor(public tag:string,public attrs:{[name:string]:any}){
+    meta:IComponentInfo;
+    constructor(tag:string|{new(...args:any[]):IComponent},public attrs:{[name:string]:any}){
         super();
+        if(tag&& (tag as any).$tag){
+            this.tag = (tag as any).$tag;
+            this.meta = (tag as {new(...args:any[]):IComponent}).prototype.$meta;
+        }else{
+            this.tag = tag as string;
+            this.meta = componentInfos[this.tag];
+        } 
     }
 
     render(component:IComponent,container?:any):any{
-        let subComponent = createComponent(this.tag);
+        let subComponent = createComponent(this.meta);
         for(const subAttrName in this.attrs){
             bindComponentAttr(component,subComponent,subAttrName,this.attrs[subAttrName]);
         };
@@ -1274,6 +1246,54 @@ export class VirtualComponentNode extends VirtualNode{
     }
 }
 
+function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
+    let subMeta = subComponent.$meta as IComponentInfo;
+
+    let stateInfo = subMeta.reactives[subAttrName];
+    let subStateType = stateInfo?stateInfo.type:undefined;
+    if(subStateType===ReactiveTypes.Internal || subStateType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${subAttrName}是内部变量，不可以在外部赋值`);
+    
+    let subAttr = subComponent[subAttrName];
+
+    if(subStateType === ReactiveTypes.Out){
+        if(bindValue instanceof ObservableSchema){
+            subAttr.$subscribe(e=>{
+                //这里的级联update可能会有性能问题，要优化
+                bindValue.$getFromRoot(component).$set(e.value,true);
+            });
+        }else{
+            throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
+        }
+    } else if(subStateType===ReactiveTypes.In){
+        if(bindValue instanceof ObservableSchema){
+            let bindOb = bindValue.$getFromRoot(component);
+            bindOb.$subscribe((e)=>{
+                //这里的级联update可能会有性能问题，要优化
+                subAttr.$set(e.value,true);
+            });
+            subAttr.$_raw(subAttr.$target = clone(bindOb.$get(ObservableModes.Raw),true));
+        }else{
+            subAttr.$_raw(subAttr.$target = bindValue);
+            console.warn(`未能绑定[IN]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    } else if(subStateType===ReactiveTypes.Parameter){
+        if(bindValue instanceof ObservableSchema){
+            //这里的级联update可能会有性能问题，要优化
+            let bindOb = bindValue.$getFromRoot(component);
+            bindOb.$subscribe((e)=>subAttr.$set(e.value,true));
+            subAttr.$_raw(subAttr.$target = bindOb.$get(ObservableModes.Raw));
+            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value,true));
+        }else{
+            subAttr.$_raw(subAttr.$target = bindValue);
+            console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    }else{
+        let value =bindValue instanceof ObservableSchema?bindValue.$getFromRoot(component).$get():bindValue;
+        value = clone(value,true);
+        if(subAttr instanceof Observable) subAttr.$_raw(value);
+        else subComponent[subAttrName] = value;
+    }
+}
 
 export function NOT(params:any) {
     return;

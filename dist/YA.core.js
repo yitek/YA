@@ -263,7 +263,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return this;
             return (this.$_modifiedValue === undefined) ? this.$target : (this.$_modifiedValue === Undefined ? undefined : this.$_modifiedValue);
         };
-        Observable.prototype.$set = function (newValue) {
+        Observable.prototype.$set = function (newValue, updateImmediately) {
             if (newValue && newValue instanceof Observable_1)
                 newValue = newValue.$get(ObservableModes.Value);
             if (Observable_1.accessMode === ObservableModes.Raw) {
@@ -271,6 +271,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return this;
             }
             this.$_modifiedValue = newValue === undefined ? Undefined : newValue;
+            if (updateImmediately)
+                this.$update();
             return this;
         };
         Observable.prototype.$update = function () {
@@ -339,7 +341,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             return this;
         };
-        ObservableObject.prototype.$set = function (newValue) {
+        ObservableObject.prototype.$set = function (newValue, updateImmediately) {
             var _this = this;
             _super.prototype.$set.call(this, newValue || null);
             if (!newValue || Observable.accessMode === ObservableModes.Raw)
@@ -351,6 +353,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         proxy.$set(newValue[n]);
                 }
             });
+            if (updateImmediately)
+                this.$update();
             return this;
         };
         ObservableObject.prototype.$update = function () {
@@ -471,7 +475,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             return this;
         };
-        ObservableArray.prototype.$set = function (newValue) {
+        ObservableArray.prototype.$set = function (newValue, updateImmediately) {
             newValue || (newValue = []);
             this.clear();
             _super.prototype.$set.call(this, newValue);
@@ -482,6 +486,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 makeArrayItem(this, i);
             ;
             this.$_length = newValue.length;
+            if (updateImmediately)
+                this.$update();
             return this;
         };
         ObservableArray.prototype.$update = function () {
@@ -631,14 +637,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         }
         ObservableSchema_1 = ObservableSchema;
-        ObservableSchema.prototype.$getFromRoot = function (root) {
-            var data = root;
-            for (var i in this.$paths) {
-                data = data[this.$paths[i]];
-                if (data === undefined || data === Undefined)
-                    return undefined;
-            }
-            return data;
+        ObservableSchema.prototype.$getFromRoot = function (root, mode) {
+            var _this = this;
+            if (mode === void 0) { mode = ObservableModes.Observable; }
+            return observableMode(mode, function () {
+                var data = root;
+                for (var i in _this.$paths) {
+                    data = data[_this.$paths[i]];
+                    if (data === undefined || data === Undefined)
+                        return undefined;
+                }
+                return data;
+            });
         };
         ObservableSchema.prototype.$asObject = function () {
             if (this.$type === DataTypes.Object)
@@ -720,7 +730,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ReactiveTypes[ReactiveTypes["Iterator"] = 1] = "Iterator";
         ReactiveTypes[ReactiveTypes["In"] = 2] = "In";
         ReactiveTypes[ReactiveTypes["Out"] = 3] = "Out";
-        ReactiveTypes[ReactiveTypes["Ref"] = 4] = "Ref";
+        ReactiveTypes[ReactiveTypes["Parameter"] = 4] = "Parameter";
     })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
     /**
      * 两种用法:
@@ -807,7 +817,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             Object.defineProperty(meta, name, { enumerable: false, configurable: false, writable: true, value: info = {} });
         return info;
     }
-    var registeredComponentInfos = {};
+    var componentInfos = {};
     function inherits(extendCls, basCls) {
         function __() { this.constructor = extendCls; }
         extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
@@ -825,11 +835,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var k in ComponentType)
                 _Component[k] = componentType[k];
             inherits(_Component, componentType);
+            Object.defineProperty(_Component, "$tag", { enumerable: false, configurable: false, writable: false, value: tag });
             Object.defineProperty(_Component.prototype, "$meta", { enumerable: false, configurable: false, get: function () { return componentType.prototype["$meta"]; }, set: function (val) { return componentType.prototype["$meta"] = val; } });
             meta.tag = tag;
             meta.ctor = componentType;
             meta.wrapper = _Component;
-            registeredComponentInfos[tag] = meta;
+            componentInfos[tag] = meta;
             return _Component;
         };
         if (ComponentType) {
@@ -839,10 +850,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return makeComponent;
     }
     exports.component = component;
-    function createComponent(tag, context) {
-        var componentInfo = registeredComponentInfos[tag];
+    function createComponent(componentInfo, context) {
+        //let componentInfo = componentInfos[tag];
         if (!componentInfo)
-            throw new Error(tag + "\u4E0D\u662FComponent,\u8BF7\u8C03\u7528component\u6CE8\u518C\u6216\u6807\u8BB0\u4E3A@component");
+            throw new Error("\u4E0D\u662FComponent,\u8BF7\u8C03\u7528component\u6CE8\u518C\u6216\u6807\u8BB0\u4E3A@component");
         var instance = new componentInfo.ctor();
         if (!componentInfo.inited) {
             initComponent(instance);
@@ -1000,11 +1011,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         VirtualNode.create = function (tag, attrs) {
             var vnode;
-            var componentInfo = registeredComponentInfos[tag];
-            if (componentInfo)
+            if (tag && tag.$tag) {
                 vnode = new VirtualComponentNode(tag, attrs);
-            else
-                vnode = new VirtualElementNode(tag, attrs);
+            }
+            else {
+                var componentInfo = componentInfos[tag];
+                if (componentInfo)
+                    vnode = new VirtualComponentNode(tag, attrs);
+                else
+                    vnode = new VirtualElementNode(tag, attrs);
+            }
             for (var i = 2, j = arguments.length; i < j; i++) {
                 var childNode = arguments[i];
                 if (!(childNode instanceof VirtualNode))
@@ -1073,7 +1089,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     else
                         (function (name, attrValue) {
                             var ob = attrValue.$getFromRoot(component);
-                            Host.setAttribute(elem, name, ob.$get());
+                            Host.setAttribute(elem, name, ob.$get(ObservableModes.Raw));
                             ob.$subscribe(function (e) {
                                 Host.setAttribute(elem, name, e.value);
                             });
@@ -1100,63 +1116,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return VirtualElementNode;
     }(VirtualNode));
     exports.VirtualElementNode = VirtualElementNode;
-    function bindComponentAttr(component, subComponent, subAttrName, bindValue) {
-        var subMeta = subComponent.$meta;
-        var stateInfo = subMeta.reactives[subAttrName];
-        var subStateType = stateInfo ? stateInfo.type : undefined;
-        if (subStateType === ReactiveTypes.Internal || subStateType === ReactiveTypes.Iterator)
-            throw new Error(this.tag + "." + subAttrName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
-        var subAttr = subComponent[subAttrName];
-        if (subStateType === ReactiveTypes.Out) {
-            if (bindValue instanceof ObservableSchema) {
-                subAttr.$subscribe(function (e) { return bindValue.$getFromRoot(component).$set(e.value); });
-            }
-            else {
-                throw new Error("\u65E0\u6CD5\u7ED1\u5B9A[OUT]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027\uFF0C\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else if (subStateType === ReactiveTypes.In) {
-            if (bindValue instanceof ObservableSchema) {
-                var bindOb = bindValue.$getFromRoot(component);
-                bindOb.$subscribe(function (e) { return subAttr.$set(e.value); });
-                subAttr.$_raw(bindOb.$get());
-            }
-            else {
-                subAttr.$_raw(bindValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[IN]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else if (subStateType === ReactiveTypes.Ref) {
-            if (bindValue instanceof ObservableSchema) {
-                var bindOb = bindValue.$getFromRoot(component);
-                bindOb.$subscribe(function (e) { return subAttr.$set(e.value); });
-                subAttr.$_raw(bindOb.$get());
-                subAttr.$subscribe(function (e) { return bindValue.$getFromRoot(component).$set(e.value); });
-            }
-            else {
-                subAttr.$_raw(bindValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[REF]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else {
-            var value = bindValue instanceof ObservableSchema ? bindValue.$getFromRoot(component).$get() : bindValue;
-            value = clone(value, true);
-            if (subAttr instanceof Observable)
-                subAttr.$_raw(value);
-            else
-                subComponent[subAttrName] = value;
-        }
-    }
     var VirtualComponentNode = /** @class */ (function (_super) {
         __extends(VirtualComponentNode, _super);
         function VirtualComponentNode(tag, attrs) {
             var _this = _super.call(this) || this;
-            _this.tag = tag;
             _this.attrs = attrs;
+            if (tag && tag.$tag) {
+                _this.tag = tag.$tag;
+                _this.meta = tag.prototype.$meta;
+            }
+            else {
+                _this.tag = tag;
+                _this.meta = componentInfos[_this.tag];
+            }
             return _this;
         }
         VirtualComponentNode.prototype.render = function (component, container) {
-            var subComponent = createComponent(this.tag);
+            var subComponent = createComponent(this.meta);
             for (var subAttrName in this.attrs) {
                 bindComponentAttr(component, subComponent, subAttrName, this.attrs[subAttrName]);
             }
@@ -1170,6 +1146,60 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return VirtualComponentNode;
     }(VirtualNode));
     exports.VirtualComponentNode = VirtualComponentNode;
+    function bindComponentAttr(component, subComponent, subAttrName, bindValue) {
+        var subMeta = subComponent.$meta;
+        var stateInfo = subMeta.reactives[subAttrName];
+        var subStateType = stateInfo ? stateInfo.type : undefined;
+        if (subStateType === ReactiveTypes.Internal || subStateType === ReactiveTypes.Iterator)
+            throw new Error(this.tag + "." + subAttrName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
+        var subAttr = subComponent[subAttrName];
+        if (subStateType === ReactiveTypes.Out) {
+            if (bindValue instanceof ObservableSchema) {
+                subAttr.$subscribe(function (e) {
+                    //这里的级联update可能会有性能问题，要优化
+                    bindValue.$getFromRoot(component).$set(e.value, true);
+                });
+            }
+            else {
+                throw new Error("\u65E0\u6CD5\u7ED1\u5B9A[OUT]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027\uFF0C\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else if (subStateType === ReactiveTypes.In) {
+            if (bindValue instanceof ObservableSchema) {
+                var bindOb = bindValue.$getFromRoot(component);
+                bindOb.$subscribe(function (e) {
+                    //这里的级联update可能会有性能问题，要优化
+                    subAttr.$set(e.value, true);
+                });
+                subAttr.$_raw(subAttr.$target = clone(bindOb.$get(ObservableModes.Raw), true));
+            }
+            else {
+                subAttr.$_raw(subAttr.$target = bindValue);
+                console.warn("\u672A\u80FD\u7ED1\u5B9A[IN]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else if (subStateType === ReactiveTypes.Parameter) {
+            if (bindValue instanceof ObservableSchema) {
+                //这里的级联update可能会有性能问题，要优化
+                var bindOb = bindValue.$getFromRoot(component);
+                bindOb.$subscribe(function (e) { return subAttr.$set(e.value, true); });
+                subAttr.$_raw(subAttr.$target = bindOb.$get(ObservableModes.Raw));
+                subAttr.$subscribe(function (e) { return bindValue.$getFromRoot(component).$set(e.value, true); });
+            }
+            else {
+                subAttr.$_raw(subAttr.$target = bindValue);
+                console.warn("\u672A\u80FD\u7ED1\u5B9A[REF]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else {
+            var value = bindValue instanceof ObservableSchema ? bindValue.$getFromRoot(component).$get() : bindValue;
+            value = clone(value, true);
+            if (subAttr instanceof Observable)
+                subAttr.$_raw(value);
+            else
+                subComponent[subAttrName] = value;
+        }
+    }
     function NOT(params) {
         return;
     }

@@ -144,7 +144,7 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $extras?: any;
     $target?: TData;
     $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    $set(newValue: TData): IObservable<TData>;
+    $set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     $update(): boolean;
 }
 export declare function observableMode(mode: ObservableModes, statement: () => any): any;
@@ -188,7 +188,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
         (val?: TData): any;
     } | TData, index?: any, extras?: any, initValue?: any);
     $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    $set(newValue: TData): IObservable<TData>;
+    $set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     $update(): boolean;
     toString(): string;
     static accessMode: ObservableModes;
@@ -206,7 +206,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     } | TData, index?: any, extras?: any, initValue?: any);
     $prop(name: string): any;
     $get(accessMode?: ObservableModes): any;
-    $set(newValue: TData): IObservableObject<TData>;
+    $set(newValue: TData, updateImmediately?: boolean): IObservableObject<TData>;
     $update(): boolean;
 }
 export interface IObservableArray<TItem> extends IObservable<TItem[]> {
@@ -225,7 +225,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     toString(): string;
     clear(): ObservableArray<TItem>;
     $get(accessMode?: ObservableModes): any;
-    $set(newValue: any): ObservableArray<TItem>;
+    $set(newValue: any, updateImmediately?: boolean): ObservableArray<TItem>;
     $update(): boolean;
 }
 export declare class ObservableSchema<TData> {
@@ -242,7 +242,7 @@ export declare class ObservableSchema<TData> {
     $itemSchema?: ObservableSchema<TData>;
     $initData?: any;
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
-    $getFromRoot(root: any): any;
+    $getFromRoot(root: any, mode?: ObservableModes): any;
     $asObject(): ObservableSchema<TData>;
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
     $asArray(): ObservableSchema<TData>;
@@ -254,7 +254,7 @@ export declare enum ReactiveTypes {
     Iterator = 1,
     In = 2,
     Out = 3,
-    Ref = 4,
+    Parameter = 4,
 }
 export interface IReactiveInfo {
     name?: string;
@@ -327,7 +327,9 @@ export declare class VirtualNode {
     children?: VirtualNode[];
     constructor();
     render(component: IComponent, container?: any): any;
-    static create(tag: string, attrs: {
+    static create(tag: string | {
+        new (...args: any[]): IComponent;
+    }, attrs: {
         [attrName: string]: any;
     }): VirtualNode;
 }
@@ -349,12 +351,14 @@ export declare class VirtualElementNode extends VirtualNode {
     render(component: IComponent, container?: any): any;
 }
 export declare class VirtualComponentNode extends VirtualNode {
-    tag: string;
     attrs: {
         [name: string]: any;
     };
     children?: VirtualNode[];
-    constructor(tag: string, attrs: {
+    meta: IComponentInfo;
+    constructor(tag: string | {
+        new (...args: any[]): IComponent;
+    }, attrs: {
         [name: string]: any;
     });
     render(component: IComponent, container?: any): any;
@@ -410,7 +414,7 @@ declare let YA: {
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
     VirtualComponentNode: typeof VirtualComponentNode;
-    virtualNode: (tag: string, attrs: {
+    virtualNode: (tag: string | (new (...args: any[]) => IComponent), attrs: {
         [attrName: string]: any;
     }) => VirtualNode;
     HOST: IHost;
