@@ -17,6 +17,11 @@ export function intimate(strong?:boolean|any,members?:any){
     }
 }
 
+export function is_array(obj:any):boolean {
+    if(!obj) return false;
+    return Object.prototype.toString.call(obj)==="[object Array]";
+}
+
 //===============================================================================
 
 
@@ -186,6 +191,7 @@ export enum DataTypes{
 export enum ObservableModes{
     Default,
     Raw,
+    Value,
     Observable,
     Schema
 }
@@ -238,7 +244,7 @@ export interface IChangeEventArgs<TData>{
 
 export enum ChangeTypes{
     Value,
-    Replace,
+    Item,
     Append,
     Push,
     Pop,
@@ -273,10 +279,10 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 
     $_raw:(value?:TData)=>any;
 
-    constructor(init:IObservableIndexable<TData>|{(val?:TData):any}|TData,index?:any,extras?:any){
+    constructor(init:IObservableIndexable<TData>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
         super();
         
-        if(init instanceof ObservableObject){
+        if(init instanceof ObservableObject || init instanceof ObservableArray){
             //ctor(owner,index,extras)
             this.$_owner= init as IObservableIndexable<TData>;
             this.$_index = index;
@@ -289,20 +295,31 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
                     ?this.$_owner.$target
                     :(this.$_owner.$_modifiedValue===Undefined?null:this.$_owner.$_modifiedValue)
                 )as any)[this.$_index]=val as any;   
-            this.$target = this.$_raw();
+            
             this.$extras = extras;
+            if(initValue!==undefined){
+                this.$_raw(this.$target= initValue);
+            }else{
+                this.$target = this.$_raw();
+            }
         }else if(typeof init==="function"){
             //ctor(TRaw,extras)
             this.$extras = index;
             this.$_raw = init as {(val?:TData):any};
-            this.$target = this.$_raw();
+            if(initValue!==undefined){
+                this.$_raw(this.$target= initValue);
+            }else{
+                this.$target = this.$_raw();
+            }
         }else {
+            //ctor(initValue,accessor,extras)
             if(typeof index==="function"){
                 this.$extras = extras;
                 this.$_raw = index;
                 this.$target = init as TData;
                 index.call(this,init);
             }else {
+                //ctor(initValue,extras)
                 this.$target=init as TData;
                 this.$extras = index;
                 this.$_raw =(val:TData)=>val===undefined?init:init=val;
@@ -314,6 +331,8 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             $target:this.$target,$extras:this.$extras,$type:DataTypes.Value,$schema:this.$schema
             ,$_raw:this.$_raw,$_index:this.$_index,$_modifiedValue:undefined,$_owner:this.$_owner
         });
+        if(this.$target instanceof Observable) 
+            throw new Error("不正确的赋值");
     }
     
 
@@ -326,6 +345,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
 
     $set(newValue:TData):IObservable<TData>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
         if(Observable.accessMode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
         this.$_modifiedValue=newValue===undefined?Undefined:newValue;
         return this;
@@ -366,8 +386,8 @@ export interface IObservableObject<TData extends {[index:string]:any}> extends I
 @intimate()
 export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>,IObservableIndexable<TData>{
     [index:string]:any;
-    constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
-        super(init,index,extras);
+    constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
+        super(init,index,extras,initValue);
         this.$type = DataTypes.Object;
         if(!this.$target) this.$_raw(this.$target={} as any);
         if(!this.$schema){
@@ -386,9 +406,18 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
 
     $get(accessMode?:ObservableModes):any{
         if(accessMode===undefined) accessMode = Observable.accessMode;
-        
         if(accessMode=== ObservableModes.Raw ) return this.$_raw();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
+        if(accessMode===ObservableModes.Value){
+            return observableMode(ObservableModes.Observable,()=>{
+                let rs = {} as any;
+                for(const n in this){
+                    let prop = this[n] as any;
+                    rs[n] = prop.$get(ObservableModes.Value);
+                }
+                return rs;
+            });
+        }
         
         return this;
     }
@@ -475,7 +504,8 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     
 
     clear():ObservableArray<TItem>{
-        let old = this.$get() as TItem[];
+        let old = this.$target;
+        
         let changes = this.$_changes|| (this.$_changes=[]);
         let len = old.length;
         if(changes)for(const i in changes){
@@ -504,12 +534,30 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
+    $get(accessMode?:ObservableModes):any{
+        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode=== ObservableModes.Raw ) return this.$_raw();
+        if( accessMode == ObservableModes.Schema ) return this.$schema;
+        if(accessMode===ObservableModes.Value){
+            return observableMode(ObservableModes.Observable,()=>{
+                let rs = [] as any;
+                for(const n in this){
+                    let prop = this[n];
+                    rs.push(prop.$get(ObservableModes.Value));
+                }
+                return rs;
+            });
+        }
+        
+        return this;
+    }
+
     $set(newValue:any):ObservableArray<TItem>{
         newValue || (newValue=[]);
         this.clear();
         super.$set(newValue);
         if(Observable.accessMode=== ObservableModes.Raw){
-            this.$_raw(newValue);return this;
+            return this;
         }
         
         for(const i in newValue)makeArrayItem(this,i as any as number);;
@@ -528,6 +576,8 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         for(const i in changes){
             let change = changes[i];
             switch(change.type){
+                case ChangeTypes.Remove:
+                    change.sender.$notify(change);
                 case ChangeTypes.Push:
                     arr.push(change.value);
                     this.$notify(change);
@@ -553,13 +603,14 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                         change.item.$notify(change);
                     }
                     break;
-                case ChangeTypes.Replace:
+                case ChangeTypes.Item:
                     arr[change.index] = change.value;
                     this.$notify(change);
                     if(change.cancel!==true){
-                        change.sender =change.item;
-                        change.type = ChangeTypes.Value;
-                        change.sender.$notify(change);
+                        let itemEvts :any= {};for(const n in change) itemEvts[n]=change[n];
+                        itemEvts.sender =change.item;
+                        itemEvts.type = ChangeTypes.Value;
+                        itemEvts.sender.$notify(itemEvts);
                     } 
                     break;
             }
@@ -571,14 +622,14 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
 
 function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
     obArray.$_itemSchema.$index = index;
-    let item = new obArray.$_itemSchema.$ctor(obArray.$target[index],obArray);
+    let item = new obArray.$_itemSchema.$ctor(obArray,index,undefined);
     item.$_index = index;
     Object.defineProperty(obArray,index as any as string,{enumerable:true,configurable:true
         ,get:(mode?:ObservableModes) => item.$get(mode)
         ,set:(item_value:TItem)=>{
             (obArray.$_changes || (obArray.$_changes=[])).push({
                 sender:obArray,
-                type:ChangeTypes.Replace,
+                type:ChangeTypes.Item,
                 index:index,
                 item:item,
                 value:item_value
@@ -623,7 +674,7 @@ export class ObservableSchema<TData>{
     $index:string|number;
     
     $paths:string[];
-    $ctor:{new (initValue:TData|{(val?:TData):any},owner?:ObservableObject<any>|any,extras?:any):Observable<any>};
+    $ctor:{new (init:TData|{(val?:TData):any}|IObservableIndexable<any>,index?:any,extras?:any,initValue?:any):Observable<any>};
     //$prop_models:{[index:string]:Model};
     $owner?:ObservableSchema<TData>;
     $itemSchema?:ObservableSchema<TData>;
@@ -683,8 +734,8 @@ export class ObservableSchema<TData>{
         this.$type = DataTypes.Object;
         
         class _ObservableObject extends ObservableObject<TData>{
-            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
-                super(init,index,extras);
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
+                super(init,index,extras,initValue);
             }
         };
         _ObservableObject.prototype.$schema= this;
@@ -706,8 +757,8 @@ export class ObservableSchema<TData>{
         if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
         this.$type = DataTypes.Array;
         class _ObservableArray extends ObservableArray<any>{
-            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any){
-                super(init as any,index,extras);
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
+                super(init as any,index,extras,initValue);
             }
         };
         if(this.$initData){
@@ -719,28 +770,19 @@ export class ObservableSchema<TData>{
         }
         if(!this.$itemSchema) this.$itemSchema = new ObservableSchema(undefined,-1,this);
         _ObservableArray.prototype.$schema= this as any;
-        this.$ctor= _ObservableArray;
+        this.$ctor=_ObservableArray;
 
     }
 
     
     $initObject(ob:Observable<TData>){
         for(const n in this){
+            if(n==="constructor" || n[0]==="$") continue;
             let propSchema = this[n] as any as ObservableSchema<any>;
             defineProp<TData>(ob,n,function(owner,name){return new propSchema.$ctor(this,name);});
         }
     }
     
-    $create(init:(val?:TData)=>any,extras?:any){
-        return new this.$ctor(clone(this.$initData,true),init,extras);
-    }
-
-    $createItem<TItem>(owner:ObservableArray<TItem>,index:number,initData?:any){
-        let itemSchema = this.$itemSchema;
-        itemSchema.$index = index;
-        if(initData!==undefined) itemSchema.$initData= initData;
-        return new itemSchema.$ctor(initData,owner);
-    }
 
     
 
@@ -951,15 +993,16 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
         ,configurable:false
         ,get:function() {
             if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
-            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
-            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
+            let states = this.$reactives ||(this.$reactives={});
+            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData));  
             return ob.$get();
         }
         ,set:function(val:any){
-            let states = firstComponent.$reactives ||(firstComponent.$reactives={});
-            if(val instanceof Observable) {throw new Error("不可以把Observable对象赋予给标记为@reactive的属性");}
-            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
-            ob.$set(val);
+            let states = this.$reactives ||(this.$reactives={});
+            let ob = states[stateInfo.name];
+            if(val&&val.$get) val=val.$get(ObservableModes.Value);
+            if(ob) ob.$set(val);
+            else (states[stateInfo.name] = new stateInfo.schema.$ctor(val));  
         }
     };else descriptor = {
         enumerable:false
@@ -972,9 +1015,12 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
         }
         ,set:function(val:any){
             let states = firstComponent.$reactives ||(firstComponent.$reactives={});
-            if(val instanceof Observable) {states[stateInfo.name] = val;return;}
-            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData,stateInfo));  
-            ob.$set(val);
+            if(val instanceof Observable) {
+                states[stateInfo.name] = val;
+                return;
+            }
+            let ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);  
+            //ob.$set(val);
         }
     };
     Object.defineProperty(firstComponent,stateInfo.name,descriptor);
@@ -1025,7 +1071,36 @@ function makeAction(component:IComponent,method){
 
 //=========================================================================
 
+function addRelElements(ob:Observable<any>,elems:any){
+    
+    if(is_array(elems)) for(const i in elems) addRelElements(ob,elems[i]);
+    let extras = ob.$extras || (ob.$extras={});
+    if(extras instanceof Observable) debugger;
+    let rel_elements = extras.rel_elements || (extras.rel_elements=[]);
+    if(extras.last_rel_element===elems) return;
+    rel_elements.push(extras.last_rel_element=elems);
+}
 
+function getRelElements(ob:Observable<any>,includeSubs?:boolean|any[]){
+    let rs = is_array(includeSubs)?includeSubs as any[]:[];
+    let extras = ob.$extras;
+    if(extras){
+        let rel_elements = extras.rel_elements;
+        if(rel_elements) for(const i in rel_elements){
+            rs.push(rel_elements[i]);
+        }
+    }
+    if(includeSubs){
+        observableMode(ObservableModes.Observable,()=>{
+            for(const n in ob){
+                let sub = ob[n];
+                getRelElements(sub,rs);
+            }
+        });
+    }
+    return rs;
+    
+}
 
 export class VirtualNode{
     tag?:string;
@@ -1091,27 +1166,29 @@ export class VirtualElementNode extends VirtualNode{
             let attrValue= this.attrs[attrName];
             if(attrName==="for") {
                 forPars= attrValue;
+                continue;
             }
             let match = attrName.match(evtnameRegx);
-            if(match){
+            if(match && elem[attrName]!==undefined && typeof attrValue==="function"){
                 let evtName = match[1];
                 Host.attach(elem,evtName,makeAction(component,attrValue));
                 continue;
             }
+            let binder:Function = attrBinders[attrName];
             if(attrValue instanceof ObservableSchema){
-                let binder:Function = attrBinders[name];
+                
                 let proxy = attrValue.$getFromRoot(component);
                 if(binder)
-                    binder.call(component,proxy);
+                    binder.call(component,elem,proxy,component);
                 else (function(name,value) {
                     Host.setAttribute(elem,name,value.$get());
                     value.$subscribe((e)=>{
                         Host.setAttribute(elem,name,e.value);
                     });
                 })(attrName,proxy);
-                    
             }else {
-                Host.setAttribute(elem,attrName,attrValue);
+                if(binder) binder.call(component,elem,attrValue,component);
+                else Host.setAttribute(elem,attrName,attrValue);
             }
         }
         if(container)Host.appendChild(container,elem);
@@ -1119,22 +1196,7 @@ export class VirtualElementNode extends VirtualNode{
         if(!this.children || this.children.length===0) return elem;
 
         if(forPars){
-            let each = forPars[0];
-            let value = forPars[1];
-            let key = forPars[2];
-            let eachOb = each.$getFromRoot(component);
-            eachOb.$subscribe((e)=>{
-                
-            });
-
-            for(const k in eachOb){
-                //if(key)  key.$getFromRoot(component).$renew(k);
-                component[value.paths[0]] = eachOb[k];
-                //value.$getFromRoot(component).$replace(each[k]);
-                for(const i in this.children){
-                    this.children[i].render(component,elem);
-                }
-            }
+            bindRepeat(component,elem,this,forPars[0],forPars[1],forPars[2],false);
             
         }else {
             for(const i in this.children){
@@ -1146,6 +1208,48 @@ export class VirtualElementNode extends VirtualNode{
 
     }
     
+}
+
+function bindRepeat(component:IComponent,elem:any,vnode:VirtualNode,each:any,value:any,key:any,ignoreAddRel?:boolean){
+    if(each instanceof ObservableSchema){
+        each = each.$getFromRoot(component);
+        if(!ignoreAddRel)addRelElements(each,elem);
+        each.$subscribe((e:IChangeEventArgs<any>)=>{
+            if(e.type===ChangeTypes.Value){
+                elem.innerHTML = "";
+                observableMode(ObservableModes.Observable,()=>{
+                    bindRepeat(component,elem,vnode,each,value,key,false);
+                });
+               
+                e.cancel = true;
+            } 
+        });
+    }
+    if(!(value instanceof ObservableSchema)) throw new Error("迭代变量必须被iterator装饰");
+    let iterator_name = value.$paths[0];
+    for(const k in each){
+        if(k==="constructor" || k[0]==="$") continue;
+        //if(key)  key.$getFromRoot(component).$renew(k);
+        let item =each[k];
+        component[iterator_name] = item;
+        //value.$getFromRoot(component).$replace(each[k]);
+        let obItem = component[iterator_name];
+        for(const i in vnode.children){
+            let childElements = vnode.children[i].render(component,elem);
+            addRelElements(obItem,childElements);
+            obItem.$subscribe((e:IChangeEventArgs<any>)=>{
+                if(e.type===ChangeTypes.Remove) {
+                    let obItem = e.sender;
+                    let nodes = getRelElements(obItem);
+                    for(const i in nodes) {
+                        let node = nodes[i];if(node.parentNode) node.parentNode.removeChild(node);
+                    }
+                }
+            });
+        }
+    }
+
+            
 }
 
 function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
@@ -1218,10 +1322,39 @@ export function EXP(...args:any[]) {
     return;
 }
 
-let evtnameRegx = /(?:on)?([a-zA-Z_][a-zA-Z0-9_]*)/;
+let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
 
 
-let attrBinders={};
+let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent)=>any}={};
+attrBinders.style=function (elem:any,bindValue:any,component:IComponent) {
+    for(const styleName in bindValue)((styleName,subValue,elem,component)=>{
+        let ob:Observable<any>;
+        let styleValue :any;
+        let convertor = styleConvertors[styleName];
+        if(subValue instanceof Observable){ ob = subValue; styleValue = ob.$get();}
+        else if(subValue instanceof ObservableSchema){
+            ob = subValue.$getFromRoot(component);
+            styleValue = ob.$get();
+        } else styleValue = subValue;
+        elem.style[styleName] = convertor?convertor(styleValue):styleValue;
+
+        if(ob){
+            addRelElements(ob,elem);
+            ob.$subscribe((e)=>{
+                elem.style[styleName] =convertor?convertor(e.value):e.value;
+            });
+        }
+    })(styleName,bindValue[styleName],elem,component);
+}
+let styleConvertors :any= {};
+
+let unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
+styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConvertors.bottom = styleConvertors.width = styleConvertors.height = function (value:any) {
+    if(!value) return "0";
+    if(typeof value==="number"){
+        return value + "px";
+    }else return value;
+}
 
 //===========================================================================
 export interface IHost{
@@ -1272,9 +1405,9 @@ Host.attach = (elem:any,evtname:string,handler:Function)=>{
 export function  clone(src:any,deep?:boolean) {
     if(!src) return src;
     let srcT = Object.prototype.toString.call(src);
-    if(srcT==="boolean" || srcT==="number" || srcT==="string") return src;
+    if(srcT==="[object String]" || srcT==="[object Number]" || srcT==="[object Boolean]") return src;
     let rs;
-    if(srcT==="function"){
+    if(srcT==="[object Function]"){
         let raw = src;
         if(src.$clone_raw) raw = src.$clone_raw;
         let rs = function () {return raw.apply(arguments);};

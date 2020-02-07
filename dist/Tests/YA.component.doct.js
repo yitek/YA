@@ -69,24 +69,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             cdoc.usage("模板函数中的for", function (assert_statement, container) {
                 var MyComponent = /** @class */ (function () {
                     function MyComponent() {
+                        this.queries = { title: "" };
                         this.rows = [{ "$__ONLY_USED_BY_SCHEMA__": true, title: "YA-v1.0", author: { name: "yiy" } }];
                         this.item = this.rows[0];
                         this.data = [
-                            { title: "YA-v1.0", author: { name: "yiy1" } },
-                            { title: "YA-v2.0", author: { name: "yiy2" } },
-                            { title: "YA-v3.0", author: { name: "yiy3" } },
-                            { title: "YA-v4.0", author: { name: "yiy1" } },
-                            { title: "YA-v5.0", author: { name: "yiy2" } },
-                            { title: "YA-v6.0", author: { name: "yiy3" } },
-                            { title: "YA-v7.0", author: { name: "yiy1" } }
+                            { title: "YA-v1.1", author: { name: "yiy1" } },
+                            { title: "YA-v2.1", author: { name: "yiy2" } },
+                            { title: "YA-v3.2", author: { name: "yiy3" } },
+                            { title: "YA-v4.2", author: { name: "yiy1" } },
+                            { title: "YA-v5.3", author: { name: "yiy2" } },
+                            { title: "YA-v6.4", author: { name: "yiy3" } },
+                            { title: "YA-v7.4", author: { name: "yiy1" } }
                         ];
                     }
                     MyComponent.prototype.render = function (container) {
                         return YA.virtualNode("div", null,
                             YA.virtualNode("div", null,
-                                YA.virtualNode("input", { type: "text", placeholder: "标题", value: this.queries.title, onclick: this.changeTitle }),
-                                YA.virtualNode("input", { type: 'button', value: "过滤", onclick: this.doFilter })),
-                            YA.virtualNode("table", null,
+                                YA.virtualNode("input", { type: "text", placeholder: "标题", value: this.queries.title, onblur: this.changeTitle }),
+                                YA.virtualNode("button", { onclick: this.doFilter }, "\u8FC7\u6EE4")),
+                            YA.virtualNode("table", { border: "1", cellspacing: "0", style: { border: "1px" } },
                                 YA.virtualNode("thead", null,
                                     YA.virtualNode("tr", null,
                                         YA.virtualNode("th", null, "\u6807\u9898"),

@@ -58,20 +58,20 @@ export class componentTest {
             @YA.component("My")
             class MyComponent{
                 @YA.reactive()
-                queries:{title:""};
+                queries={title:""};
                 @YA.reactive()
                 rows=[{"$__ONLY_USED_BY_SCHEMA__":true,title:"YA-v1.0",author:{name:"yiy"}}];
                 @YA.reactive(YA.ReactiveTypes.Iterator)
                 item=this.rows[0];
 
                 data=[
-                    {title:"YA-v1.0",author:{name:"yiy1"}}
-                    ,{title:"YA-v2.0",author:{name:"yiy2"}}
-                    ,{title:"YA-v3.0",author:{name:"yiy3"}}
-                    ,{title:"YA-v4.0",author:{name:"yiy1"}}
-                    ,{title:"YA-v5.0",author:{name:"yiy2"}}
-                    ,{title:"YA-v6.0",author:{name:"yiy3"}}
-                    ,{title:"YA-v7.0",author:{name:"yiy1"}}
+                    {title:"YA-v1.1",author:{name:"yiy1"}}
+                    ,{title:"YA-v2.1",author:{name:"yiy2"}}
+                    ,{title:"YA-v3.2",author:{name:"yiy3"}}
+                    ,{title:"YA-v4.2",author:{name:"yiy1"}}
+                    ,{title:"YA-v5.3",author:{name:"yiy2"}}
+                    ,{title:"YA-v6.4",author:{name:"yiy3"}}
+                    ,{title:"YA-v7.4",author:{name:"yiy1"}}
 
                 ];
                 
@@ -79,10 +79,10 @@ export class componentTest {
                 render(container?:any){
                     return <div>
                         <div>
-                            <input type="text" placeholder="标题" value={this.queries.title} onclick={this.changeTitle}/>
-                            <input type='button' value="过滤"  onclick={this.doFilter}/>
+                            <input type="text" placeholder="标题" value={this.queries.title} onblur={this.changeTitle}/>
+                            <button  onclick={this.doFilter}>过滤</button>
                         </div>
-                        <table>
+                        <table border="1" cellspacing="0" style={{border:"1px"}}>
                             <thead>
                                 <tr><th>标题</th><th>作者</th></tr>
                             </thead>
@@ -109,11 +109,9 @@ export class componentTest {
 
             };
 
-            let myComponent = new MyComponent();
+            let myComponent = new MyComponent();  
             myComponent.rows= myComponent.data as any;
             myComponent.render(container);
-            
-            
             
         });
     }

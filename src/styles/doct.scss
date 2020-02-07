@@ -8,7 +8,44 @@ $title-front-color:#333;
     padding:0;
     box-sizing: border-box;
     border:0;
+    font-size:$fontSize;
 }
+input,textarea,select,button{
+    border:1px solid #ccc;
+    border-radius: $spacing;
+    padding:$spacing;
+    margin:auto $spacing;
+    background-color: #ddd;
+    &:focus{
+        background-color: #eee;
+    }
+    &:hover{
+        border-color: #999;
+    }
+}
+table{
+    margin:$spacing;
+    border:1px solid #999;
+    border-radius: $spacing;
+    border-collapse:collapse;
+    thead{
+        border-bottom: 1px solid #999;
+    }
+    td,th{
+        border-left:1px solid #eee;
+        border-bottom: 1px dashed #aaa;
+        border-collapse:collapse;
+        padding:$spacing;
+    }
+    th{
+        border-bottom:2px solid #aaa;
+        background-color:#e0e0e0;
+    }
+    tr{
+        border-bottom: 1px dashed #999;
+    }
+}
+
 ul,ol,dl{
     list-style: none inside;
 }

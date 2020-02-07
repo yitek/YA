@@ -68,26 +68,53 @@ export class ObservableArrayTest {
             assert_statement((assert:TAssert)=>{
                 assert(4,obArray.length,"有4个项:proxy.length===4");
                 let item0 = obArray[0];
-                debugger;
                 let item0Value = item0.title + item0.author.name;
                 assert("YA-v1.0yiy1",item0Value,"obArray[0]=={title:'YA-v1.0',author:{name:'yiy1'}}");
                 let item3 = obArray[3];
                 let item3Value = item3.title + item3.author.name;
                 assert("YA-v4.0yiy1",item3Value,"obArray[3]=={title:'YA-v4.0',author:{name:'yiy1'}}");
             });
-
-            obArray[3].author={name:"yiy4"};
+            //在数组本身与数组项上注册事件
+            let item3EvtArgs:any;
+            let arrEvtArgs:any;
+            YA.observableMode(YA.ObservableModes.Observable,()=>{
+                obArray[3].$subscribe((e)=>item3EvtArgs=e);
+                obArray.$subscribe((e)=>{arrEvtArgs=e;});
+            });
+            //给数组的某个项赋值
+            obArray[3] = {author:{name:"yiy4"},title:"new YA"};
             assert_statement((assert:TAssert)=>{
                 assert("yiy4",obArray[3].author.name,`代理上的值变更为新值:obArray[3].author.name="yiy4"`);
                 assert("yiy1",data[3].author.name,`原始数据的值还未变化:data[3].author.name="yiy1"`);
+                assert(true,item3EvtArgs===undefined && arrEvtArgs===undefined,`所有的事件都未触发`);
             });
+            //更新数组数据
+            obArray.$update();
+            assert_statement((assert:TAssert)=>{
+                assert("yiy4new YA",data[3].author.name + data[3].title,`原始数据得到更新:data[3]=={title:"new YA",author:{name:"yiy4"}}`);
+                assert(true , arrEvtArgs!==undefined,"注册在obArray上的事件被触发：arrEvtArgs!==undefined");
+                assert(YA.ChangeTypes.Item , arrEvtArgs.type,"事件类型为Value:arrEvtArgs.type===YA.ChangeTypes.Item");
+
+                assert(true , item3EvtArgs!==undefined,"注册在obArray[3]上的事件被触发");
+                assert(YA.ChangeTypes.Value , item3EvtArgs.type,"事件类型为Value:item3EvtArgs.type===YA.ChangeTypes.Value");
+                
+            });
+
             
             let newData = [
                 {title:"YA-v5.0",author:{name:"yiy2"}}
                 ,{title:"YA-v6.0",author:{name:"yiy3"}}
                 ,{title:"YA-v7.0",author:{name:"yiy1"}}
             ];
-            obArray.$set(newData);
+            item3EvtArgs = arrEvtArgs=undefined;
+            //整个的重设数组的值,并更新数组
+            obArray.$set(newData).$update();
+
+            assert_statement((assert:TAssert)=>{
+                assert(true , item3EvtArgs!==undefined,"注册在obArray[3]上的事件被触发");
+                assert(YA.ChangeTypes.Remove , item3EvtArgs.type,"事件类型为Value:item3EvtArgs.type===YA.ChangeTypes.Remove");
+            });
+
         });
     }
     

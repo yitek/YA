@@ -102,13 +102,21 @@ export class ObservableTest {
                 assert(22,data, "代理同时会把初值回写回原始数据中:data2===22");
             });  
         });
-        mdoc.usage("ctor(上级代理,属性名,额外信息?)",(assert_statement:TAssertStatement)=>{
-            let owner= new YA.ObservableObject({name:"yiy"});
-            let prop = new YA.Observable(owner,"name",44);
+        mdoc.usage("ctor(上级代理,属性名,额外信息?,初值?)",(assert_statement:TAssertStatement)=>{
+            let data = {name:"yiy",title:"YA"};
+            let owner= new YA.ObservableObject(data);
+            let nameProp = new YA.Observable(owner,"name",44);
+            let titleProp = new YA.Observable(owner,"title",null,"YA framework");
+
             assert_statement((assert:TAssert)=>{
-                assert("yiy",prop.$target,"初值从原始对象中来:prop.$target==='yiy'");
-                assert(44,prop.$extras, "额外信息为44:prop.$extras===44");
-                assert(owner,prop.$_owner);
+                assert("yiy",nameProp.$target,"nameProp初值从原始对象中来:nameProp.$target==='yiy'");
+                assert(44,nameProp.$extras, "额外信息为44:nameProp.$extras===44");
+                assert(owner,nameProp.$_owner);
+
+                assert("YA framework",titleProp.$target,"titleProp初值为指定的初值:nameProp.$target==='YA framework'");
+                assert("YA framework",owner.$target.title,"该初值会立即回写回原始数据:data.title==='YA framework'");
+                assert(null,titleProp.$extras, "额外信息为null:titleProp.$extras===null");
+                assert(owner,titleProp.$_owner);
             });  
         });
     }

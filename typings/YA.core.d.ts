@@ -1,4 +1,5 @@
 export declare function intimate(strong?: boolean | any, members?: any): (target: any, propName?: string) => void;
+export declare function is_array(obj: any): boolean;
 /**
  * 可监听对象接口
  *
@@ -134,8 +135,9 @@ export declare enum DataTypes {
 export declare enum ObservableModes {
     Default = 0,
     Raw = 1,
-    Observable = 2,
-    Schema = 3,
+    Value = 2,
+    Observable = 3,
+    Schema = 4,
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
@@ -159,7 +161,7 @@ export interface IChangeEventArgs<TData> {
 }
 export declare enum ChangeTypes {
     Value = 0,
-    Replace = 1,
+    Item = 1,
     Append = 2,
     Push = 3,
     Pop = 4,
@@ -184,7 +186,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $_raw: (value?: TData) => any;
     constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
-    } | TData, index?: any, extras?: any);
+    } | TData, index?: any, extras?: any, initValue?: any);
     $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     $set(newValue: TData): IObservable<TData>;
     $update(): boolean;
@@ -201,7 +203,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     [index: string]: any;
     constructor(init: IObservableIndexable<any> | {
         (val?: TData): any;
-    } | TData, index?: any, extras?: any);
+    } | TData, index?: any, extras?: any, initValue?: any);
     $prop(name: string): any;
     $get(accessMode?: ObservableModes): any;
     $set(newValue: TData): IObservableObject<TData>;
@@ -222,6 +224,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     } | TItem[], index?: any, itemSchemaOrExtras?: any, extras?: any);
     toString(): string;
     clear(): ObservableArray<TItem>;
+    $get(accessMode?: ObservableModes): any;
     $set(newValue: any): ObservableArray<TItem>;
     $update(): boolean;
 }
@@ -231,9 +234,9 @@ export declare class ObservableSchema<TData> {
     $index: string | number;
     $paths: string[];
     $ctor: {
-        new (initValue: TData | {
+        new (init: TData | {
             (val?: TData): any;
-        }, owner?: ObservableObject<any> | any, extras?: any): Observable<any>;
+        } | IObservableIndexable<any>, index?: any, extras?: any, initValue?: any): Observable<any>;
     };
     $owner?: ObservableSchema<TData>;
     $itemSchema?: ObservableSchema<TData>;
@@ -244,8 +247,6 @@ export declare class ObservableSchema<TData> {
     $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
     $asArray(): ObservableSchema<TData>;
     $initObject(ob: Observable<TData>): void;
-    $create(init: (val?: TData) => any, extras?: any): Observable<any>;
-    $createItem<TItem>(owner: ObservableArray<TItem>, index: number, initData?: any): Observable<any>;
     static schemaToken: string;
 }
 export declare enum ReactiveTypes {

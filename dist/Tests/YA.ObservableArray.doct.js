@@ -69,24 +69,47 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 assert_statement(function (assert) {
                     assert(4, obArray.length, "有4个项:proxy.length===4");
                     var item0 = obArray[0];
-                    debugger;
                     var item0Value = item0.title + item0.author.name;
                     assert("YA-v1.0yiy1", item0Value, "obArray[0]=={title:'YA-v1.0',author:{name:'yiy1'}}");
                     var item3 = obArray[3];
                     var item3Value = item3.title + item3.author.name;
                     assert("YA-v4.0yiy1", item3Value, "obArray[3]=={title:'YA-v4.0',author:{name:'yiy1'}}");
                 });
-                obArray[3].author = { name: "yiy4" };
+                //在数组本身与数组项上注册事件
+                var item3EvtArgs;
+                var arrEvtArgs;
+                YA.observableMode(YA.ObservableModes.Observable, function () {
+                    obArray[3].$subscribe(function (e) { return item3EvtArgs = e; });
+                    obArray.$subscribe(function (e) { arrEvtArgs = e; });
+                });
+                //给数组的某个项赋值
+                obArray[3] = { author: { name: "yiy4" }, title: "new YA" };
                 assert_statement(function (assert) {
                     assert("yiy4", obArray[3].author.name, "\u4EE3\u7406\u4E0A\u7684\u503C\u53D8\u66F4\u4E3A\u65B0\u503C:obArray[3].author.name=\"yiy4\"");
                     assert("yiy1", data[3].author.name, "\u539F\u59CB\u6570\u636E\u7684\u503C\u8FD8\u672A\u53D8\u5316:data[3].author.name=\"yiy1\"");
+                    assert(true, item3EvtArgs === undefined && arrEvtArgs === undefined, "\u6240\u6709\u7684\u4E8B\u4EF6\u90FD\u672A\u89E6\u53D1");
+                });
+                //更新数组数据
+                obArray.$update();
+                assert_statement(function (assert) {
+                    assert("yiy4new YA", data[3].author.name + data[3].title, "\u539F\u59CB\u6570\u636E\u5F97\u5230\u66F4\u65B0:data[3]=={title:\"new YA\",author:{name:\"yiy4\"}}");
+                    assert(true, arrEvtArgs !== undefined, "注册在obArray上的事件被触发：arrEvtArgs!==undefined");
+                    assert(YA.ChangeTypes.Item, arrEvtArgs.type, "事件类型为Value:arrEvtArgs.type===YA.ChangeTypes.Item");
+                    assert(true, item3EvtArgs !== undefined, "注册在obArray[3]上的事件被触发");
+                    assert(YA.ChangeTypes.Value, item3EvtArgs.type, "事件类型为Value:item3EvtArgs.type===YA.ChangeTypes.Value");
                 });
                 var newData = [
                     { title: "YA-v5.0", author: { name: "yiy2" } },
                     { title: "YA-v6.0", author: { name: "yiy3" } },
                     { title: "YA-v7.0", author: { name: "yiy1" } }
                 ];
-                obArray.$set(newData);
+                item3EvtArgs = arrEvtArgs = undefined;
+                //整个的重设数组的值,并更新数组
+                obArray.$set(newData).$update();
+                assert_statement(function (assert) {
+                    assert(true, item3EvtArgs !== undefined, "注册在obArray[3]上的事件被触发");
+                    assert(YA.ChangeTypes.Remove, item3EvtArgs.type, "事件类型为Value:item3EvtArgs.type===YA.ChangeTypes.Remove");
+                });
             });
         };
         __decorate([
