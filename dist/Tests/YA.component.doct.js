@@ -168,11 +168,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         componentTest.prototype.composite = function (mdoc) {
             mdoc.usage("控件组合使用", function (assert_statement, container) {
+                debugger;
                 var CompA = /** @class */ (function () {
                     function CompA() {
                         this.name = "";
                         this.signture = "";
                     }
+                    //@YA.template()
                     CompA.prototype.render = function () {
                         return YA.virtualNode("div", null,
                             "  My name is ",
@@ -184,14 +186,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         this.signture = e.target.value;
                     };
                     __decorate([
-                        YA.reactive(YA.ReactiveTypes.In)
+                        YA.IN
                     ], CompA.prototype, "name", void 0);
                     __decorate([
-                        YA.reactive(YA.ReactiveTypes.Out)
+                        YA.OUT
                     ], CompA.prototype, "signture", void 0);
-                    __decorate([
-                        YA.template()
-                    ], CompA.prototype, "render", null);
                     CompA = __decorate([
                         YA.component("CompA")
                     ], CompA);
@@ -199,9 +198,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }());
                 var CompB = /** @class */ (function () {
                     function CompB() {
+                        //@YA.reactive()
                         this.myname = "yiy";
+                        //@YA.reactive()
                         this.mysignture = "";
                     }
+                    //@YA.template()
                     CompB.prototype.render = function (container) {
                         return YA.virtualNode("div", null,
                             YA.virtualNode("button", { onclick: this.changeMyName }, "\u70B9\u51FB\u8FD9\u91CC\u4FEE\u6539\u540D\u79F0"),
@@ -215,15 +217,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         var newName = prompt("修改我的名字", this.myname);
                         this.myname = newName;
                     };
-                    __decorate([
-                        YA.reactive()
-                    ], CompB.prototype, "myname", void 0);
-                    __decorate([
-                        YA.reactive()
-                    ], CompB.prototype, "mysignture", void 0);
-                    __decorate([
-                        YA.template()
-                    ], CompB.prototype, "render", null);
                     CompB = __decorate([
                         YA.component("CompB")
                     ], CompB);

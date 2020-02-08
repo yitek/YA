@@ -141,13 +141,14 @@ export class componentTest {
     @doct()
     composite(mdoc:MemberDoct){
         mdoc.usage("控件组合使用",(assert_statement:TAssertStatement,container:any)=>{
+            debugger;
             @YA.component("CompA")
             class CompA{
-                @YA.reactive(YA.ReactiveTypes.In)
+                @YA.IN
                 name="";
-                @YA.reactive(YA.ReactiveTypes.Out)
+                @YA.OUT
                 signture="";
-                @YA.template()
+                //@YA.template()
                 render(){
                     return <div>  My name is {this.name},my signture is here:
                         <input type="text" value={this.signture} onblur={this.onblur}/>
@@ -161,12 +162,12 @@ export class componentTest {
 
             @YA.component("CompB")
             class CompB{
-                @YA.reactive()
+                //@YA.reactive()
                 myname="yiy";
-                @YA.reactive()
+                //@YA.reactive()
                 mysignture="";
 
-                @YA.template()
+                //@YA.template()
                 render(container:any){
                     return <div>
                         <button onclick={this.changeMyName}>点击这里修改名称</button>

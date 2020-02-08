@@ -428,6 +428,9 @@ declare let YA: {
     state: (type?: Function | ReactiveTypes, defs?: {
         [prop: string]: IReactiveInfo;
     }) => any;
+    IN: (target: any, name: string) => any;
+    OUT: (target: any, name: string) => any;
+    PARAM: (target: any, name: string) => any;
     template: (partial?: string | Function, defs?: {
         [prop: string]: ITemplateInfo;
     }) => (target: IComponentInfo, info: string | ITemplateInfo) => void;

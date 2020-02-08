@@ -810,20 +810,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.reactive = reactive;
     function IN(target, name) {
         var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.In };
-        return target;
+        infos[name] = { type: ReactiveTypes.In, name: name };
+        //return target;
     }
     exports.IN = IN;
     function OUT(target, name) {
         var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.Out };
-        return target;
+        infos[name] = { type: ReactiveTypes.Out, name: name };
+        //return target;
     }
     exports.OUT = OUT;
     function PARAM(target, name) {
         var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.Parameter };
-        return target;
+        infos[name] = { type: ReactiveTypes.Parameter, name: name };
+        //return target;
     }
     exports.PARAM = PARAM;
     function template(partial, defs) {
@@ -980,10 +980,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     return stateInfo.schema;
                 var states = this.$reactives || (this.$reactives = {});
                 var ob = states[stateInfo.name];
-                if (!ob) {
+                if (!ob)
                     ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
-                    extras(ob, "reactiveType", stateInfo.type);
-                }
                 return ob.$get();
             },
             set: function (val) {
@@ -993,10 +991,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     val = val.$get(ObservableModes.Value);
                 if (ob)
                     ob.$set(val);
-                else {
+                else
                     ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-                    extras(ob, "reactiveType", stateInfo.type);
-                }
             }
         };
         Object.defineProperty(firstComponent, stateInfo.name, descriptor);
@@ -1548,7 +1544,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var YA = {
         Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
-        component: component, state: reactive, template: template,
+        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template,
         VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, HOST: Host, NOT: NOT, EXP: EXP,
         intimate: intimate, clone: clone
     };

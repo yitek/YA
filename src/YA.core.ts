@@ -885,20 +885,20 @@ export function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReac
 
 export function IN(target:any,name:string) :any{
     let infos = metaInfo(target,"reactives",{});
-    infos[name] = {type:ReactiveTypes.In};
-    return target;
+    infos[name] = {type:ReactiveTypes.In,name:name};
+    //return target;
 }
 
 export function OUT(target:any,name:string) :any{
     let infos = metaInfo(target,"reactives",{});
-    infos[name] = {type:ReactiveTypes.Out};
-    return target;
+    infos[name] = {type:ReactiveTypes.Out,name:name};
+    //return target;
 }
 
 export function PARAM(target:any,name:string) :any{
     let infos = metaInfo(target,"reactives",{});
-    infos[name] = {type:ReactiveTypes.Parameter};
-    return target;
+    infos[name] = {type:ReactiveTypes.Parameter,name:name};
+    //return target;
 }
 
 //==========================================================
@@ -1093,10 +1093,8 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
             let states = this.$reactives ||(this.$reactives={});
             let ob = states[stateInfo.name];  
-            if(!ob){
-                ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
-                extras(ob,"reactiveType",stateInfo.type);
-            }
+            if(!ob) ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
+                
             return ob.$get();
         }
         ,set:function(val:any){
@@ -1104,10 +1102,7 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             let ob = states[stateInfo.name];
             if(val&&val.$get) val=val.$get(ObservableModes.Value);
             if(ob) ob.$set(val);
-            else {
-                ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-                extras(ob,"reactiveType",stateInfo.type);
-            }
+            else ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
         }
     };
     Object.defineProperty(firstComponent,stateInfo.name,descriptor);
@@ -1652,7 +1647,7 @@ export function  clone(src:any,deep?:boolean) {
 
 let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
-    ,component,state: reactive,template
+    ,component,state: reactive,IN,OUT,PARAM,template
     ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,HOST: Host,NOT,EXP
     ,intimate,clone
     
