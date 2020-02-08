@@ -1,5 +1,12 @@
 export declare function intimate(strong?: boolean | any, members?: any): (target: any, propName?: string) => void;
 export declare function is_array(obj: any): boolean;
+export interface IDisposiable {
+    dispose(onRelease?: (args: IDisposeArgs) => any): any;
+}
+export interface IDisposeArgs {
+    [name: string]: any;
+    sender: any;
+}
 /**
  * 可监听对象接口
  *
@@ -31,7 +38,7 @@ export interface ISubject<TEvtArgs> {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    }): ISubject<TEvtArgs>;
+    }, disposible?: IDisposiable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
      * $notify操作时，被取消的监听器不会被调用
@@ -99,7 +106,7 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    }): ISubject<TEvtArgs>;
+    }, disposible?: IDisposiable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
      * $notify操作时，被取消的监听器不会被调用
@@ -193,6 +200,15 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     toString(): string;
     static accessMode: ObservableModes;
 }
+/**
+ * 获取Observable的extras的一个辅助方法
+ *
+ * @export
+ * @param {Observable<any>} ob
+ * @param {string} [name]
+ * @param {*} [dft]
+ */
+export declare function extras(ob: Observable<any>, name?: string, dft?: any): any;
 export interface IObservableObject<TData extends {
     [index: string]: any;
 }> extends IObservable<TData> {
@@ -250,11 +266,12 @@ export declare class ObservableSchema<TData> {
     static schemaToken: string;
 }
 export declare enum ReactiveTypes {
-    Internal = 0,
-    Iterator = 1,
-    In = 2,
-    Out = 3,
-    Parameter = 4,
+    NotReactive = 0,
+    Internal = -1,
+    Iterator = -2,
+    In = 1,
+    Out = 2,
+    Parameter = 3,
 }
 export interface IReactiveInfo {
     name?: string;
@@ -273,6 +290,9 @@ export interface IReactiveInfo {
 export declare function reactive(type?: ReactiveTypes | Function, defs?: {
     [prop: string]: IReactiveInfo;
 }): any;
+export declare function IN(target: any, name: string): any;
+export declare function OUT(target: any, name: string): any;
+export declare function PARAM(target: any, name: string): any;
 export interface ITemplateInfo {
     name?: string;
     vnode?: any;
@@ -297,19 +317,24 @@ export interface IComponentInfo {
     actions?: {
         [methodname: string]: IActionInfo;
     };
-    ctor?: {
-        new (...args: any[]): IComponent;
-    };
-    wrapper?: Function;
+    ctor?: TComponentType;
+    wrapper?: TComponentType;
     tag?: string;
     render?: Function;
     inited?: boolean;
+    explicitMode?: boolean;
 }
-export interface IComponent {
-    [membername: string]: any;
-}
-export interface IInternalComponent extends IComponent {
+export interface IComponent extends IDisposiable {
     $meta: IComponentInfo;
+    [propname: string]: any;
+}
+export declare type TComponentCtor = {
+    new (...args: any[]): IComponent;
+};
+export declare type TComponentType = TComponentCtor & {
+    $meta: IComponentInfo;
+};
+export interface IInternalComponent extends IComponent {
     $childNodes: VirtualNode[];
     $reactives: {
         [name: string]: Observable<any>;
@@ -317,7 +342,7 @@ export interface IInternalComponent extends IComponent {
 }
 export declare function component(tag: string, ComponentType?: {
     new (...args: any[]): IComponent;
-}): any;
+} | boolean): any;
 export declare class VirtualNode {
     tag?: string;
     attrs?: {
@@ -327,9 +352,7 @@ export declare class VirtualNode {
     children?: VirtualNode[];
     constructor();
     render(component: IComponent, container?: any): any;
-    static create(tag: string | {
-        new (...args: any[]): IComponent;
-    }, attrs: {
+    static create(tag: string | TComponentType, attrs: {
         [attrName: string]: any;
     }): VirtualNode;
 }
@@ -356,9 +379,7 @@ export declare class VirtualComponentNode extends VirtualNode {
     };
     children?: VirtualNode[];
     meta: IComponentInfo;
-    constructor(tag: string | {
-        new (...args: any[]): IComponent;
-    }, attrs: {
+    constructor(tag: string | TComponentType, attrs: {
         [name: string]: any;
     });
     render(component: IComponent, container?: any): any;
@@ -403,7 +424,7 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
-    component: (tag: string, ComponentType?: new (...args: any[]) => IComponent) => any;
+    component: (tag: string, ComponentType?: boolean | (new (...args: any[]) => IComponent)) => any;
     state: (type?: Function | ReactiveTypes, defs?: {
         [prop: string]: IReactiveInfo;
     }) => any;
@@ -414,7 +435,7 @@ declare let YA: {
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
     VirtualComponentNode: typeof VirtualComponentNode;
-    virtualNode: (tag: string | (new (...args: any[]) => IComponent), attrs: {
+    virtualNode: (tag: string | TComponentType, attrs: {
         [attrName: string]: any;
     }) => VirtualNode;
     HOST: IHost;

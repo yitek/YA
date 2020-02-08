@@ -1,3 +1,4 @@
+//implicit 
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
@@ -76,7 +77,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
          * @returns {ISubject<TEvtArgs>} 可监听对象
          * @memberof Observable
          */
-        Subject.prototype.$subscribe = function (topicOrListener, listener) {
+        Subject.prototype.$subscribe = function (topicOrListener, listener, disposible) {
+            var _this = this;
             if (listener === undefined) {
                 listener = topicOrListener;
                 topicOrListener = "";
@@ -84,6 +86,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var topics = this.$_topics || (this.$_topics = {});
             var handlers = topics[topicOrListener] || (topics[topicOrListener] = []);
             handlers.push(listener);
+            if (disposible)
+                disposible.dispose(function (a) { return _this.$unsubscribe(topicOrListener, listener); });
             return this;
         };
         /**
@@ -202,13 +206,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //ctor(owner,index,extras)
                 _this.$_owner = init;
                 _this.$_index = index;
-                _this.$_raw = function (val) { return val === undefined
+                _this.$_raw = function (val) { return observableMode(ObservableModes.Raw, function () { return val === undefined
                     ? (_this.$_owner.$_modifiedValue === undefined
                         ? _this.$_owner.$target
                         : (_this.$_owner.$_modifiedValue === Undefined ? null : _this.$_owner.$_modifiedValue))[_this.$_index]
                     : (_this.$_owner.$_modifiedValue === undefined
                         ? _this.$_owner.$target
-                        : (_this.$_owner.$_modifiedValue === Undefined ? null : _this.$_owner.$_modifiedValue))[_this.$_index] = val; };
+                        : (_this.$_owner.$_modifiedValue === Undefined ? null : _this.$_owner.$_modifiedValue))[_this.$_index] = val; }); };
                 _this.$extras = extras;
                 if (initValue !== undefined) {
                     _this.$_raw(_this.$target = initValue);
@@ -302,6 +306,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var Observable_1;
     }(Subject));
     exports.Observable = Observable;
+    /**
+     * 获取Observable的extras的一个辅助方法
+     *
+     * @export
+     * @param {Observable<any>} ob
+     * @param {string} [name]
+     * @param {*} [dft]
+     */
+    function extras(ob, name, dft) {
+        var extras = ob.$extras || (ob.$extras = {});
+        if (name !== undefined) {
+            var val = extras[name];
+            if (val === undefined)
+                val = extras[name] = dft;
+            return val;
+        }
+        return extras;
+    }
+    exports.extras = extras;
     var ObservableObject = /** @class */ (function (_super) {
         __extends(ObservableObject, _super);
         function ObservableObject(init, index, extras, initValue) {
@@ -333,6 +356,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return observableMode(ObservableModes.Observable, function () {
                     var rs = {};
                     for (var n in _this) {
+                        if (n === "constructor" || n[0] === "$")
+                            continue;
                         var prop = _this[n];
                         rs[n] = prop.$get(ObservableModes.Value);
                     }
@@ -343,11 +368,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         ObservableObject.prototype.$set = function (newValue, updateImmediately) {
             var _this = this;
+            if (newValue && newValue instanceof Observable)
+                newValue = newValue.$get(ObservableModes.Value);
             _super.prototype.$set.call(this, newValue || null);
-            if (!newValue || Observable.accessMode === ObservableModes.Raw)
+            if (!newValue)
                 return this;
             proxyMode(function () {
                 for (var n in _this) {
+                    if (n === "constructor" || n[0] === "$")
+                        continue;
                     var proxy = _this[n];
                     if (proxy instanceof Observable)
                         proxy.$set(newValue[n]);
@@ -467,6 +496,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return observableMode(ObservableModes.Observable, function () {
                     var rs = [];
                     for (var n in _this) {
+                        if (n === "constructor" || n[0] === "$")
+                            continue;
                         var prop = _this[n];
                         rs.push(prop.$get(ObservableModes.Value));
                     }
@@ -476,6 +507,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return this;
         };
         ObservableArray.prototype.$set = function (newValue, updateImmediately) {
+            if (newValue && newValue instanceof Observable)
+                newValue = newValue.$get(ObservableModes.Value);
+            else {
+                var newArr = [];
+                for (var _i = 0, newValue_1 = newValue; _i < newValue_1.length; _i++) {
+                    var item = newValue_1[_i];
+                    if (item instanceof Observable)
+                        newArr.push(item.$get(ObservableModes.Value));
+                    else
+                        newArr.push(item);
+                }
+                newValue = newArr;
+            }
             newValue || (newValue = []);
             this.clear();
             _super.prototype.$set.call(this, newValue);
@@ -705,7 +749,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         ObservableSchema.prototype.$initObject = function (ob) {
             var _loop_1 = function (n) {
-                if (n === "constructor" || n[0] === "$")
+                if (n === "constructor" || n[0] === "$" || n === ObservableSchema_1.schemaToken)
                     return "continue";
                 var propSchema = this_1[n];
                 defineProp(ob, n, function (owner, name) { return new propSchema.$ctor(this, name); });
@@ -726,11 +770,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var ReactiveTypes;
     (function (ReactiveTypes) {
-        ReactiveTypes[ReactiveTypes["Internal"] = 0] = "Internal";
-        ReactiveTypes[ReactiveTypes["Iterator"] = 1] = "Iterator";
-        ReactiveTypes[ReactiveTypes["In"] = 2] = "In";
-        ReactiveTypes[ReactiveTypes["Out"] = 3] = "Out";
-        ReactiveTypes[ReactiveTypes["Parameter"] = 4] = "Parameter";
+        ReactiveTypes[ReactiveTypes["NotReactive"] = 0] = "NotReactive";
+        ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
+        ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
+        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
+        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
+        ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
     })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
     /**
      * 两种用法:
@@ -742,10 +787,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
      */
     function reactive(type, defs) {
         function makeReactiveInfo(target, info) {
-            var infos = sureMetaInfo(target, "reactives");
+            var infos = metaInfo(target, "reactives", {});
             if (info.name) {
-                if (!info.schema)
-                    info.schema = target[info.name];
+                if (!info.initData)
+                    info.initData = target[info.name];
                 infos[info.name] = info;
             }
             else {
@@ -763,9 +808,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return makeReactiveInfo;
     }
     exports.reactive = reactive;
+    function IN(target, name) {
+        var infos = metaInfo(target, "reactives", {});
+        infos[name] = { type: ReactiveTypes.In };
+        return target;
+    }
+    exports.IN = IN;
+    function OUT(target, name) {
+        var infos = metaInfo(target, "reactives", {});
+        infos[name] = { type: ReactiveTypes.Out };
+        return target;
+    }
+    exports.OUT = OUT;
+    function PARAM(target, name) {
+        var infos = metaInfo(target, "reactives", {});
+        infos[name] = { type: ReactiveTypes.Parameter };
+        return target;
+    }
+    exports.PARAM = PARAM;
     function template(partial, defs) {
         function markTemplateInfo(target, info) {
-            var infos = sureMetaInfo(target, "templates");
+            var infos = metaInfo(target, "templates", {});
             if (defs) {
                 infos[info.partial] = info;
             }
@@ -788,7 +851,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.template = template;
     function action(async, defs) {
         function markActionInfo(target, info) {
-            var infos = sureMetaInfo(target, "actions");
+            var infos = metaInfo(target, "actions", {});
             if (defs) {
                 infos[info.name] = info;
             }
@@ -806,15 +869,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return markActionInfo;
     }
-    function sureMetaInfo(target, name) {
+    function metaInfo(target, name, dft) {
         var meta = target.$meta;
         if (!meta)
             Object.defineProperty(target, "$meta", { enumerable: false, configurable: false, writable: true, value: meta = {} });
         if (!name)
             return meta;
         var info = meta[name];
-        if (!info)
-            Object.defineProperty(meta, name, { enumerable: false, configurable: false, writable: true, value: info = {} });
+        if (info === undefined && dft !== undefined)
+            Object.defineProperty(meta, name, { enumerable: false, configurable: false, writable: true, value: info = dft });
         return info;
     }
     var componentInfos = {};
@@ -823,27 +886,30 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
     }
     function component(tag, ComponentType) {
-        var makeComponent = function (componentType) {
-            var meta = sureMetaInfo(componentType.prototype);
+        var makeComponent = function (componentCtor) {
+            var meta = metaInfo(componentCtor.prototype);
             var _Component = function () {
-                var ret = componentType.apply(this, arguments);
+                var ret = componentCtor.apply(this, arguments);
                 if (!this.$meta.inited) {
                     initComponent(this);
                 }
                 return ret;
             };
-            for (var k in ComponentType)
-                _Component[k] = componentType[k];
-            inherits(_Component, componentType);
-            Object.defineProperty(_Component, "$tag", { enumerable: false, configurable: false, writable: false, value: tag });
-            Object.defineProperty(_Component.prototype, "$meta", { enumerable: false, configurable: false, get: function () { return componentType.prototype["$meta"]; }, set: function (val) { return componentType.prototype["$meta"] = val; } });
+            for (var k in componentCtor)
+                _Component[k] = componentCtor[k];
+            inherits(_Component, componentCtor);
+            var metaDesc = { enumerable: false, configurable: false, get: function () { return componentCtor.prototype.$meta; } };
+            Object.defineProperty(_Component, "$meta", metaDesc);
+            Object.defineProperty(_Component.prototype, "$meta", metaDesc);
+            Object.defineProperty(componentCtor, "$meta", metaDesc);
             meta.tag = tag;
-            meta.ctor = componentType;
+            meta.ctor = componentCtor;
             meta.wrapper = _Component;
+            meta.explicitMode = ComponentType;
             componentInfos[tag] = meta;
             return _Component;
         };
-        if (ComponentType) {
+        if (ComponentType !== undefined && ComponentType !== true && ComponentType !== false) {
             return makeComponent(ComponentType);
         }
         else
@@ -864,8 +930,31 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var meta = firstComponent.$meta;
         if (!meta || meta.inited)
             return firstComponent;
+        if (!meta.explicitMode) {
+            //let proto = meta.ctor.prototype;
+            var reactives = meta.reactives || (meta.reactives = {});
+            for (var n in firstComponent) {
+                if (reactives[n])
+                    continue;
+                var member = firstComponent[n];
+                if (typeof member === "function")
+                    continue;
+                reactives[n] = { name: n, type: ReactiveTypes.Internal };
+            }
+            var tpls = meta.templates || (meta.templates = {});
+            var defaultTemplateName = "render";
+            //如果还未定义默认的模板函数
+            if (!tpls[defaultTemplateName]) {
+                var render = firstComponent[defaultTemplateName];
+                if (typeof render === "function") {
+                    tpls[defaultTemplateName] = { name: defaultTemplateName };
+                }
+            }
+        }
         for (var name_1 in meta.reactives) {
             var stateInfo = meta.reactives[name_1];
+            if (stateInfo.type === ReactiveTypes.NotReactive)
+                continue;
             var initData = firstComponent[stateInfo.name];
             var schema = stateInfo.schema;
             if (!schema) {
@@ -881,56 +970,80 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         meta.inited = true;
     }
     function initReactive(firstComponent, stateInfo) {
-        var descriptor;
-        if (stateInfo.type !== ReactiveTypes.Iterator)
-            descriptor = {
-                enumerable: true,
-                configurable: false,
-                get: function () {
-                    if (Observable.accessMode === ObservableModes.Schema)
-                        return stateInfo.schema;
-                    var states = this.$reactives || (this.$reactives = {});
-                    var ob = states[stateInfo.name] || (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData));
-                    return ob.$get();
-                },
-                set: function (val) {
-                    var states = this.$reactives || (this.$reactives = {});
-                    var ob = states[stateInfo.name];
-                    if (val && val.$get)
-                        val = val.$get(ObservableModes.Value);
-                    if (ob)
-                        ob.$set(val);
-                    else
-                        (states[stateInfo.name] = new stateInfo.schema.$ctor(val));
+        if (stateInfo.type === ReactiveTypes.Iterator)
+            return initIterator(firstComponent, stateInfo);
+        var descriptor = {
+            enumerable: true,
+            configurable: false,
+            get: function () {
+                if (Observable.accessMode === ObservableModes.Schema)
+                    return stateInfo.schema;
+                var states = this.$reactives || (this.$reactives = {});
+                var ob = states[stateInfo.name];
+                if (!ob) {
+                    ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
+                    extras(ob, "reactiveType", stateInfo.type);
                 }
-            };
-        else
-            descriptor = {
-                enumerable: false,
-                configurable: false,
-                get: function () {
-                    if (Observable.accessMode === ObservableModes.Schema)
-                        return stateInfo.schema;
-                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                    var ob = states[stateInfo.name];
-                    return ob ? ob.$get() : undefined;
-                },
-                set: function (val) {
-                    var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                    if (val instanceof Observable) {
-                        states[stateInfo.name] = val;
-                        return;
-                    }
-                    var ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-                    //ob.$set(val);
+                return ob.$get();
+            },
+            set: function (val) {
+                var states = this.$reactives || (this.$reactives = {});
+                var ob = states[stateInfo.name];
+                if (val && val.$get)
+                    val = val.$get(ObservableModes.Value);
+                if (ob)
+                    ob.$set(val);
+                else {
+                    ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
+                    extras(ob, "reactiveType", stateInfo.type);
                 }
-            };
+            }
+        };
         Object.defineProperty(firstComponent, stateInfo.name, descriptor);
         Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
+    }
+    function initIterator(firstComponent, stateInfo) {
+        var descriptor = {
+            enumerable: false,
+            configurable: false,
+            get: function () {
+                if (Observable.accessMode === ObservableModes.Schema)
+                    return stateInfo.schema;
+                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                var ob = states[stateInfo.name];
+                return ob ? ob.$get() : undefined;
+            },
+            set: function (val) {
+                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
+                if (val instanceof Observable) {
+                    states[stateInfo.name] = val;
+                    return;
+                }
+                var ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
+                //ob.$set(val);
+            }
+        };
+        Object.defineProperty(firstComponent, stateInfo.name, descriptor);
+        Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
+    }
+    function setIterator(component, schema, value) {
+        var meta = component.$meta;
+        var name = schema.$index;
+        var info = meta.reactives[name];
+        if (info.type !== ReactiveTypes.Iterator) {
+            initIterator(component, info);
+        }
+        component[name] = value;
+        return component[name];
     }
     //<table rows={rows} take={10} skip={start} ><col name="name" type='text' label='名称' onchange={abc}/></table>
     function initTemplate(firstComponent, tplInfo) {
         var rawMethod = firstComponent[tplInfo.name];
+        if (rawMethod.$orign) {
+            tplInfo.render = rawMethod.$render;
+            return;
+        }
+        ;
         var tplMethod = function (container) {
             var component = this;
             if (tplInfo.render)
@@ -949,15 +1062,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
             if (result === Undefined) {
                 observableMode(ObservableModes.Observable, function () {
-                    result = tplInfo.vnode.render(component, container);
+                    result = tplInfo.vnode.render(component, container, tplInfo.vnode);
                 });
                 tplInfo.render = function (container) {
-                    return tplInfo.vnode.render.call(this, container, tplInfo.vnode);
+                    return tplInfo.vnode.render(component, container, tplInfo.vnode);
                 };
             }
             return result;
         };
         Object.defineProperty(tplMethod, "$orign", { configurable: false, writable: false, enumerable: false, value: rawMethod });
+        Object.defineProperty(tplMethod, "$render", { configurable: false, writable: false, enumerable: false, value: tplInfo.render });
         var des = { configurable: false, writable: false, enumerable: false, value: tplMethod };
         Object.defineProperty(firstComponent, tplInfo.name, des);
         Object.defineProperty(firstComponent.$meta.ctor.prototype, tplInfo.name, des);
@@ -1011,7 +1125,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         VirtualNode.create = function (tag, attrs) {
             var vnode;
-            if (tag && tag.$tag) {
+            if (tag && tag.$meta) {
                 vnode = new VirtualComponentNode(tag, attrs);
             }
             else {
@@ -1085,7 +1199,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var bindResult = void 0;
                 if (attrValue instanceof ObservableSchema) {
                     if (binder)
-                        bindResult = binder.call(component, elem, attrValue, component, this) === false;
+                        bindResult = binder.call(component, elem, attrValue, component, this);
                     else
                         (function (name, attrValue) {
                             var ob = attrValue.$getFromRoot(component);
@@ -1097,7 +1211,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 else {
                     if (binder)
-                        bindResult = binder.call(component, elem, attrValue, component, this) === false;
+                        bindResult = binder.call(component, elem, attrValue, component, this);
                     else
                         Host.setAttribute(elem, attrName, attrValue);
                 }
@@ -1121,9 +1235,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         function VirtualComponentNode(tag, attrs) {
             var _this = _super.call(this) || this;
             _this.attrs = attrs;
-            if (tag && tag.$tag) {
-                _this.tag = tag.$tag;
-                _this.meta = tag.prototype.$meta;
+            if (tag && tag.$meta) {
+                _this.meta = tag.$meta;
+                _this.tag = _this.meta.tag;
             }
             else {
                 _this.tag = tag;
@@ -1249,15 +1363,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         if (!(value instanceof ObservableSchema))
             throw new Error("迭代变量必须被iterator装饰");
-        var iterator_name = value.$paths[0];
         for (var k in each) {
             if (k === "constructor" || k[0] === "$")
                 continue;
             //if(key)  key.$getFromRoot(component).$renew(k);
             var item = each[k];
-            component[iterator_name] = item;
-            //value.$getFromRoot(component).$replace(each[k]);
-            var obItem = component[iterator_name];
+            var obItem = setIterator(component, value, item);
             for (var i in vnode.children) {
                 var childElements = vnode.children[i].render(component, elem);
                 addRelElements(obItem, childElements);
@@ -1274,7 +1385,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 });
             }
         }
-        return false;
+        return RenderDirectives.IgnoreChildren;
     };
     attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
         if (bindValue instanceof ObservableSchema) {

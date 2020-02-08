@@ -1,4 +1,4 @@
-
+//implicit 
 
 export function intimate(strong?:boolean|any,members?:any){
     if(members){
@@ -24,6 +24,14 @@ export function is_array(obj:any):boolean {
 
 //===============================================================================
 
+export interface IDisposiable{
+    dispose(onRelease?:(args:IDisposeArgs)=>any);
+}
+
+export interface IDisposeArgs{
+    [name:string]:any;
+    sender:any;
+}
 
 /**
  * 可监听对象接口
@@ -54,7 +62,7 @@ export interface ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>;
+    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any},disposible?:IDisposiable):ISubject<TEvtArgs>;
     
     /**
      * 取消主题订阅
@@ -119,7 +127,7 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>{
+    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any},disposible?:IDisposiable):ISubject<TEvtArgs>{
         if(listener===undefined) {
             listener = topicOrListener as {(evt:TEvtArgs):any};
             topicOrListener="";
@@ -127,6 +135,7 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
         let topics = this.$_topics ||(this.$_topics={});
         let handlers = topics[topicOrListener as string] ||(topics[topicOrListener as string] =[]);
         handlers.push(listener);
+        if(disposible) disposible.dispose((a)=>this.$unsubscribe(topicOrListener,listener));
         return this;
     }
     /**
@@ -286,7 +295,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             //ctor(owner,index,extras)
             this.$_owner= init as IObservableIndexable<TData>;
             this.$_index = index;
-            this.$_raw = (val:TData):any=>val===undefined
+            this.$_raw = (val:TData):any=>observableMode(ObservableModes.Raw,()=>val===undefined
                 ?(this.$_owner.$_modifiedValue===undefined
                     ?this.$_owner.$target
                     :(this.$_owner.$_modifiedValue===Undefined?null:this.$_owner.$_modifiedValue)
@@ -294,7 +303,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
                 :((this.$_owner.$_modifiedValue===undefined
                     ?this.$_owner.$target
                     :(this.$_owner.$_modifiedValue===Undefined?null:this.$_owner.$_modifiedValue)
-                )as any)[this.$_index]=val as any;   
+                )as any)[this.$_index]=val as any);   
             
             this.$extras = extras;
             if(initValue!==undefined){
@@ -375,6 +384,25 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 }
 
 
+/**
+ * 获取Observable的extras的一个辅助方法
+ *
+ * @export
+ * @param {Observable<any>} ob
+ * @param {string} [name]
+ * @param {*} [dft]
+ */
+export function extras(ob:Observable<any>,name?:string,dft?:any){
+    let extras = ob.$extras || (ob.$extras={});
+    if(name!==undefined){
+        let val = extras[name];
+        if(val===undefined) val = extras[name]=dft;
+        return val;
+    }
+    return extras;
+}
+
+
 
 export interface IObservableObject<TData extends {[index:string]:any}> extends IObservable<TData>{
     //$prop(name:string,prop:IObservable<TData>|boolean|{(proxy:ObservableObject<TData>,name:string):any}|PropertyDecorator):IObservableObject<TData>;
@@ -413,6 +441,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
             return observableMode(ObservableModes.Observable,()=>{
                 let rs = {} as any;
                 for(const n in this){
+                    if(n==="constructor" || n[0]==="$") continue;
                     let prop = this[n] as any;
                     rs[n] = prop.$get(ObservableModes.Value);
                 }
@@ -424,10 +453,12 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     }
 
     $set(newValue:TData,updateImmediately?:boolean):IObservableObject<TData>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
         super.$set(newValue||null);
-        if(!newValue || Observable.accessMode===ObservableModes.Raw) return this;
+        if(!newValue) return this;
         proxyMode(()=>{
             for(const n in this){
+                if(n==="constructor" || n[0]==="$") continue;
                 let proxy :any= this[n];
                 if(proxy instanceof Observable) proxy.$set((newValue as any)[n] as any);
             }
@@ -544,6 +575,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
             return observableMode(ObservableModes.Observable,()=>{
                 let rs = [] as any;
                 for(const n in this){
+                    if(n==="constructor" || n[0]==="$") continue;
                     let prop = this[n];
                     rs.push(prop.$get(ObservableModes.Value));
                 }
@@ -555,6 +587,15 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     }
 
     $set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
+        else {
+            let newArr =[];
+            for(let item of newValue){
+                if(item instanceof Observable) newArr.push(item.$get(ObservableModes.Value));
+                else newArr.push(item);
+            }
+            newValue = newArr;
+        }
         newValue || (newValue=[]);
         this.clear();
         super.$set(newValue);
@@ -781,7 +822,7 @@ export class ObservableSchema<TData>{
     
     $initObject(ob:Observable<TData>){
         for(const n in this){
-            if(n==="constructor" || n[0]==="$") continue;
+            if(n==="constructor" || n[0]==="$" || n===ObservableSchema.schemaToken) continue;
             let propSchema = this[n] as any as ObservableSchema<any>;
             defineProp<TData>(ob,n,function(owner,name){return new propSchema.$ctor(this,name);});
         }
@@ -799,11 +840,12 @@ export class ObservableSchema<TData>{
 //=======================================================================
 
 export enum ReactiveTypes{
-    Internal,
-    Iterator,
-    In,
-    Out,
-    Parameter
+    NotReactive=0,
+    Internal = -1,
+    Iterator = -2,
+    In = 1,
+    Out=2,
+    Parameter=3
 }
 export interface IReactiveInfo{
     name?:string;
@@ -822,10 +864,10 @@ export interface IReactiveInfo{
  */
 export function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReactiveInfo}):any {
     function makeReactiveInfo(target:any,info:string|IReactiveInfo):any {
-        let infos = sureMetaInfo(target,"reactives");
+        let infos = metaInfo(target,"reactives",{});
         
         if((info as IReactiveInfo).name){
-            if(!(info as IReactiveInfo).schema) (info as IReactiveInfo).schema = target[(info as IReactiveInfo).name];
+            if(!(info as IReactiveInfo).initData) (info as IReactiveInfo).initData = target[(info as IReactiveInfo).name];
             infos[(info as IReactiveInfo).name]= info as IReactiveInfo;
         }else {
             infos[info as string] = {type :type as ReactiveTypes|| ReactiveTypes.Internal,name:info as string,schema:target[info as string]};
@@ -841,6 +883,24 @@ export function reactive(type?:ReactiveTypes|Function,defs?:{[prop:string]:IReac
     return makeReactiveInfo;
 }
 
+export function IN(target:any,name:string) :any{
+    let infos = metaInfo(target,"reactives",{});
+    infos[name] = {type:ReactiveTypes.In};
+    return target;
+}
+
+export function OUT(target:any,name:string) :any{
+    let infos = metaInfo(target,"reactives",{});
+    infos[name] = {type:ReactiveTypes.Out};
+    return target;
+}
+
+export function PARAM(target:any,name:string) :any{
+    let infos = metaInfo(target,"reactives",{});
+    infos[name] = {type:ReactiveTypes.Parameter};
+    return target;
+}
+
 //==========================================================
 
 export interface ITemplateInfo{
@@ -852,7 +912,7 @@ export interface ITemplateInfo{
 
 export function template(partial?:string|Function,defs?:{[prop:string]:ITemplateInfo}){
     function markTemplateInfo(target:IComponentInfo,info:string|ITemplateInfo) {
-        let infos = sureMetaInfo(target,"templates");
+        let infos = metaInfo(target,"templates",{});
         if(defs){
             infos[(info as ITemplateInfo).partial]= info as IReactiveInfo;
         }else {
@@ -880,7 +940,7 @@ export interface IActionInfo{
 
 function action(async?:boolean|Function,defs?:{[prop:string]:ITemplateInfo}){
     function markActionInfo(target:IComponentInfo,info:string|ITemplateInfo) {
-        let infos = sureMetaInfo(target,"actions");
+        let infos = metaInfo(target,"actions",{});
 
         if(defs){
             infos[(info as IActionInfo).name]= info as IActionInfo;
@@ -903,59 +963,69 @@ export interface IComponentInfo {
     reactives?:{[prop:string]:IReactiveInfo};
     templates?:{[partial:string]:ITemplateInfo};
     actions?:{[methodname:string]:IActionInfo};
-    ctor?:{new(...args:any[]):IComponent};
-    wrapper?:Function;
+    ctor?:TComponentType;
+    wrapper?:TComponentType;
     tag?:string;
     render?:Function;
     inited?:boolean;
-}
-function sureMetaInfo(target?:any,name?:string){
-    let meta = target.$meta;
-    if(!meta) Object.defineProperty(target,"$meta",{enumerable:false,configurable:false,writable:true,value:meta={}});
-    if(!name) return meta;
-    let info = meta[name];
-    if(!info) Object.defineProperty(meta,name,{enumerable:false,configurable:false,writable:true,value:info={}});
-    return info;
+    explicitMode?:boolean;
 }
 
-export interface IComponent{
-    [membername:string]:any;
-    
-}
-export interface IInternalComponent extends IComponent{
+export interface IComponent extends IDisposiable{
     $meta:IComponentInfo;
+    [propname:string]:any; 
+}
+export type TComponentCtor = {new (...args:any[]):IComponent};
+export type TComponentType = TComponentCtor & {$meta:IComponentInfo};
+export interface IInternalComponent extends IComponent{
+    
     $childNodes:VirtualNode[];
     $reactives:{[name:string]:Observable<any>};
 }
 
+function metaInfo(target:any,name?:string,dft?:any){
+    let meta = target.$meta;
+    if(!meta) Object.defineProperty(target,"$meta",{enumerable:false,configurable:false,writable:true,value:meta={}});
+    if(!name) return meta;
+    let info = meta[name];
+    if(info===undefined && dft!==undefined) Object.defineProperty(meta,name,{enumerable:false,configurable:false,writable:true,value:info=dft});
+    return info;
+}
+
+
+
 let componentInfos : {[tag:string]:IComponentInfo}={};
 
 function inherits(extendCls, basCls) {
-    function __() { this.constructor = extendCls; }
+    function __() { this.constructor=extendCls;}
     extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
 }
 
-export function component(tag:string,ComponentType?:{new(...args:any[]):IComponent}):any{
-    let makeComponent = function (componentType:{new(...args:any[]):IComponent}) {
-        let meta = sureMetaInfo(componentType.prototype) as IComponentInfo;
+export function component(tag:string,ComponentType?:{new(...args:any[]):IComponent}|boolean):any{
+    let makeComponent = function (componentCtor:TComponentCtor):TComponentType {
+        let meta = metaInfo(componentCtor.prototype) as IComponentInfo;
         let _Component = function () {
-            let ret = componentType.apply(this,arguments);
+            let ret = componentCtor.apply(this,arguments);
             if(!this.$meta.inited){
                 initComponent(this);
             }
             return ret;
         }
-        for(let k in ComponentType) _Component[k] = componentType[k];
-        inherits(_Component,componentType);
-        Object.defineProperty(_Component,"$tag",{enumerable:false,configurable:false,writable:false,value:tag});
-        Object.defineProperty(_Component.prototype,"$meta",{enumerable:false,configurable:false,get:()=>componentType.prototype["$meta"],set:(val)=>componentType.prototype["$meta"]=val});
+        for(let k in componentCtor) _Component[k] = componentCtor[k];
+        inherits(_Component,componentCtor);
+        let metaDesc = {enumerable:false,configurable:false,get:()=>componentCtor.prototype.$meta};
+        Object.defineProperty(_Component,"$meta",metaDesc);
+        Object.defineProperty(_Component.prototype,"$meta",metaDesc);
+        Object.defineProperty(componentCtor,"$meta",metaDesc);
+        
         meta.tag = tag;
-        meta.ctor = componentType;
-        meta.wrapper = _Component;
+        meta.ctor = componentCtor as TComponentType;
+        meta.wrapper = _Component as any as TComponentType;
+        meta.explicitMode = ComponentType as boolean;
         componentInfos[tag]= meta;
-        return _Component;
+        return _Component as any as TComponentType;
     }
-    if(ComponentType) {
+    if(ComponentType!==undefined && ComponentType!==true && ComponentType!==false) {
         return makeComponent(ComponentType);
     }else return makeComponent;
 }
@@ -963,7 +1033,7 @@ export function component(tag:string,ComponentType?:{new(...args:any[]):ICompone
 function createComponent(componentInfo:IComponentInfo,context?:any) {
     //let componentInfo = componentInfos[tag];
     if(!componentInfo) throw new Error(`不是Component,请调用component注册或标记为@component`);
-    let instance = new componentInfo.ctor();
+    let instance = new (componentInfo.ctor as TComponentCtor)();
     if(!componentInfo.inited){
         initComponent(instance as IInternalComponent);
     }
@@ -973,8 +1043,31 @@ function createComponent(componentInfo:IComponentInfo,context?:any) {
 function initComponent(firstComponent:IInternalComponent){
     let meta:IComponentInfo = firstComponent.$meta;
     if(!meta || meta.inited) return firstComponent;
+    if(!meta.explicitMode){
+        //let proto = meta.ctor.prototype;
+        let reactives = meta.reactives ||(meta.reactives={});
+        for(let n in firstComponent){
+            if(reactives[n]) continue;
+            let member = firstComponent[n];
+            if(typeof member ==="function") continue;
+            reactives[n] = {name:n,type:ReactiveTypes.Internal};
+        }
+        let tpls = meta.templates ||(meta.templates={});
+        let defaultTemplateName = "render";
+        //如果还未定义默认的模板函数
+        if(!tpls[defaultTemplateName]){
+            let render = firstComponent[defaultTemplateName];
+            if(typeof render==="function") {
+                tpls[defaultTemplateName] ={name:defaultTemplateName};
+
+            }
+        }
+        
+    }
     for(const name in meta.reactives){
+        
         let stateInfo = meta.reactives[name];
+        if(stateInfo.type === ReactiveTypes.NotReactive) continue;
         let initData = firstComponent[stateInfo.name];
         let schema = stateInfo.schema; 
         if(!schema){
@@ -992,14 +1085,18 @@ function initComponent(firstComponent:IInternalComponent){
 }
 
 function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo){
-    let descriptor:any;
-    if(stateInfo.type!==ReactiveTypes.Iterator) descriptor = {
+    if(stateInfo.type===ReactiveTypes.Iterator)  return initIterator(firstComponent,stateInfo);
+    let descriptor = {
         enumerable:true
         ,configurable:false
         ,get:function() {
             if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
             let states = this.$reactives ||(this.$reactives={});
-            let ob = states[stateInfo.name]|| (states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData));  
+            let ob = states[stateInfo.name];  
+            if(!ob){
+                ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
+                extras(ob,"reactiveType",stateInfo.type);
+            }
             return ob.$get();
         }
         ,set:function(val:any){
@@ -1007,9 +1104,19 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             let ob = states[stateInfo.name];
             if(val&&val.$get) val=val.$get(ObservableModes.Value);
             if(ob) ob.$set(val);
-            else (states[stateInfo.name] = new stateInfo.schema.$ctor(val));  
+            else {
+                ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
+                extras(ob,"reactiveType",stateInfo.type);
+            }
         }
-    };else descriptor = {
+    };
+    Object.defineProperty(firstComponent,stateInfo.name,descriptor);
+    Object.defineProperty(firstComponent.$meta.ctor.prototype,stateInfo.name,descriptor);
+    
+}
+
+function initIterator(firstComponent:IInternalComponent,stateInfo:IReactiveInfo){
+    let descriptor = {
         enumerable:false
         ,configurable:false
         ,get:function() {
@@ -1030,10 +1137,25 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
     };
     Object.defineProperty(firstComponent,stateInfo.name,descriptor);
     Object.defineProperty(firstComponent.$meta.ctor.prototype,stateInfo.name,descriptor);
+    
+}
+function setIterator(component:IComponent,schema:ObservableSchema<any>,value:any){
+    let meta= component.$meta as IComponentInfo;
+    let name = schema.$index;
+    let info = meta.reactives[name];
+    if(info.type!==ReactiveTypes.Iterator){
+        initIterator(component as IInternalComponent,info);
+    }
+    component[name] = value;
+    return component[name];
 }
 //<table rows={rows} take={10} skip={start} ><col name="name" type='text' label='名称' onchange={abc}/></table>
 function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
     let rawMethod = firstComponent[tplInfo.name];
+    if((rawMethod as any).$orign) {
+        tplInfo.render = (rawMethod as any).$render;
+        return;
+    };
     let tplMethod = function (container:any) {
         let component = this;
         if(tplInfo.render) return tplInfo.render.call(component,container);
@@ -1046,10 +1168,10 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
         });
         if(result===Undefined){
             observableMode(ObservableModes.Observable,()=>{
-                result = tplInfo.vnode.render(component,container);
+                result = tplInfo.vnode.render(component,container,tplInfo.vnode);
             });
             tplInfo.render = function (container?:any) {
-                return tplInfo.vnode.render.call(this,container,tplInfo.vnode);
+                return tplInfo.vnode.render(component,container,tplInfo.vnode);
             }
             
         }
@@ -1057,6 +1179,7 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
 
     }
     Object.defineProperty(tplMethod,"$orign",{configurable:false,writable:false,enumerable:false,value:rawMethod});
+    Object.defineProperty(tplMethod,"$render",{configurable:false,writable:false,enumerable:false,value:tplInfo.render});
     let des = {configurable:false,writable:false,enumerable:false,value:tplMethod};
     Object.defineProperty(firstComponent,tplInfo.name,des);
     Object.defineProperty(firstComponent.$meta.ctor.prototype,tplInfo.name,des);
@@ -1120,11 +1243,11 @@ export class VirtualNode{
         
     }
 
-    static create(tag:string|{new(...args:any[]):IComponent},attrs:{[attrName:string]:any}){
+    static create(tag:string|TComponentType,attrs:{[attrName:string]:any}){
         
         let vnode :VirtualNode;
-        if(tag && (tag as any).$tag ){
-            vnode = new VirtualComponentNode(tag as {new(...args:any[]):IComponent},attrs);
+        if(tag && (tag as any).$meta ){
+            vnode = new VirtualComponentNode(tag ,attrs);
         }else {
             let componentInfo = componentInfos[tag as string];
             if(componentInfo)vnode = new VirtualComponentNode(tag as string,attrs);
@@ -1187,7 +1310,7 @@ export class VirtualElementNode extends VirtualNode{
             let binder:Function = attrBinders[attrName];
             let bindResult:any;
             if(attrValue instanceof ObservableSchema){
-                if(binder) bindResult= binder.call(component,elem,attrValue,component,this)===false;
+                if(binder) bindResult= binder.call(component,elem,attrValue,component,this);
                 else (function(name,attrValue) {
                     let ob = attrValue.$getFromRoot(component);
                     Host.setAttribute(elem,name,ob.$get(ObservableModes.Raw));
@@ -1196,7 +1319,7 @@ export class VirtualElementNode extends VirtualNode{
                     });
                 })(attrName,attrValue);
             }else {
-                if(binder) bindResult= binder.call(component,elem,attrValue,component,this)===false;
+                if(binder) bindResult= binder.call(component,elem,attrValue,component,this);
                 else Host.setAttribute(elem,attrName,attrValue);
             }
             if(bindResult === RenderDirectives.IgnoreChildren) ignoreChildren=true;
@@ -1221,11 +1344,11 @@ export class VirtualElementNode extends VirtualNode{
 export class VirtualComponentNode extends VirtualNode{
     children?:VirtualNode[];
     meta:IComponentInfo;
-    constructor(tag:string|{new(...args:any[]):IComponent},public attrs:{[name:string]:any}){
+    constructor(tag:string|TComponentType,public attrs:{[name:string]:any}){
         super();
-        if(tag&& (tag as any).$tag){
-            this.tag = (tag as any).$tag;
-            this.meta = (tag as {new(...args:any[]):IComponent}).prototype.$meta;
+        if(tag&& (tag as TComponentType).$meta){
+            this.meta = (tag as TComponentType).$meta;
+            this.tag = this.meta.tag;
         }else{
             this.tag = tag as string;
             this.meta = componentInfos[this.tag];
@@ -1336,14 +1459,13 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
         });
     }
     if(!(value instanceof ObservableSchema)) throw new Error("迭代变量必须被iterator装饰");
-    let iterator_name = value.$paths[0];
+    
     for(const k in each){
         if(k==="constructor" || k[0]==="$") continue;
         //if(key)  key.$getFromRoot(component).$renew(k);
         let item =each[k];
-        component[iterator_name] = item;
-        //value.$getFromRoot(component).$replace(each[k]);
-        let obItem = component[iterator_name];
+
+        let obItem = setIterator(component,value,item);
         for(const i in vnode.children){
             let childElements = vnode.children[i].render(component,elem);
             addRelElements(obItem,childElements);
@@ -1358,7 +1480,7 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
             });
         }
     }      
-    return false;
+    return RenderDirectives.IgnoreChildren;
 }
 
 attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode) {

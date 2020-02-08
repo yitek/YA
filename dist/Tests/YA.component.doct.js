@@ -135,8 +135,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     };
                     MyComponent.prototype.doFilter = function (e) {
                         var rows = [];
-                        for (var i in this.data) {
-                            var item = this.data[i];
+                        for (var _i = 0, _a = this.data; _i < _a.length; _i++) {
+                            var item = _a[_i];
+                            //let item = this.data[i];
                             if (item.title.indexOf(this.queries.title) >= 0)
                                 rows.push(item);
                         }

@@ -123,8 +123,8 @@ export class componentTest {
                 }
                 doFilter(e){
                     let rows = [];
-                    for(const i in this.data){
-                        let item = this.data[i];
+                    for(const item of this.data){
+                        //let item = this.data[i];
                         if(item.title.indexOf(this.queries.title)>=0) rows.push(item);
                     }
                     this.rows=rows;
