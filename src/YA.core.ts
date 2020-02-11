@@ -22,6 +22,25 @@ export function is_array(obj:any):boolean {
     return Object.prototype.toString.call(obj)==="[object Array]";
 }
 
+export function array_index(obj:any,item:any,start:number=0):number {
+    if(!obj) return -1;
+    for(let i = start,j=obj.length;i<j;i++) {
+        if(obj[i]===item) return i;
+    }
+    return -1;
+}
+let trimreg = /(^\s+)|(\s+$)/g;
+export function trim(text:any):string {
+    if(text===null || text===undefined) return "";
+    text = text.toString().replace(trimreg,"");
+}
+
+let percentRegx = /(\d+(?:.\d+))%/g;
+export function  percent(text:any):number {
+    if(text===null || text===undefined) return undefined;
+    let match = text.toString().match(percentRegx);
+    if(match)return match[1];
+}
 //===============================================================================
 
 export interface IDisposiable{
@@ -1433,7 +1452,7 @@ export class Placeholder{
 }
 
 
-let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode)=>any}={};
+export let attrBinders:{[name:string]:(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode)=>any}={};
 
 attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode,ignoreAddRel?:boolean){
     let each = bindValue[0];
@@ -1486,7 +1505,7 @@ attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vno
         if(!isElementInContainer){
             let p = Host.getParent(elem);
             if(p){
-                Host.insertBefore(p,placeholder,elem);
+                Host.insertBefore(placeholder,elem);
                 Host.removeChild(p,elem);
             }else Host.hide(elem);
         }
@@ -1495,7 +1514,7 @@ attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vno
                 if(!isElementInContainer){
                     let p = Host.getParent(placeholder);
                     if(p){
-                        Host.insertBefore(p,elem,placeholder);
+                        Host.insertBefore(elem,placeholder);
                         Host.removeChild(p,placeholder);
                         isElementInContainer=true;
                     }
@@ -1505,7 +1524,7 @@ attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vno
                 if(isElementInContainer){
                     let p = Host.getParent(elem);
                     if(p){
-                        Host.insertBefore(p,placeholder,elem);
+                        Host.insertBefore(placeholder,elem);
                         Host.removeChild(p,elem);
                         isElementInContainer=false;
                     }else Host.hide(elem);
@@ -1540,7 +1559,7 @@ attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent
         }
     })(styleName,bindValue[styleName],elem,component);
 }
-let styleConvertors :any= {};
+export let styleConvertors :any= {};
 
 let unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
 styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConvertors.bottom = styleConvertors.width = styleConvertors.height = function (value:any) {
@@ -1550,28 +1569,34 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
     }else return value;
 }
 
+
+
 //===========================================================================
 export interface IHost{
-    isElement(elem):boolean;
+    isElement(elem:any,includeText?:boolean):boolean;
     createElement(tag:string):any;
     createText(text:string):any;
     createPlaceholder():any;
     setAttribute(elem:any,name:string,value:any);
     getAttribute(elem:any,name:string):any;
     appendChild(parent:any,child:any);
-    insertBefore(container:any,child:any,anchor:any);
-    insertAfter(container:any,child:any,anchor:any);
+    insertBefore(inserted:any,before:any);
+    insertAfter(inserted:any,after:any);
     removeChild(container:any,child:any);
     getParent(elem:any):any;
     hide(elem:any,immeditately?:boolean);
     show(elem:any,immeditately?:boolean);
     removeAllChildrens(parent:any);
     attach(elem:any,evtname:string,handler:Function);
+    document:any;
+    window:any;
     
 }
-let Host:IHost={} as any;
-Host.isElement=(elem):boolean=>{
-    return (elem as HTMLElement).nodeType === 1;
+export let Host:IHost={} as any;
+Host.isElement=(elem,includeText?:boolean):boolean=>{
+    if(!elem) return false;
+    if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
+    return includeText?(elem as HTMLElement).nodeType === 1:true;
 };
 
 Host.createElement=(tag:string):any=>{
@@ -1596,12 +1621,12 @@ Host.appendChild=(container:any,child:any)=>{
     container.appendChild(child);
 };
 
-Host.insertBefore=(container:any,child:any,anchor:any)=>{
-    container.insertBefore(child,anchor);
+Host.insertBefore=(inserted:any,before:any)=>{
+    if(before.parentNode)before.parentNode.insertBefore(inserted,before);
 };
 
-Host.insertAfter=(container:any,child:any,anchor:any)=>{
-    container.insertAfter(child,anchor);
+Host.insertAfter=(inserted:any,after:any)=>{
+    if(after.parentNode)after.parentNode.insertAfter(inserted,after);
 };
 Host.getParent=(elem:any)=>elem.parentNode;
 Host.removeChild = (container:any,child:any)=>container.removeChild(child);
@@ -1620,6 +1645,9 @@ Host.attach = (elem:any,evtname:string,handler:Function)=>{
     else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
     else elem['on'+evtname] = handler;
 }
+
+if(typeof document!=="undefined") Host.document = document;
+if(typeof window!=="undefined") Host.window = window;
 //======================================================================
 
 
@@ -1643,12 +1671,24 @@ export function  clone(src:any,deep?:boolean) {
     return rs;
 }
 
+export function THIS(obj:any,name:string|Function){
+    let method = name as Function;
+    let rpc =false;
+    if(typeof name==="string"){
+        method = obj[name];rpc=true;
+    }
+    let fn = function () { return method.apply(obj,arguments); }
+    if(rpc) obj[name as string] = fn;
+    return fn;
+}
+
 //=======================================================================
 
 let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
-    ,component,state: reactive,IN,OUT,PARAM,template
-    ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,HOST: Host,NOT,EXP
+    ,component,state: reactive,IN,OUT,PARAM,template,attrBinders
+    ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,NOT,EXP
+    ,Host,styleConvertors
     ,intimate,clone
     
 };

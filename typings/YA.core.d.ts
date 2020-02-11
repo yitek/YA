@@ -1,5 +1,8 @@
 export declare function intimate(strong?: boolean | any, members?: any): (target: any, propName?: string) => void;
 export declare function is_array(obj: any): boolean;
+export declare function array_index(obj: any, item: any, start?: number): number;
+export declare function trim(text: any): string;
+export declare function percent(text: any): number;
 export interface IDisposiable {
     dispose(onRelease?: (args: IDisposeArgs) => any): any;
 }
@@ -397,24 +400,32 @@ export declare class Placeholder {
     after: any;
     constructor(replace: any, before?: any, after?: any);
 }
+export declare let attrBinders: {
+    [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
+};
+export declare let styleConvertors: any;
 export interface IHost {
-    isElement(elem: any): boolean;
+    isElement(elem: any, includeText?: boolean): boolean;
     createElement(tag: string): any;
     createText(text: string): any;
     createPlaceholder(): any;
     setAttribute(elem: any, name: string, value: any): any;
     getAttribute(elem: any, name: string): any;
     appendChild(parent: any, child: any): any;
-    insertBefore(container: any, child: any, anchor: any): any;
-    insertAfter(container: any, child: any, anchor: any): any;
+    insertBefore(inserted: any, before: any): any;
+    insertAfter(inserted: any, after: any): any;
     removeChild(container: any, child: any): any;
     getParent(elem: any): any;
     hide(elem: any, immeditately?: boolean): any;
     show(elem: any, immeditately?: boolean): any;
     removeAllChildrens(parent: any): any;
     attach(elem: any, evtname: string, handler: Function): any;
+    document: any;
+    window: any;
 }
+export declare let Host: IHost;
 export declare function clone(src: any, deep?: boolean): any;
+export declare function THIS(obj: any, name: string | Function): () => any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
@@ -434,6 +445,9 @@ declare let YA: {
     template: (partial?: string | Function, defs?: {
         [prop: string]: ITemplateInfo;
     }) => (target: IComponentInfo, info: string | ITemplateInfo) => void;
+    attrBinders: {
+        [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
+    };
     VirtualNode: typeof VirtualNode;
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
@@ -441,9 +455,10 @@ declare let YA: {
     virtualNode: (tag: string | TComponentType, attrs: {
         [attrName: string]: any;
     }) => VirtualNode;
-    HOST: IHost;
     NOT: (params: any) => void;
     EXP: (...args: any[]) => void;
+    Host: IHost;
+    styleConvertors: any;
     intimate: (strong?: any, members?: any) => (target: any, propName?: string) => void;
     clone: (src: any, deep?: boolean) => any;
 };

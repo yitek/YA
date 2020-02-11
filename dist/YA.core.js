@@ -51,6 +51,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Object.prototype.toString.call(obj) === "[object Array]";
     }
     exports.is_array = is_array;
+    function array_index(obj, item, start) {
+        if (start === void 0) { start = 0; }
+        if (!obj)
+            return -1;
+        for (var i = start, j = obj.length; i < j; i++) {
+            if (obj[i] === item)
+                return i;
+        }
+        return -1;
+    }
+    exports.array_index = array_index;
+    var trimreg = /(^\s+)|(\s+$)/g;
+    function trim(text) {
+        if (text === null || text === undefined)
+            return "";
+        text = text.toString().replace(trimreg, "");
+    }
+    exports.trim = trim;
+    var percentRegx = /(\d+(?:.\d+))%/g;
+    function percent(text) {
+        if (text === null || text === undefined)
+            return undefined;
+        var match = text.toString().match(percentRegx);
+        if (match)
+            return match[1];
+    }
+    exports.percent = percent;
     /**
      * 可监听对象类
      * 实现订阅/发布模式
@@ -1047,7 +1074,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var result;
             observableMode(ObservableModes.Schema, function () {
                 var vnode = rawMethod.call(component, container);
-                if (Host.isElement(vnode)) {
+                if (exports.Host.isElement(vnode)) {
                     tplInfo.render = rawMethod;
                     result = vnode;
                 }
@@ -1154,16 +1181,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var elem;
             if (this.content instanceof ObservableSchema) {
                 var ob = this.content.$getFromRoot(component);
-                elem = Host.createText(ob.$get());
+                elem = exports.Host.createText(ob.$get());
                 ob.$subscribe(function (e) {
                     elem.nodeValue = e.value;
                 });
             }
             else {
-                elem = Host.createText(this.content);
+                elem = exports.Host.createText(this.content);
             }
             if (container)
-                Host.appendChild(container, elem);
+                exports.Host.appendChild(container, elem);
             return elem;
         };
         return VirtualTextNode;
@@ -1178,20 +1205,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return _this;
         }
         VirtualElementNode.prototype.render = function (component, container) {
-            var elem = Host.createElement(this.tag);
+            var elem = exports.Host.createElement(this.tag);
             var ignoreChildren = false;
             if (container)
-                Host.appendChild(container, elem);
+                exports.Host.appendChild(container, elem);
             var anchorElem = elem;
             for (var attrName in this.attrs) {
                 var attrValue = this.attrs[attrName];
                 var match = attrName.match(evtnameRegx);
                 if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
                     var evtName = match[1];
-                    Host.attach(elem, evtName, makeAction(component, attrValue));
+                    exports.Host.attach(elem, evtName, makeAction(component, attrValue));
                     continue;
                 }
-                var binder = attrBinders[attrName];
+                var binder = exports.attrBinders[attrName];
                 var bindResult = void 0;
                 if (attrValue instanceof ObservableSchema) {
                     if (binder)
@@ -1199,9 +1226,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     else
                         (function (name, attrValue) {
                             var ob = attrValue.$getFromRoot(component);
-                            Host.setAttribute(elem, name, ob.$get(ObservableModes.Raw));
+                            exports.Host.setAttribute(elem, name, ob.$get(ObservableModes.Raw));
                             ob.$subscribe(function (e) {
-                                Host.setAttribute(elem, name, e.value);
+                                exports.Host.setAttribute(elem, name, e.value);
                             });
                         })(attrName, attrValue);
                 }
@@ -1209,7 +1236,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     if (binder)
                         bindResult = binder.call(component, elem, attrValue, component, this);
                     else
-                        Host.setAttribute(elem, attrName, attrValue);
+                        exports.Host.setAttribute(elem, attrName, attrValue);
                 }
                 if (bindResult === RenderDirectives.IgnoreChildren)
                     ignoreChildren = true;
@@ -1338,8 +1365,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Placeholder;
     }());
     exports.Placeholder = Placeholder;
-    var attrBinders = {};
-    attrBinders.for = function bindFor(elem, bindValue, component, vnode, ignoreAddRel) {
+    exports.attrBinders = {};
+    exports.attrBinders.for = function bindFor(elem, bindValue, component, vnode, ignoreAddRel) {
         var each = bindValue[0];
         var value = bindValue[1];
         var key = bindValue[2];
@@ -1383,59 +1410,59 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return RenderDirectives.IgnoreChildren;
     };
-    attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
+    exports.attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
         if (bindValue instanceof ObservableSchema) {
             var ob = bindValue.$getFromRoot(component);
-            var placeholder_1 = Host.createPlaceholder();
+            var placeholder_1 = exports.Host.createPlaceholder();
             var isElementInContainer_1 = ob.$get();
             if (!isElementInContainer_1) {
-                var p = Host.getParent(elem);
+                var p = exports.Host.getParent(elem);
                 if (p) {
-                    Host.insertBefore(p, placeholder_1, elem);
-                    Host.removeChild(p, elem);
+                    exports.Host.insertBefore(placeholder_1, elem);
+                    exports.Host.removeChild(p, elem);
                 }
                 else
-                    Host.hide(elem);
+                    exports.Host.hide(elem);
             }
             ob.$subscribe(function (e) {
                 if (e.value) {
                     if (!isElementInContainer_1) {
-                        var p = Host.getParent(placeholder_1);
+                        var p = exports.Host.getParent(placeholder_1);
                         if (p) {
-                            Host.insertBefore(p, elem, placeholder_1);
-                            Host.removeChild(p, placeholder_1);
+                            exports.Host.insertBefore(elem, placeholder_1);
+                            exports.Host.removeChild(p, placeholder_1);
                             isElementInContainer_1 = true;
                         }
                     }
                 }
                 else {
                     if (isElementInContainer_1) {
-                        var p = Host.getParent(elem);
+                        var p = exports.Host.getParent(elem);
                         if (p) {
-                            Host.insertBefore(p, placeholder_1, elem);
-                            Host.removeChild(p, elem);
+                            exports.Host.insertBefore(placeholder_1, elem);
+                            exports.Host.removeChild(p, elem);
                             isElementInContainer_1 = false;
                         }
                         else
-                            Host.hide(elem);
+                            exports.Host.hide(elem);
                     }
                 }
             });
         }
         else {
             if (!bindValue) {
-                var p = Host.getParent(elem);
+                var p = exports.Host.getParent(elem);
                 if (p)
-                    Host.removeChild(p, elem);
+                    exports.Host.removeChild(p, elem);
             }
         }
     };
-    attrBinders.style = function bindStyle(elem, bindValue, component) {
+    exports.attrBinders.style = function bindStyle(elem, bindValue, component) {
         for (var styleName in bindValue)
             (function (styleName, subValue, elem, component) {
                 var ob;
                 var styleValue;
-                var convertor = styleConvertors[styleName];
+                var convertor = exports.styleConvertors[styleName];
                 if (subValue instanceof Observable) {
                     ob = subValue;
                     styleValue = ob.$get();
@@ -1455,9 +1482,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             })(styleName, bindValue[styleName], elem, component);
     };
-    var styleConvertors = {};
+    exports.styleConvertors = {};
     var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
-    styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConvertors.bottom = styleConvertors.width = styleConvertors.height = function (value) {
+    exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = function (value) {
         if (!value)
             return "0";
         if (typeof value === "number") {
@@ -1466,46 +1493,52 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return value;
     };
-    var Host = {};
-    Host.isElement = function (elem) {
-        return elem.nodeType === 1;
+    exports.Host = {};
+    exports.Host.isElement = function (elem, includeText) {
+        if (!elem)
+            return false;
+        if (!elem.insertBefore || !elem.ownerDocument)
+            return false;
+        return includeText ? elem.nodeType === 1 : true;
     };
-    Host.createElement = function (tag) {
+    exports.Host.createElement = function (tag) {
         return document.createElement(tag);
     };
-    Host.createText = function (txt) {
+    exports.Host.createText = function (txt) {
         return document.createTextNode(txt);
     };
-    Host.createPlaceholder = function () {
+    exports.Host.createPlaceholder = function () {
         var rs = document.createElement("span");
         rs.className = "YA-PLACEHOLDER";
         rs.style.display = "none";
         return rs;
     };
-    Host.setAttribute = function (elem, name, value) {
+    exports.Host.setAttribute = function (elem, name, value) {
         elem.setAttribute(name, value);
     };
-    Host.appendChild = function (container, child) {
+    exports.Host.appendChild = function (container, child) {
         container.appendChild(child);
     };
-    Host.insertBefore = function (container, child, anchor) {
-        container.insertBefore(child, anchor);
+    exports.Host.insertBefore = function (inserted, before) {
+        if (before.parentNode)
+            before.parentNode.insertBefore(inserted, before);
     };
-    Host.insertAfter = function (container, child, anchor) {
-        container.insertAfter(child, anchor);
+    exports.Host.insertAfter = function (inserted, after) {
+        if (after.parentNode)
+            after.parentNode.insertAfter(inserted, after);
     };
-    Host.getParent = function (elem) { return elem.parentNode; };
-    Host.removeChild = function (container, child) { return container.removeChild(child); };
-    Host.removeAllChildrens = function (elem) {
+    exports.Host.getParent = function (elem) { return elem.parentNode; };
+    exports.Host.removeChild = function (container, child) { return container.removeChild(child); };
+    exports.Host.removeAllChildrens = function (elem) {
         elem.innerHTML = elem.nodeValue = "";
     };
-    Host.show = function (elem, immeditately) {
+    exports.Host.show = function (elem, immeditately) {
         elem.style.display = "";
     };
-    Host.hide = function (elem, immeditately) {
+    exports.Host.hide = function (elem, immeditately) {
         elem.style.display = "none";
     };
-    Host.attach = function (elem, evtname, handler) {
+    exports.Host.attach = function (elem, evtname, handler) {
         if (elem.addEventListener)
             elem.addEventListener(evtname, handler, false);
         else if (elem.attachEvent)
@@ -1513,6 +1546,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             elem['on' + evtname] = handler;
     };
+    if (typeof document !== "undefined")
+        exports.Host.document = document;
+    if (typeof window !== "undefined")
+        exports.Host.window = window;
     //======================================================================
     function clone(src, deep) {
         if (!src)
@@ -1541,11 +1578,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return rs;
     }
     exports.clone = clone;
+    function THIS(obj, name) {
+        var method = name;
+        var rpc = false;
+        if (typeof name === "string") {
+            method = obj[name];
+            rpc = true;
+        }
+        var fn = function () { return method.apply(obj, arguments); };
+        if (rpc)
+            obj[name] = fn;
+        return fn;
+    }
+    exports.THIS = THIS;
     //=======================================================================
     var YA = {
         Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
-        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template,
-        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, HOST: Host, NOT: NOT, EXP: EXP,
+        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders,
+        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: EXP,
+        Host: exports.Host, styleConvertors: exports.styleConvertors,
         intimate: intimate, clone: clone
     };
     if (typeof window !== 'undefined')
