@@ -741,6 +741,7 @@
             mask(this[i], opts);
         }
     });
+    //v-huiwan@microsoft.com
     YA.attrBinders.mask = function (elem, bindValue, component, vnode) {
         if (bindValue instanceof YA.ObservableSchema) {
             var ob = bindValue.$getFromRoot(component);
