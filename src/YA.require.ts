@@ -1,6 +1,54 @@
+/*
+要正确编译该文件，tsconfig必须要配置成
+"compilerOptions": {
+        "module":"None",
+        ..
+}
+*/
 (function(window){    
     //====================================================================
-        
+    interface IModuleOpts{
+        name?:string;
+        url?:string;
+        value?:any;
+    }
+    type TModuleConfigItem = IModuleOpts | string;
+    interface IResourceOpts{
+        url:string;
+        success?:(elem)=>any;
+        error?:(err)=>any;
+    }
+    
+    interface IRequireConfigs{
+        reset?:boolean;
+    
+        /**
+         * url的解析规则
+         *
+         * @type {*}
+         * @memberof IRequireConfigs
+         */
+        resolve_rules?:any;
+    
+        /**
+         * 预先加载的模块
+         *
+         * @type {*}
+         * @memberof IRequireConfigs
+         */
+        modules?:TModuleConfigItem[];
+    }
+    
+    interface IRequireProgressEventArgs{
+        name?:string;
+        url?:string;
+        ready?:boolean;
+        loadingCount:number;
+        readyCount:number;
+        totalCount:number;
+    }
+    
+            
     function factory(initModules:{[name:string]:any},window:any,document?:HTMLDocument){
         document|| (document=window.document);
         let head=function():HTMLHeadElement{
@@ -10,7 +58,7 @@
             head = ()=>head as any;
             return headElem;
         }
-
+ 
         class Resource {
             element:HTMLElement;
             constructor(public opts:IResourceOpts){
@@ -45,16 +93,20 @@
                 this.is_in_defination_statement = is_in_defination_statement;
             }
         }
+
+        function refreshGlobalExports(){
+            if(!window.module) window.module = {};
+            return this.module_exports = window.module.exports = window.exports = {};
+        }
         
         class Defination{
             constructor(public deps:string[],public statement:Function){}
             value:any;
             module_exports:any;
             execute(module:Module,resolve:(value:any,module_exports:any)=>any){
-                if(!window.module) window.module = {};
-                let module_exports = this.module_exports = window.module.exports = window.exports = {};
+                this.module_exports = refreshGlobalExports();
                 let require = function(name:string){
-                    let mod = Module.fetch(name);
+                    let mod = Module.fetch(name,module);
                     if(!mod.isReady){
                         wait_count++;
                         mod.ready((mod)=>{
@@ -64,11 +116,13 @@
                     }
                     return mod.value||mod.exports||mod.default;
                 };
+                (require as any).config = set_config;
                 let args = [];
                 let wait_count=this.deps.length;
                 let tryResolve =()=>{
                     if((--wait_count)===0){
                         try{
+                            (define as any).disabled=true;
                             this.value =this.statement.apply(module,args);
                         }catch(ex){
                             if(ex.is_in_defination_statement){
@@ -80,14 +134,14 @@
                 };
                 for(const index in this.deps)((depname:string,idx:string)=>{
                     if(depname==="exports") {
-                        args.push(module_exports);
+                        args.push(this.module_exports);
                         wait_count--;
                     }
                     else if(depname==="require"){
                         args.push(require);
                         wait_count--;
                     } 
-                    let depModule = Module.fetch(depname);
+                    let depModule = Module.fetch(depname,module);
                     depModule.ready((mod:Module)=>{
                         args[idx] = mod.value || mod.exports || mod.default;
                         tryResolve();
@@ -97,6 +151,18 @@
             }
         }
         
+        function clearUrl(url:string,paths?:string[]){
+            let names = url.split('/');
+            if(!paths) paths=[];
+            for(let i = 0,j=url.length-1;i<j;i++){
+                let n = url[i].replace(/(^\s+)|(\s+)$/g,"");
+                if(n===".") continue;
+                else if(n==="..") paths.pop();
+                else if(!n) continue;
+                else paths.push(n);
+            }
+            return paths.join("/") + "/" + names[names.length-1];
+        }
         
         class Module {
             resource:Resource;
@@ -107,11 +173,21 @@
             default:any;
             value:any;
             deps:{[name:string]:any};
+            paths:string[];
             isReady:boolean;
             _loadCallbacks:{(module:Module):any}[];
-            constructor(public opts:IModuleOpts){
+            constructor(public opts:IModuleOpts,paths?:string[]){
                 if(this.name = opts.name) Module.caches[opts.name] = this;
-                if(this.url = opts.url)Module.caches[opts.url] = this;
+                if(this.url = opts.url){
+                    if(!paths) {
+                        paths = [];
+                        this.url = clearUrl(this.url,[]);
+                    }
+                    this.paths = paths;
+                    Module.caches[this.url] = this;
+                }
+                
+                this._loadCallbacks=[];
                 let resolve = (value,module_exports?)=>{
                     
                     this.value = value;
@@ -122,7 +198,7 @@
                     let loadCallbacks = this._loadCallbacks;
                     this._loadCallbacks = null;
                     this.isReady = true;
-
+                    (define as any).disabled=false;
                     for(const callback of loadCallbacks){
                         callback.call(this,this);
                     }
@@ -134,10 +210,22 @@
                     this._loadCallbacks=[];
                     let url = this.resolvedUrl = resolveUrl(opts.url);
                     Module.caches[url] = this;
+                    (define as any).disabled=false;
                     this.resource = new Resource({
                         url:url,
                         success:(elem)=>{
-                            (define as any).defination.execute(this,resolve);
+                            let defination = (define as any).defination;
+                            if(!defination){
+                                console.warn(`${this.url}没有调用define定义模块.`);
+                                let module_exports = window.exports;
+                                refreshGlobalExports();
+                                resolve(undefined,module_exports);
+                            }else{
+                                (define as any).defination=undefined;
+                                window.exports={};
+                                (define as any).defination.execute(this,resolve);
+                            }
+                            
                         },
                         error:(e)=>{
                             throw e;
@@ -169,9 +257,20 @@
             }
             
             static caches :{[name:string]:Module}={};
-            static fetch(name:string){
+            static fetch(name:string,requireModule?:Module){
+                if(!name) throw new Error("无法获取模块,未指定模块名/url");
                 let existed = Module.caches[name];
-                if(!existed) existed = new Module({url:name});
+                if(!existed) {
+                    let url = name;
+                    let paths = [];
+                    if(name[0]==="." && requireModule){
+                        for(const path of requireModule.paths){
+                            paths.push(path);
+                        }
+                        
+                    }
+                    existed = new Module({url:url},paths);
+                }
                 return existed;
             }
         }
@@ -187,11 +286,14 @@
 
         function boot(){
             let scripts = document.scripts;
-            for(let i in scripts){
+            for(let i =0,j=scripts.length;i<j;i++){
                 let script = scripts[i];
                 let require_module = script.getAttribute("require");
                 if(require_module){
-                    Module.fetch(require_module);
+                    console.info("YA.require is loading init module[" + require_module + "]");
+                    Module.fetch(require_module).ready(()=>{
+                        console.info("init module[" + require_module + "] is loaded.");
+                    });
                     break;
                 }
             }
@@ -206,50 +308,70 @@
             window.attachEvent("onload",boot);
         else window.onload = boot;
 
-
-        let define = function (deps:any[]|string,statement:any){
-            if(typeof deps==="string"){
-                new Module({name:deps as string,value:statement});
-                return;
+        function set_config(cfgs:IRequireConfigs){
+            if(cfgs.modules) config_modules(cfgs.modules);
+        }
+        function config_modules(moduleCfgs:TModuleConfigItem[],progress?:(evt:IRequireProgressEventArgs)=>any){
+            let evt:IRequireProgressEventArgs = {
+                readyCount:0,loadingCount:0,totalCount:moduleCfgs.length
+            };
+            let callback = (mod:Module)=>{
+                if(mod.isReady)evt.readyCount++;else evt.loadingCount++;
+                evt.name = mod.name;
+                evt.url = mod.url;
+                evt.ready = mod.isReady;
+                if(progress) progress(evt);
+                return mod;
+            };
+            for(let item of moduleCfgs){
+                let opts :IModuleOpts;
+                if(typeof item ==="string"){
+                    opts ={url:item};
+                }else opts = item;
+                let mod:Module;
+                if(opts.value){
+                    if(!opts.value) {
+                        let err= new Error("无法加载模块，未指定名称"); 
+                        (err as any).moduleOpts = opts.value;
+                        throw err;
+                    }
+                    callback(define(opts.name,opts.value));
+                    
+                }else{
+                    let mod = callback(Module.fetch(opts.url || opts.name));
+                    if(opts.name) Module.caches[opts.name] = mod;
+                }
             }
-            (define as any).defination = new Defination(deps,statement);
+        }
+
+        
+
+        let define = function (deps:any[]|string|Function,statement?:any){
+            let t = typeof deps;
+            if(t==="function"){
+                return (deps as Function)(global_require);
+            }
+            if(t==="string"){
+                return new Module({name:deps as string,value:statement});
+            }
+            if((define as any).disabled) throw new Error("define模块内部不能再调用define.");
+            (define as any).defination = new Defination(deps as string[],statement);
         };
         (define as any).create = factory;
         (define as any).resolveUrl = resolveUrl;
         (define as any).amd = true;
+        (define as any).config = set_config;
         window.define = define;
+
+        let global_require = function(name:string):Module{
+            return Module.fetch(name);
+        };
+        (global_require as any).config = set_config;
+        window.require = global_require;
+        define("require",global_require);
+
         return define;
     }
     factory(null,window);    
 })(typeof window!=='undefined'?window:undefined);
-
-interface IModuleOpts{
-    name?:string;
-    url?:string;
-    value?:any;
-}
-interface IResourceOpts{
-    url:string;
-    success?:(elem)=>any;
-    error?:(err)=>any;
-}
-interface IRequireConfigs{
-
-    /**
-     * url的解析规则
-     *
-     * @type {*}
-     * @memberof IRequireConfigs
-     */
-    resolve_rules:any;
-
-    /**
-     * 预先加载的模块
-     *
-     * @type {*}
-     * @memberof IRequireConfigs
-     */
-    modules:any;
-}
-
 

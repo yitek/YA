@@ -1,5 +1,5 @@
 export declare class Dom {
-    element: any;
+    element?: any;
     length: number;
     [index: number]: HTMLElement;
     constructor(element?: any);
@@ -81,8 +81,10 @@ export declare class Size {
     w: number;
     h: number;
     constructor(w: any, h: any);
-    width: any;
-    height: any;
+    get width(): any;
+    set width(w: any);
+    get height(): any;
+    set height(h: any);
     equal(size: Size): boolean;
 }
 export declare class Pointer {

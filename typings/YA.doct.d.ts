@@ -3,7 +3,7 @@ export declare enum Doctypes {
     Namespace = 1,
     Class = 2,
     Member = 3,
-    Usage = 4,
+    Usage = 4
 }
 export declare class Doct {
     type: Doctypes;
@@ -19,8 +19,10 @@ export declare class Doct {
     constructor(type: Doctypes, parent: NamespaceDoct);
     execute(params?: any): Doct;
     reset(): Doct;
-    description: string;
-    notice: string;
+    get description(): string;
+    set description(value: string);
+    get notice(): string;
+    set notice(value: string);
 }
 export declare class NamespaceDoct extends Doct {
     subs: {
@@ -30,8 +32,10 @@ export declare class NamespaceDoct extends Doct {
     _name: string;
     constructor(name: string, type: Doctypes, parent?: NamespaceDoct);
     _mergeTo(target: NamespaceDoct): void;
-    name: string;
-    fullName: string;
+    get name(): string;
+    set name(value: string);
+    get fullName(): string;
+    set fullName(value: string);
     execute(params?: any): NamespaceDoct;
     reset(): NamespaceDoct;
     toString(): string;

@@ -140,14 +140,14 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
 export declare enum DataTypes {
     Value = 0,
     Object = 1,
-    Array = 2,
+    Array = 2
 }
 export declare enum ObservableModes {
     Default = 0,
     Raw = 1,
     Value = 2,
     Observable = 3,
-    Schema = 4,
+    Schema = 4
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
@@ -177,7 +177,7 @@ export declare enum ChangeTypes {
     Pop = 4,
     Shift = 5,
     Unshift = 6,
-    Remove = 7,
+    Remove = 7
 }
 export interface IObservableIndexable<TData extends {
     [index in keyof object]: any;
@@ -274,7 +274,7 @@ export declare enum ReactiveTypes {
     Iterator = -2,
     In = 1,
     Out = 2,
-    Parameter = 3,
+    Parameter = 3
 }
 export interface IReactiveInfo {
     name?: string;
@@ -392,12 +392,12 @@ export declare function EXP(...args: any[]): void;
 export declare enum RenderDirectives {
     Default = 0,
     IgnoreChildren = 1,
-    Replaced = 2,
+    Replaced = 2
 }
 export declare class Placeholder {
     replace: any;
-    before: any;
-    after: any;
+    before?: any;
+    after?: any;
     constructor(replace: any, before?: any, after?: any);
 }
 export declare let attrBinders: {
@@ -429,22 +429,18 @@ export declare function THIS(obj: any, name: string | Function): () => any;
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
-    observableMode: (mode: ObservableModes, statement: () => any) => any;
-    proxyMode: (statement: () => any) => any;
+    observableMode: typeof observableMode;
+    proxyMode: typeof proxyMode;
     Observable: typeof Observable;
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
-    component: (tag: string, ComponentType?: boolean | (new (...args: any[]) => IComponent)) => any;
-    state: (type?: Function | ReactiveTypes, defs?: {
-        [prop: string]: IReactiveInfo;
-    }) => any;
-    IN: (target: any, name: string) => any;
-    OUT: (target: any, name: string) => any;
-    PARAM: (target: any, name: string) => any;
-    template: (partial?: string | Function, defs?: {
-        [prop: string]: ITemplateInfo;
-    }) => (target: IComponentInfo, info: string | ITemplateInfo) => void;
+    component: typeof component;
+    state: typeof reactive;
+    IN: typeof IN;
+    OUT: typeof OUT;
+    PARAM: typeof PARAM;
+    template: typeof template;
     attrBinders: {
         [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
     };
@@ -452,14 +448,12 @@ declare let YA: {
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
     VirtualComponentNode: typeof VirtualComponentNode;
-    virtualNode: (tag: string | TComponentType, attrs: {
-        [attrName: string]: any;
-    }) => VirtualNode;
-    NOT: (params: any) => void;
-    EXP: (...args: any[]) => void;
+    virtualNode: typeof VirtualNode.create;
+    NOT: typeof NOT;
+    EXP: typeof EXP;
     Host: IHost;
     styleConvertors: any;
-    intimate: (strong?: any, members?: any) => (target: any, propName?: string) => void;
-    clone: (src: any, deep?: boolean) => any;
+    intimate: typeof intimate;
+    clone: typeof clone;
 };
 export default YA;
