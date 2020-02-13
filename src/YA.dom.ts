@@ -707,6 +707,7 @@ Dom.define("mask",function(opts:IMaskOpts|boolean) {
         mask(this[i],opts);
     }
 });
+//v-huiwan@microsoft.com
 YA.attrBinders.mask = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.VirtualNode) {
     if(bindValue instanceof YA.ObservableSchema){
         let ob = bindValue.$getFromRoot(component);
