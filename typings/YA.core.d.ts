@@ -4,11 +4,14 @@ export declare function array_index(obj: any, item: any, start?: number): number
 export declare function trim(text: any): string;
 export declare function percent(text: any): number;
 export interface IDisposiable {
-    dispose(onRelease?: (args: IDisposeArgs) => any): any;
+    $dispose(onRelease?: (sender: any, args?: any) => any): any;
+    $isDisposed: boolean;
 }
-export interface IDisposeArgs {
-    [name: string]: any;
-    sender: any;
+export declare class Disposable {
+    $isDisposed: boolean;
+    private $_onReleases;
+    constructor(target: any);
+    $dispose(onRealse: (obj: any, args?: any) => any): IDisposiable;
 }
 /**
  * 可监听对象接口
@@ -109,7 +112,7 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    }, disposible?: IDisposiable): ISubject<TEvtArgs>;
+    } | IDisposiable, disposible?: IDisposiable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
      * $notify操作时，被取消的监听器不会被调用
@@ -337,7 +340,13 @@ export declare type TComponentCtor = {
 export declare type TComponentType = TComponentCtor & {
     $meta: IComponentInfo;
 };
+export interface IDisposeInfo {
+    activeTime?: Date;
+    inactiveTime?: Date;
+    checkTime?: Date;
+}
 export interface IInternalComponent extends IComponent {
+    $_disposeInfo: IDisposeInfo;
     $childNodes: VirtualNode[];
     $reactives: {
         [name: string]: Observable<any>;
@@ -406,6 +415,7 @@ export declare let attrBinders: {
 export declare let styleConvertors: any;
 export interface IHost {
     isElement(elem: any, includeText?: boolean): boolean;
+    isActive(elem: any): boolean;
     createElement(tag: string): any;
     createText(text: string): any;
     createPlaceholder(): any;

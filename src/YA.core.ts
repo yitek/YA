@@ -44,12 +44,46 @@ export function  percent(text:any):number {
 //===============================================================================
 
 export interface IDisposiable{
-    dispose(onRelease?:(args:IDisposeArgs)=>any);
+    $dispose(onRelease?:(sender:any,args?:any)=>any);
+    $isDisposed:boolean;
 }
 
-export interface IDisposeArgs{
-    [name:string]:any;
-    sender:any;
+
+
+export class Disposable{
+    $isDisposed:boolean;
+    private $_onReleases:Function[];
+    constructor(target:any){
+        target || (target=this);
+        
+        
+        Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
+        Object.defineProperty(target,"$_onrelases",{enumerable:false,configurable:false,writable:true,value:undefined});
+        
+        Object.defineProperty(target,"$dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:(obj:any)=>any):IDisposiable{
+            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
+            if(onRelease===undefined){
+                let onReleases = this.$_onReleases;
+                try{
+                    for(const release of onReleases){
+                        release.call(this,this);
+                    }
+                }finally{
+                    Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
+                }
+            }else {
+                let onReleases = this.$_onReleases;
+                if(!onReleases) Object.defineProperty(this,"$_onrelases",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
+                onReleases.push(onRelease);
+            }
+            return this;
+        }});
+        return target;
+        
+    }
+    $dispose(onRealse:(obj:any,args?:any)=>any):IDisposiable{
+        return this;
+    }
 }
 
 /**
@@ -146,15 +180,20 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any},disposible?:IDisposiable):ISubject<TEvtArgs>{
+    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>{
         if(listener===undefined) {
+            listener = topicOrListener as {(evt:TEvtArgs):any};
+            topicOrListener="";
+        }else if(typeof topicOrListener==="function"){
+            disposible = listener as IDisposiable;
             listener = topicOrListener as {(evt:TEvtArgs):any};
             topicOrListener="";
         }
         let topics = this.$_topics ||(this.$_topics={});
+        if( typeof topicOrListener ==="function") debugger;
         let handlers = topics[topicOrListener as string] ||(topics[topicOrListener as string] =[]);
-        handlers.push(listener);
-        if(disposible) disposible.dispose((a)=>this.$unsubscribe(topicOrListener,listener));
+        handlers.push(listener as {(evt:TEvtArgs):any});
+        if(disposible) disposible.$dispose((a)=>this.$unsubscribe(topicOrListener,listener as {(evt:TEvtArgs):any}));
         return this;
     }
     /**
@@ -996,8 +1035,13 @@ export interface IComponent extends IDisposiable{
 }
 export type TComponentCtor = {new (...args:any[]):IComponent};
 export type TComponentType = TComponentCtor & {$meta:IComponentInfo};
+export interface IDisposeInfo{
+    activeTime?:Date;
+    inactiveTime?:Date;
+    checkTime?:Date;
+}
 export interface IInternalComponent extends IComponent{
-    
+    $_disposeInfo:IDisposeInfo; 
     $childNodes:VirtualNode[];
     $reactives:{[name:string]:Observable<any>};
 }
@@ -1100,6 +1144,10 @@ function initComponent(firstComponent:IInternalComponent){
     for(const name in meta.templates){
         initTemplate(firstComponent,meta.templates[name]);
     }
+    if(!meta.ctor.prototype.$dispose){
+        Disposable.call(meta.ctor.prototype);
+    }
+        
     meta.inited=true;
 }
 
@@ -1375,9 +1423,25 @@ export class VirtualComponentNode extends VirtualNode{
             bindComponentAttr(component,subComponent,subAttrName,this.attrs[subAttrName]);
         };
         let subMeta = subComponent.$meta as IComponentInfo;
+        let subNodes = [];
         for(const n in subMeta.templates){
             let tpl = subMeta.templates[n];
-            subComponent[tpl.name].call(subComponent,container);
+            let elems = subComponent[tpl.name].call(subComponent,container);
+            if(elems){
+                if(Host.isElement(elems)){
+                    (elems as any).$_YA_COMPONENT = subComponent;
+                    subNodes.push(elems);
+                }else if(is_array(elems)){
+                   
+                    for(let i =0,j=elems.length;i<j;i++){
+                        let el = elems[i];
+                        el.$_YA_COMPONENT = subComponent;
+                        subNodes.push(el);
+                    }
+                    
+                }
+            }
+            return subNodes;
         }
 
     }
@@ -1397,7 +1461,7 @@ function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrN
             subAttr.$subscribe(e=>{
                 //这里的级联update可能会有性能问题，要优化
                 bindValue.$getFromRoot(component).$set(e.value,true);
-            });
+            },component);
         }else{
             throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
         }
@@ -1407,7 +1471,7 @@ function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrN
             bindOb.$subscribe((e)=>{
                 //这里的级联update可能会有性能问题，要优化
                 subAttr.$set(e.value,true);
-            });
+            },subComponent);
             subAttr.$_raw(subAttr.$target = clone(bindOb.$get(ObservableModes.Raw),true));
         }else{
             subAttr.$_raw(subAttr.$target = bindValue);
@@ -1417,9 +1481,9 @@ function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrN
         if(bindValue instanceof ObservableSchema){
             //这里的级联update可能会有性能问题，要优化
             let bindOb = bindValue.$getFromRoot(component);
-            bindOb.$subscribe((e)=>subAttr.$set(e.value,true));
+            bindOb.$subscribe((e)=>subAttr.$set(e.value,true),subComponent);
             subAttr.$_raw(subAttr.$target = bindOb.$get(ObservableModes.Raw));
-            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value,true));
+            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value,true),component);
         }else{
             subAttr.$_raw(subAttr.$target = bindValue);
             console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
@@ -1489,6 +1553,12 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
                     let nodes = getRelElements(obItem);
                     for(const i in nodes) {
                         let node = nodes[i];if(node.parentNode) node.parentNode.removeChild(node);
+                        if(node.$_YA_COMPONENT){
+                            if(!node.$_YA_COMPONENT.$isDisposed){
+                                node.$_YA_COMPONENT.$dispose();
+                            }
+                            node.$_YA_COMPONENT = undefined;
+                        }
                     }
                 }
             });
@@ -1574,6 +1644,7 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
 //===========================================================================
 export interface IHost{
     isElement(elem:any,includeText?:boolean):boolean;
+    isActive(elem:any):boolean;
     createElement(tag:string):any;
     createText(text:string):any;
     createPlaceholder():any;
@@ -1644,6 +1715,15 @@ Host.attach = (elem:any,evtname:string,handler:Function)=>{
     if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
     else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
     else elem['on'+evtname] = handler;
+}
+Host.isActive = (elem:any):boolean=>{
+    let doc = (elem as HTMLElement).ownerDocument;
+    while(elem){
+        elem = elem.parentNode;
+        if(elem===doc || elem===doc.body) break;
+    }
+    if(!elem) return false;
+    return true;
 }
 
 if(typeof document!=="undefined") Host.document = document;
