@@ -9,6 +9,8 @@ $title-front-color:#333;
     box-sizing: border-box;
     border:0;
     font-size:$fontSize;
+    word-wrap: break-all;
+    word-break: break-word;
 }
 input,textarea,select,button{
     border:1px solid #ccc;
@@ -71,6 +73,10 @@ ol.samples{
         pre{
            
             line-height: $fontSize*1.5;
+            overflow:auto;
+            word-break: break-all;
+            word-wrap:break-word;
+            width:100%;
         }
         ul.asserts{
             border:2px dashed #ddd;

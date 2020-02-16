@@ -81,6 +81,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return match[1];
     }
     exports.percent = percent;
+    exports.extend = function () {
+        var target = arguments[0] || {};
+        for (var i = 1, j = arguments.length; i < j; i++) {
+            var o = arguments[i];
+            if (o)
+                for (var n in o)
+                    target[n] = o[n];
+        }
+        return target;
+    };
     var Disposable = /** @class */ (function () {
         function Disposable(target) {
             target || (target = this);
@@ -1528,6 +1538,38 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     };
     exports.attrBinders.style = function bindStyle(elem, bindValue, component) {
+        var t = typeof bindValue;
+        if (t === "string") {
+            elem.style.cssText = bindValue;
+            return;
+        }
+        if (t !== "object") {
+            console.warn("错误的绑定了style属性，必须是string/object");
+            return;
+        }
+        if (bindValue instanceof ObservableSchema) {
+            var ob = bindValue.$getFromRoot(component);
+            var val = ob.$get(ObservableModes.Value);
+            if (typeof val === "string")
+                elem.style.cssText = val;
+            else {
+                for (var n in val) {
+                    var convertor = exports.styleConvertors[n];
+                    elem.style[n] = convertor ? convertor(val[n]) : val[n];
+                }
+            }
+            ob.$subscribe(function (e) {
+                var val = e.value;
+                if (typeof val === "string")
+                    elem.style.cssText = val;
+                else {
+                    for (var n in val) {
+                        var convertor = exports.styleConvertors[n];
+                        elem.style[n] = convertor ? convertor(val[n]) : val[n];
+                    }
+                }
+            });
+        }
         for (var styleName in bindValue)
             (function (styleName, subValue, elem, component) {
                 var ob;
@@ -1569,7 +1611,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return false;
         if (!elem.insertBefore || !elem.ownerDocument)
             return false;
-        return includeText ? elem.nodeType === 1 : true;
+        return includeText ? true : elem.nodeType === 1;
     };
     exports.Host.createElement = function (tag) {
         return document.createElement(tag);

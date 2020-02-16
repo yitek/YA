@@ -14,7 +14,6 @@
     var Dom = /** @class */ (function () {
         function Dom(element) {
             var _this = this;
-            this.element = element;
             var handleItem = function (item) {
                 if (!item)
                     return;
@@ -54,12 +53,13 @@
             var extract = function (arr) {
                 for (var i = 0, j = arr.length; i < j; i++) {
                     var item = arr[i];
-                    handleStr(item);
+                    handleItem(item);
                 }
             };
             var count = 0;
             if (Host.isElement(element, true)) {
                 Object.defineProperty(this, 0, { enumerable: true, writable: false, configurable: false, value: element });
+                count++;
             }
             else {
                 handleItem(element);
@@ -125,7 +125,7 @@
             if (!this.length)
                 return size === undefined ? undefined : this;
             if (size === undefined)
-                return { w: this[0].clientWidth, h: this[0].clientHeight };
+                return new Size(this[0].offsetWidth, this[0].offsetHeight);
             var h = size.h === undefined ? undefined : (parseFloat(size.h) | 0) + "px";
             var w = size.w === undefined ? undefined : parseFloat(size.w) + "px";
             for (var i = 0, j = this.length; i < j; i++) {
@@ -160,14 +160,16 @@
         Dom.prototype.pos = function (pos) {
             if (!this.length)
                 return pos === undefined ? undefined : this;
+            if (pos === undefined)
+                return new Pointer(this[0].offsetLeft, this[0].offsetTop);
             var x = pos.x === undefined ? undefined : (parseFloat(pos.x) | 0) + "px";
             var y = pos.y === undefined ? undefined : (parseFloat(pos.y) | 0) + "px";
             for (var i = 0, j = this.length; i < j; i++) {
                 if (x !== undefined) {
-                    this[i].style.left = x + "px";
+                    this[i].style.left = x;
                 }
                 if (y !== undefined) {
-                    this[i].style.top = y + "px";
+                    this[i].style.top = y;
                 }
             }
             return this;
@@ -310,6 +312,8 @@
             return this;
         };
         Dom.prototype.replaceClass = function (old_cls, new_cls, alwaysAdd) {
+            if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
+                return this.addClass(new_cls);
             for (var i = 0, j = this.length; i < j; i++) {
                 var clsnames = this[i].className;
                 var at = findClassAt(clsnames, old_cls);
@@ -409,6 +413,8 @@
             Dom.prototype[name] = function (inserted) {
                 if (inserted === undefined)
                     return getter ? new Dom(getter.call(this, this[0])) : this;
+                if (inserted === true || inserted === false)
+                    return getter ? new Dom(getter.call(this, this[0], inserted)) : this;
                 if (Host.isElement(inserted)) {
                     setter.call(this, this[0], inserted);
                     return this;
@@ -545,13 +551,13 @@
         this[0].nodeValue = value;
         return this;
     }
-    Dom.element("before", function (target) { return target.previousSibling; }, function (target, opEl) { return target.parentNode ? target.parentNode.insertBefore(opEl, target) : undefined; });
-    Dom.element("after", function (target) { return target.nextSibling; }, function (target, opEl) {
+    Dom.element("prev", function (target, onlyElement) { return (onlyElement ? target.previousElementSibling : target.previousSibling); }, function (target, opEl) { return target.parentNode ? target.parentNode.insertBefore(opEl, target) : undefined; });
+    Dom.element("next", function (target, onlyElement) { return (onlyElement ? target.nextElementSibling : target.nextSibling); }, function (target, opEl) {
         if (target.parentNode)
             target.nextSibling ? target.parentNode.insertBefore(opEl, target.nextSibling) : target.parentNode.appendChild(opEl);
     });
-    Dom.element("first", function (target) { return target.firstChild; }, function (target, opEl) { return target.firstChild ? target.insertBefore(opEl, target.firstChild) : target.appendChild(opEl); });
-    Dom.element("last", function (target) { return target.lastChild; }, function (target, opEl) { return target.appendChild(opEl); });
+    Dom.element("first", function (target, onlyElement) { return (onlyElement ? target.firstElementChild : target.firstChild); }, function (target, opEl) { return target.firstChild ? target.insertBefore(opEl, target.firstChild) : target.appendChild(opEl); });
+    Dom.element("last", function (target, onlyElement) { return (onlyElement ? target.lastElementChild : target.lastChild); }, function (target, opEl) { return target.appendChild(opEl); });
     Dom.element("append", null, function (target, opEl) { return target.appendChild(opEl); });
     var element_wrapper = YA.Host.document.createElement("div");
     var attach;
@@ -588,7 +594,7 @@
     function dom(element) {
         if (element instanceof Dom)
             return element;
-        return new Dom(dom);
+        return new Dom(element);
     }
     exports.dom = dom;
     var emptyStringRegx = /\s+/g;
@@ -626,22 +632,19 @@
             this.target = dom(target);
             this.target.prop(Mask.token, this);
             var dm = this.dom = dom("<div style=\"position:absolute;margin:0;padding:0;\" class=\"mask\">\n    <div class=\"mask-backend\" style=\"position:absolute;margin:0;padding:0;left:0,top:0,width:100%;overflow:hidden\"></div>\n    <div class=\"mask-front\" style=\"position:absolute;margin:0;padding:0;overflow:auto;\"></div>\n</div>");
-            this.frontDom = dm.last();
-            this.bgDom = dm.first();
+            this.frontDom = dm.last(true);
+            this.bgDom = dm.first(true);
         }
         Mask.prototype.mask = function (opts) {
             var _this = this;
             if (opts === undefined || opts === null)
                 (opts = this.opts);
             if (opts === false || (opts && opts.off))
-                this.unmask();
-            if (!opts) {
-                opts = this.opts;
-                if (!opts)
-                    opts = this.opts = {
-                        content: ""
-                    };
+                return this.unmask();
+            if (typeof opts === "string") {
+                opts = { content: opts };
             }
+            opts = YA.extend({}, this.opts, opts);
             if (this.adjust) {
                 dom(Host.window).off("resize", this.adjust);
             }
@@ -650,18 +653,21 @@
                 this.tick = 0;
             }
             this.frontDom.html("");
-            this.target.prev(this.dom);
             if (opts.css)
-                this.dom.addClass(opts.css);
+                this.dom.replaceClass(this.opts ? this.opts.css : undefined, opts.css, true);
             this.frontDom.append(dom(opts.content || ""));
+            this.target.prev(this.dom);
             this.adjust = function () {
                 var size = _this.adjustBackend();
                 _this.adjustFront(size, opts.keep);
             };
             this.adjust();
+            this._userSelectValue = this.target.style("userSelect");
+            this.target.style("userSelect", "none");
+            this._onselectHandler = this.target.prop("onselectstart");
             this.tick = setInterval(this.adjust, 80);
             dom(Host.window).on("resize", this.adjust);
-            //Host.insertBefore(this.target.parentNode,this.maskElement,this.target);
+            return this;
         };
         Mask.prototype.unmask = function () {
             if (this.adjust) {
@@ -671,7 +677,10 @@
                 clearInterval(this.tick);
                 this.tick = 0;
             }
+            this.target.style("userSelect", this._userSelectValue);
+            this.target.prop("onselectstart", this._onselectHandler);
             this.dom.remove();
+            return this;
         };
         Mask.prototype.adjustFront = function (size, keep) {
             var fSize = this.frontDom.size();
@@ -741,11 +750,10 @@
             mask(this[i], opts);
         }
     });
-    //v-huiwan@microsoft.com
     YA.attrBinders.mask = function (elem, bindValue, component, vnode) {
         if (bindValue instanceof YA.ObservableSchema) {
             var ob = bindValue.$getFromRoot(component);
-            var val = ob.$get();
+            var val = ob.$get(YA.ObservableModes.Value);
             mask(elem, val);
             ob.$subscribe(function (e) {
                 mask(elem, e.value);

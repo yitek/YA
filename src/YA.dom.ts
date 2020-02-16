@@ -6,7 +6,7 @@ let Host = YA.Host;
 export class Dom {
     length:number;
     [index:number]:HTMLElement;
-    constructor(public element?:any){
+    constructor(element?:any){
         let handleItem = (item)=>{
             if(!item) return;
             if(typeof item==="string"){
@@ -43,14 +43,14 @@ export class Dom {
         let extract=(arr:any)=>{
             for(let i =0,j=arr.length;i<j;i++){
                 let item = arr[i];
-                handleStr(item);
+                handleItem(item);
             }
         }
 
         let count = 0;
         if(Host.isElement(element,true)){
             Object.defineProperty(this,0 as any,{enumerable:true,writable:false,configurable:false,value:element});
-            
+            count++;
         }else {
             handleItem(element);
         }
@@ -105,7 +105,7 @@ export class Dom {
 
     size(size?:Size){
         if(!this.length) return size===undefined?undefined:this;
-        if(size===undefined) return {w:this[0].clientWidth,h:this[0].clientHeight};
+        if(size===undefined) return new Size(this[0].offsetWidth,this[0].offsetHeight);
         let h = size.h===undefined?undefined:(parseFloat(size.h as any)|0) + "px";
         let w =  size.w===undefined?undefined:parseFloat(size.w as any) + "px";
         for(let i=0,j=this.length;i<j;i++) {
@@ -134,14 +134,15 @@ export class Dom {
     }
     pos(pos?:Pointer):Pointer|Dom{
         if(!this.length) return pos===undefined?undefined:this;
+        if(pos===undefined) return new Pointer(this[0].offsetLeft,this[0].offsetTop);
         let x = pos.x===undefined?undefined:(parseFloat(pos.x as any)|0) + "px";
         let y = pos.y===undefined?undefined:(parseFloat(pos.y as any)|0) + "px";
         for(let i=0,j=this.length;i<j;i++){
             if(x!==undefined){
-                this[i].style.left = x + "px";
+                this[i].style.left = x ;
             }
             if(y!==undefined){
-                this[i].style.top = y + "px";   
+                this[i].style.top = y ;   
             }
         }
         return this;
@@ -272,6 +273,7 @@ export class Dom {
         return this;
     }
     replaceClass(old_cls:string,new_cls:string,alwaysAdd?:boolean):Dom{
+        if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
         for(let i=0,j=this.length;i<j;i++){
             let clsnames = this[i].className;
             let at = findClassAt(clsnames,old_cls);
@@ -371,11 +373,11 @@ export class Dom {
         return Dom;
     }
 
-    static element(name:string,getter:(targetElement:HTMLElement)=>HTMLElement,setter:(targetElement:HTMLElement,opElement:HTMLElement)=>any){
+    static element(name:string,getter:(targetElement:HTMLElement,onlyElement?:boolean)=>HTMLElement,setter:(targetElement:HTMLElement,opElement:HTMLElement)=>any){
         Dom.prototype[name] =function (inserted?:any) {
             
             if(inserted===undefined) return getter?new Dom(getter.call(this,this[0])):this;
-
+            if(inserted===true||inserted===false) return getter?new Dom(getter.call(this,this[0],inserted)):this;
             if(Host.isElement(inserted)) {
                 setter.call(this,this[0],inserted);
                 return this;
@@ -506,12 +508,23 @@ function txtValFn(value?:any) :any{
 
 
 
-Dom.element("before",(target)=>target.previousSibling as HTMLElement,(target,opEl)=>target.parentNode?target.parentNode.insertBefore(opEl,target):undefined);
-Dom.element("after",(target)=>target.nextSibling as HTMLElement,(target,opEl)=>{
-    if(target.parentNode) target.nextSibling?target.parentNode.insertBefore(opEl,target.nextSibling):target.parentNode.appendChild(opEl);
-});
-Dom.element("first",(target)=>target.firstChild as HTMLElement,(target,opEl)=>target.firstChild?target.insertBefore(opEl,target.firstChild):target.appendChild(opEl));
-Dom.element("last",(target)=>target.lastChild as HTMLElement,(target,opEl)=>target.appendChild(opEl));
+Dom.element("prev"
+    ,(target,onlyElement)=>(onlyElement?target.previousElementSibling:target.previousSibling) as HTMLElement
+    ,(target,opEl)=>target.parentNode?target.parentNode.insertBefore(opEl,target):undefined
+);
+Dom.element("next"
+    ,(target,onlyElement)=>(onlyElement?target.nextElementSibling:target.nextSibling) as HTMLElement
+    ,(target,opEl)=>{
+    if(target.parentNode) target.nextSibling?target.parentNode.insertBefore(opEl,target.nextSibling):target.parentNode.appendChild(opEl);}
+);
+Dom.element("first"
+    ,(target,onlyElement:boolean)=>(onlyElement?target.firstElementChild:target.firstChild) as HTMLElement
+    ,(target,opEl)=>target.firstChild?target.insertBefore(opEl,target.firstChild):target.appendChild(opEl)
+);
+Dom.element("last"
+    ,(target,onlyElement)=>(onlyElement?target.lastElementChild:target.lastChild) as HTMLElement
+    ,(target,opEl)=>target.appendChild(opEl)
+);
 Dom.element("append",null,(target,opEl)=>target.appendChild(opEl));
 
 let element_wrapper:HTMLElement = YA.Host.document.createElement("div");
@@ -552,7 +565,7 @@ if(!styleConvertors) styleConvertors= (YA as any).styleConvertors = {};
 
 export function dom(element:any):Dom {
     if(element instanceof Dom) return element;
-    return new Dom(dom);
+    return new Dom(element);
 }
 
 
@@ -608,6 +621,8 @@ export class Mask{
     target:Dom;
     tick:any;
     adjust:Function;
+    _userSelectValue:any;
+    _onselectHandler:any;
     constructor(target:HTMLElement){
         this.target = dom(target);
         this.target.prop(Mask.token,this);
@@ -615,43 +630,48 @@ export class Mask{
     <div class="mask-backend" style="position:absolute;margin:0;padding:0;left:0,top:0,width:100%;overflow:hidden"></div>
     <div class="mask-front" style="position:absolute;margin:0;padding:0;overflow:auto;"></div>
 </div>`);
-        this.frontDom= dm.last();
-        this.bgDom = dm.first();
+        this.frontDom= dm.last(true);
+        this.bgDom = dm.first(true);
         
     }
-    mask(opts?:IMaskOpts){
+    mask(opts?:IMaskOpts|string|boolean):Mask{
         if(opts===undefined||opts===null)(opts=this.opts);
-        if(opts===false || (opts && opts.off)) this.unmask();
-        if(!opts){
-            opts = this.opts;
-            if(!opts) opts = this.opts={
-                content:""
-            };
+        if(opts===false || (opts && (opts as IMaskOpts).off)) return this.unmask();
+        if(typeof opts==="string"){
+           opts = {content :opts};
         }
-        
+        opts = YA.extend({},this.opts,opts); 
+
         if(this.adjust){ dom(Host.window).off("resize",this.adjust);}
         if(this.tick) {clearInterval(this.tick);this.tick=0;}
         this.frontDom.html("");
 
-        this.target.prev(this.dom);
-
-        if(opts.css)this.dom.addClass(opts.css);
-        this.frontDom.append(dom(opts.content||""));
         
+
+        if((opts as IMaskOpts).css)this.dom.replaceClass(this.opts?this.opts.css:undefined,(opts as IMaskOpts).css,true);
+        this.frontDom.append(dom((opts as IMaskOpts).content||""));
+        
+        this.target.prev(this.dom);
         this.adjust = ()=>{
             let size = this.adjustBackend();
-            this.adjustFront(size,opts.keep);
+            this.adjustFront(size,(opts as IMaskOpts).keep);
         };
         this.adjust();
+        this._userSelectValue = this.target.style("userSelect");
+        this.target.style("userSelect","none");
+        this._onselectHandler =this.target.prop("onselectstart");
         
         this.tick = setInterval(this.adjust,80);
         dom(Host.window).on("resize",this.adjust);
-        //Host.insertBefore(this.target.parentNode,this.maskElement,this.target);
+        return this;
     }
-    unmask(){
+    unmask():Mask{
         if(this.adjust){ dom(Host.window).off("resize",this.adjust);}
         if(this.tick) {clearInterval(this.tick);this.tick=0;}
+        this.target.style("userSelect",this._userSelectValue);
+        this.target.prop("onselectstart",this._onselectHandler);
         this.dom.remove();
+        return this;
     }
     adjustFront(size:Size,keep){
         let fSize = this.frontDom.size() as Size;
@@ -694,7 +714,7 @@ export class Mask{
     }
     static token:string = "$_YA_Mask";
 }
-export function mask(target:HTMLElement,opts:IMaskOpts|boolean) {
+export function mask(target:HTMLElement,opts:IMaskOpts|boolean|string) {
     let inst = target[Mask.token];
     if(!inst){
         if(opts===false) return;
@@ -702,16 +722,16 @@ export function mask(target:HTMLElement,opts:IMaskOpts|boolean) {
     }
     inst.mask(opts);
 }
-Dom.define("mask",function(opts:IMaskOpts|boolean) {
+Dom.define("mask",function(opts:IMaskOpts|boolean|string) {
     for(let i=0,j=this.length;i<j;i++){
         mask(this[i],opts);
     }
 });
-//v-huiwan@microsoft.com
+
 YA.attrBinders.mask = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.VirtualNode) {
     if(bindValue instanceof YA.ObservableSchema){
         let ob = bindValue.$getFromRoot(component);
-        let val = ob.$get();
+        let val = ob.$get(YA.ObservableModes.Value);
         mask(elem,val);
         ob.$subscribe((e)=>{
             mask(elem,e.value);

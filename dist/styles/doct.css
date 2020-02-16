@@ -4,6 +4,8 @@
   box-sizing: border-box;
   border: 0;
   font-size: 14px;
+  word-wrap: break-all;
+  word-break: break-word;
 }
 
 input, textarea, select, button {
@@ -77,6 +79,10 @@ ol.samples > li {
 
 ol.samples > li pre {
   line-height: 21px;
+  overflow: auto;
+  word-break: break-all;
+  word-wrap: break-word;
+  width: 100%;
 }
 
 ol.samples > li ul.asserts {

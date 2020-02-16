@@ -3,6 +3,7 @@ export declare function is_array(obj: any): boolean;
 export declare function array_index(obj: any, item: any, start?: number): number;
 export declare function trim(text: any): string;
 export declare function percent(text: any): number;
+export declare let extend: (...args: any[]) => any;
 export interface IDisposiable {
     $dispose(onRelease?: (sender: any, args?: any) => any): any;
     $isDisposed: boolean;

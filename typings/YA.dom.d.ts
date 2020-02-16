@@ -1,5 +1,4 @@
 export declare class Dom {
-    element?: any;
     length: number;
     [index: number]: HTMLElement;
     constructor(element?: any);
@@ -9,10 +8,7 @@ export declare class Dom {
     val(val?: any): any;
     width(value?: number): any;
     height(value?: number): any;
-    size(size?: Size): this | {
-        w: number;
-        h: number;
-    };
+    size(size?: Size): this | Size;
     left(value?: number): any;
     top(value?: number): any;
     pos(pos?: Pointer): Pointer | Dom;
@@ -44,7 +40,7 @@ export declare class Dom {
     static prop<T>(prop_name: string, getter: (elem: HTMLElement) => T, setter: (elem: HTMLElement, value: T) => any): IDomBuilder;
     static object<T>(object_name: string, getter: (elem: HTMLElement, name: string) => T, setter: (elem: HTMLElement, name: string, value: T) => Dom): IDomBuilder;
     static op(op_name: string, method: Function): IDomBuilder;
-    static element(name: string, getter: (targetElement: HTMLElement) => HTMLElement, setter: (targetElement: HTMLElement, opElement: HTMLElement) => any): typeof Dom;
+    static element(name: string, getter: (targetElement: HTMLElement, onlyElement?: boolean) => HTMLElement, setter: (targetElement: HTMLElement, opElement: HTMLElement) => any): typeof Dom;
     static define(name: string, fn: Function): IDomBuilder;
 }
 export interface IDomBuilder {
@@ -69,14 +65,16 @@ export declare class Mask {
     target: Dom;
     tick: any;
     adjust: Function;
+    _userSelectValue: any;
+    _onselectHandler: any;
     constructor(target: HTMLElement);
-    mask(opts?: IMaskOpts): void;
-    unmask(): void;
+    mask(opts?: IMaskOpts | string | boolean): Mask;
+    unmask(): Mask;
     adjustFront(size: Size, keep: any): void;
     adjustBackend(): Size;
     static token: string;
 }
-export declare function mask(target: HTMLElement, opts: IMaskOpts | boolean): void;
+export declare function mask(target: HTMLElement, opts: IMaskOpts | boolean | string): void;
 export declare class Size {
     w: number;
     h: number;

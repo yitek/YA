@@ -41,6 +41,15 @@ export function  percent(text:any):number {
     let match = text.toString().match(percentRegx);
     if(match)return match[1];
 }
+
+export let extend :(...args)=>any= function (){
+    let target = arguments[0] ||{};
+    for(let i =1,j=arguments.length;i<j;i++){
+        let o = arguments[i];
+        if(o) for(let n in o) target[n] = o[n];
+    }
+    return target;
+}
 //===============================================================================
 
 export interface IDisposiable{
@@ -1610,6 +1619,36 @@ attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vno
 }
 
 attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent) {
+    let t = typeof bindValue;
+    if(t==="string"){
+        (elem as HTMLElement).style.cssText = bindValue;
+        return;
+    }
+    if(t!=="object"){
+        console.warn("错误的绑定了style属性，必须是string/object");
+        return;
+    }
+    if(bindValue instanceof ObservableSchema){
+        let ob = bindValue.$getFromRoot(component);
+        let val = ob.$get(ObservableModes.Value);
+        if(typeof val==="string") elem.style.cssText = val;
+        else {
+            for(let n in val){
+                let convertor = styleConvertors[n];
+                elem.style[n] = convertor?convertor(val[n]):val[n];
+            }
+        }
+        ob.$subscribe((e)=>{
+            let val = e.value;
+            if(typeof val==="string") elem.style.cssText = val;
+            else {
+                for(let n in val){
+                    let convertor = styleConvertors[n];
+                    elem.style[n] = convertor?convertor(val[n]):val[n];
+                }
+            }
+        });
+    }
     for(const styleName in bindValue)((styleName,subValue,elem,component)=>{
         let ob:Observable<any>;
         let styleValue :any;
@@ -1667,7 +1706,7 @@ export let Host:IHost={} as any;
 Host.isElement=(elem,includeText?:boolean):boolean=>{
     if(!elem) return false;
     if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
-    return includeText?(elem as HTMLElement).nodeType === 1:true;
+    return includeText?true:(elem as HTMLElement).nodeType === 1;
 };
 
 Host.createElement=(tag:string):any=>{

@@ -1,0 +1,15 @@
+.mask{
+    z-index:99999990;
+    .mask-backend{
+        z-index:99999991;
+        background-color: #888888;
+        opacity: 0.3;
+    }
+    .mask-front{
+        z-index:99999992;
+        background-color: white;
+        border: 1px solid white;
+        border-radius: 6px;
+        padding:6px;
+    }
+} 
