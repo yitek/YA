@@ -1,3 +1,10 @@
+
+////////////////////////////////////////////////////////////////////
+//
+// 语言机制与一些对象上的扩展
+//
+////////////////////////////////////////////////////////////////////
+
 //implicit 
 
 export function intimate(strong?:boolean|any,members?:any){
@@ -17,10 +24,77 @@ export function intimate(strong?:boolean|any,members?:any){
     }
 }
 
+
+///////////////////////////////////////////////////////////////
+// 类型判断
+
+export function is_string(obj:any):boolean{
+    return typeof obj ==="string";
+}
+export function is_bool(obj:any):boolean{
+    return typeof obj ==="boolean";
+}
+
+export function is_number(obj:any):boolean{
+    return typeof obj ==="number";
+}
+export function is_assoc(obj:any):boolean{
+    if(!obj) return false;
+    return Object.prototype.toString.call(obj)==="[object Object]";
+}
+
+
+export function is_object(obj:any):boolean{
+    if(!obj) return false;
+    let t= Object.prototype.toString.call(obj) as string;
+    if(t.indexOf("[object ")==0)return true;
+}
+
 export function is_array(obj:any):boolean {
     if(!obj) return false;
     return Object.prototype.toString.call(obj)==="[object Array]";
 }
+
+export function is_empty(obj:any):boolean{
+    if(obj===undefined || obj ===null || obj==="" || obj===0) return true;
+    for(let n in obj) return true;
+    return false;
+}
+////////////////////////////////////////////////////////
+// 字符串处理
+
+let trimreg = /(^\s+)|(\s+$)/g;
+
+/**
+ *  去掉两边空格
+ *
+ * @export
+ * @param {*} text
+ * @returns {string}
+ */
+export function trim(text:any):string {
+    if(text===null || text===undefined) return "";
+    text = text.toString().replace(trimreg,"");
+}
+
+let percentRegx = /([+-]?[\d,]+(?:.\d+))%/g;
+
+/**
+ * 是否是百分数
+ *
+ * @export
+ * @param {*} text
+ * @returns {number}
+ */
+export function  is_percent(text:any):number {
+    if(text===null || text===undefined) return undefined;
+    let match = text.toString().match(percentRegx);
+    if(match)return match[1];
+}
+
+/////////////////////
+// 数组处理
+
 
 export function array_index(obj:any,item:any,start:number=0):number {
     if(!obj) return -1;
@@ -29,18 +103,16 @@ export function array_index(obj:any,item:any,start:number=0):number {
     }
     return -1;
 }
-let trimreg = /(^\s+)|(\s+$)/g;
-export function trim(text:any):string {
-    if(text===null || text===undefined) return "";
-    text = text.toString().replace(trimreg,"");
+export function array_add_unique(arr:any[],item:any):boolean{
+    for(let i = 0,j=arr.length;i<j;i++) {
+        if(arr[i]===item) return false;
+    }
+    arr.push(item);
+    return true;
 }
+///////////////////////////////////////
+// 对象处理
 
-let percentRegx = /(\d+(?:.\d+))%/g;
-export function  percent(text:any):number {
-    if(text===null || text===undefined) return undefined;
-    let match = text.toString().match(percentRegx);
-    if(match)return match[1];
-}
 
 export let extend :(...args)=>any= function (){
     let target = arguments[0] ||{};
@@ -50,50 +122,262 @@ export let extend :(...args)=>any= function (){
     }
     return target;
 }
-//===============================================================================
-
-export interface IDisposiable{
-    $dispose(onRelease?:(sender:any,args?:any)=>any);
-    $isDisposed:boolean;
-}
 
 
-
-export class Disposable{
-    $isDisposed:boolean;
-    private $_onReleases:Function[];
-    constructor(target:any){
-        target || (target=this);
-        
-        
-        Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
-        Object.defineProperty(target,"$_onrelases",{enumerable:false,configurable:false,writable:true,value:undefined});
-        
-        Object.defineProperty(target,"$dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:(obj:any)=>any):IDisposiable{
-            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
-            if(onRelease===undefined){
-                let onReleases = this.$_onReleases;
-                try{
-                    for(const release of onReleases){
-                        release.call(this,this);
-                    }
-                }finally{
-                    Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
-                }
-            }else {
-                let onReleases = this.$_onReleases;
-                if(!onReleases) Object.defineProperty(this,"$_onrelases",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
-                onReleases.push(onRelease);
+export class DPath{
+    paths:string[];
+    constructor(pathtext:string){
+        this.paths = pathtext.split(".");
+    }
+    getValue(data:any){
+        for(const i in this.paths){
+            if(!data) return undefined;
+            data = data[this.paths[i]];
+        }
+        return data;
+    }
+    setValue(data:any,value:any){
+        for(let i = 0,j=this.paths.length-1;i<j;i++){
+            let path = this.paths[i];
+            let sub = data[path];
+            if(typeof sub!=="object"){
+                sub = {};
+                data[path] = sub;
             }
+            data = sub;
+        }
+        data[this.paths[this.paths.length-1]] = value;
+    }
+    static caches :{[patht:string]:DPath}={};
+    static fetch(tpath:string){
+        return DPath.caches[tpath] ||(DPath.caches[tpath]=new DPath(tpath));
+    }
+    static getValue(data:any,tpath:string){
+        let dpath = DPath.caches[tpath] ||(DPath.caches[tpath]=new DPath(tpath));
+        return dpath.getValue(data);
+    }
+    static setValue(data:any,tpath:string,value:any){
+        let dpath = DPath.caches[tpath] ||(DPath.caches[tpath]=new DPath(tpath));
+        return dpath.setValue(data,value);
+    }
+    static replace(template:string,data?:any):string{
+        return data?template.replace(replaceByDataRegx,((match:any)=>{
+            return DPath.getValue(data,match);
+        }) as any):template;
+    }
+}
+let replaceByDataRegx = /\$\{[a-zA-Z_0-9]+(?:.[a-zA-Z0-9_])\}/g;
+
+
+
+//=======================================================================
+// Promise /异步
+export type TAsyncStatement=(resolve:(result:any)=>any,reject:(err:any)=>any)=>any;
+export interface IThenable{
+    then(fulfillCallback:(result)=>any,rejectCallback?:(result)=>any):IThenable;
+}
+export enum PromiseStates{
+    Pending=0,
+    Fulfilled=1,
+    Rejected=-1
+}
+export class Promise implements IThenable{
+    $_promise_status:PromiseStates;
+    $_promise_fulfillCallbacks:{(result:any,isSuccess?:boolean):any}[];
+    $_promise_rejectCallbacks:{(result:any,isSuccess?:boolean):any}[];
+    $_promise_result:any;
+    
+    constructor(statement?:TAsyncStatement,sync?:boolean){
+        let status =this.$_promise_status= PromiseStates.Pending;
+        let result =this.$_promise_result = undefined;
+        let fulfillCallbacks:{(result:any,isSuccess?:boolean):any}[] = this.$_promise_fulfillCallbacks=[];
+        let rejectCallbacks:{(result:any,isSuccess?:boolean):any}[] = this.$_promise_rejectCallbacks =[];
+        //Object.defineProperty(this,"$_promise_status",{enumerable:false,configurable:false,get:()=>status});   
+        //Object.defineProperty(this,"$_promise_fulfillCallbacks",{enumerable:false,configurable:false,get:()=>fulfillCallbacks});
+        //Object.defineProperty(this,"$_promise_rejectCallbacks",{enumerable:false,configurable:false,get:()=>rejectCallbacks});   
+        //Object.defineProperty(this,"$_promise_result",{enumerable:false,configurable:false,get:()=>result});   
+    
+        let resolve =(result:any):Promise=>{
+            if(status!==PromiseStates.Pending){ 
+                console.warn("settled状态不应该再调用resolve/reject");
+                return this; 
+            }
+            
+            //如果是自己，就丢出错误
+            if(result===this) throw new TypeError("不能把自己resolve掉啊.");
+            //resolve的结果是了一个thenable
+            if(result && typeof result.then ==="function"){
+                //让该Promise的状态跟resolve result的状态保持一致
+                result.then(
+                    (value)=>fulfill(value)
+                    ,(value)=>reject(value)
+                );
+            }else {
+                //如果是其他的类型，就让promise 变更为fulfill状态
+                fulfill(result);
+            }
+            
             return this;
-        }});
-        return target;
+        };
+        let reject = (value:any):Promise=>{
+            if(status!==PromiseStates.Pending){ 
+                console.warn("settled状态不应该再调用resolve/reject");
+                return this; 
+            }
+            
+            status = this.$_promise_status = PromiseStates.Fulfilled;
+            result = this.$_promise_result = value;
+            this.resolve = this.reject=function (params:any):Promise { return this; }
+
+            setTimeout(()=>{
+                let rejectHandlers = fulfillCallbacks;
+                
+                this.$_promise_fulfillCallbacks = this.$_promise_rejectCallbacks
+                =fulfillCallbacks = rejectCallbacks =null;
+
+                for(const i in rejectHandlers)
+                    rejectHandlers[i].call(this,result,false);                    
+            },0);
+            return this;
+        };
+        let fulfill = (value:any)=>{
+            if(status!==PromiseStates.Pending) {
+                //循环引用，给个警告，什么都不做
+                console.warn("已经处于Settled状态，无法再更正状态");
+                return;
+            }
+
+            status = this.$_promise_status = PromiseStates.Fulfilled;
+            result = this.$_promise_result = value;
+            let complete = ()=>{
+                let fulfillHandlers = fulfillCallbacks;
+                this.$_promise_fulfillCallbacks = this.$_promise_rejectCallbacks
+                =fulfillCallbacks = rejectCallbacks = null;
+
+                for(const i in fulfillHandlers)
+                    fulfillHandlers[i].call(this,result,true);
+                
+            };
+            setTimeout(complete,0);
+
+        };
+        // ajax().then((rs)=>ajax1()).then
+        this.then = (fulfillHandler:(result)=>any,rejectHandler?:(result)=>any):Promise=>{
+            if(status ===PromiseStates.Fulfilled && fulfillHandler){
+                setTimeout(()=>{
+                    fulfillHandler.call(this,result,true);
+                },0);
+            }
+            if(status===PromiseStates.Rejected && rejectHandler){
+                setTimeout(()=>{
+                    rejectHandler.call(this,result,false);
+                },0);
+            }
+            if(status !==PromiseStates.Pending) return this;
+            
+            if(!fulfillHandler && !rejectHandler) return this;
+            
+            let innerResolve;
+            let innerReject;
+            let newPromise = new Promise((resolve,reject)=>{
+                innerResolve = resolve;
+                innerResolve =reject;
+            });
+            
+            if(fulfillHandler){
+                fulfillCallbacks.push((value:any)=>{
+                    let rs = fulfillHandler.call(this,value,true);
+                    if(rs && typeof rs.then ==="function"){ rs.then(innerResolve,innerReject); }
+                    else innerResolve.call(newPromise,rs);
+                });
+                
+            }
+            if(rejectHandler){
+                rejectCallbacks.push((value:any)=>{
+                    rejectHandler.call(this,value,false);
+                    innerResolve(undefined);
+                });
+            }
+            return newPromise;
+            
+        }
+
+        if(statement){
+            if(sync) {
+                try{
+                    statement.call(this,resolve,reject);
+                }catch(ex){
+                    reject(ex);
+                }
+            }else setTimeout(() => {
+                try{
+                    statement.call(this,resolve,reject);
+                }catch(ex){
+                    reject(ex);
+                }
+            }, 0);
+        }else{
+            this.resolve = (value:any)=>{setTimeout(()=>resolve(value),0);return this};
+            this.reject = (value:any)=>{setTimeout(()=>reject(value),0);return this};
+        }
         
     }
-    $dispose(onRealse:(obj:any,args?:any)=>any):IDisposiable{
+    then(fulfillCallback:(result)=>any,rejectCallback?:(result)=>any):Promise{
+        console.warn("called on placehold method.");
         return this;
     }
+    
+    resolve(result:any):Promise{
+        console.warn("当Promise设置了异步函数时，resolve/reject应该由Promise的异步函数调用");
+        return this;
+    }
+    reject(result:any):Promise{
+        console.warn("当Promise设置了异步函数时，resolve/reject应该由Promise的异步函数调用");
+        return this;
+    }
+    success(callback:(result)=>any):Promise{
+        return this.then(callback);
+    }
+    error(callback:(result)=>any):Promise{
+        return this.then(undefined,callback);
+    }
+    complete(callback:(result)=>any):Promise{
+        return this.then(callback,callback);
+    }
+    catch(callback:(result)=>any):Promise{
+        return this.then(undefined,callback);
+    }
+    static resolve(value:any):Promise{
+        return new Promise((resolve,reject)=>resolve(value));
+    }
+    static reject(value:any):Promise{
+        return new Promise((resolve,reject)=>reject(value));
+    }
+    static all(thenables:IThenable[],sync?:boolean):IThenable{
+        return new Promise((resolve,reject)=>{
+            let waitCount = thenables.length;
+            let rs = [];
+            for(const i in thenables)((thenable:IThenable,i:number)=>{
+                thenables[i].then((value)=>{
+                    if(rs){
+                        rs[i]=value;
+                        if(--waitCount==0) resolve(rs);
+                    }
+                },(err)=>{
+                    rs = undefined;
+                    reject(err);
+                });
+            })(thenables[i],i as any);
+        },sync);
+    }
 }
+if(typeof window!=='undefined') {
+    if(!(window as any).Promise) (window as any).Promise= Promise;
+}
+
+//===========================================================
+//事件与监听
+
 
 /**
  * 可监听对象接口
@@ -112,45 +396,60 @@ export interface ISubject<TEvtArgs>{
      */
     
 
-    $_topics:{[topic:string]:Function[]};
+    $__topics__:{[topic:string]:any};
     
     /**
      * 注册监听函数
-     * $notify的时候，注册了相关主题的监听函数会被调用
+     * notify的时候，注册了相关主题的监听函数会被调用
+     * 如果该主题已经fulfill，该监听会立即执行
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {(string|{(evt:TEvtArgs):any})} topic 监听函数或则主题
      * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any},disposible?:IDisposiable):ISubject<TEvtArgs>;
+    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>;
     
     /**
      * 取消主题订阅
-     * $notify操作时，被取消的监听器不会被调用
+     * notify操作时，被取消的监听器不会被调用
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {(string|{(evt:TEvtArgs):any})} topic 要需要的主题或监听器
      * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $unsubscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>;
+    unsubscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>;
 
     /**
      * 发送通知
      * 如果相关主题上有监听器，会逐个调用监听器
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {(string|TEvtArgs)} topic 通知的主题或事件参数
      * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $notify(topicOrEvtArgs:string|TEvtArgs,evt?:TEvtArgs):ISubject<TEvtArgs>;
+    notify(topic:string|TEvtArgs,evt?:TEvtArgs):ISubject<TEvtArgs>;
+
+    /**
+     * 产生一个终值，以后subscribe会立即执行
+     * 
+     * @param {(string|TEvtArgs)} topic
+     * @param {TEvtArgs} [evt]
+     * @returns {ISubject<TEvtArgs>}
+     * @memberof ISubject
+     */
+    fulfill(topic:string|TEvtArgs,evt?:TEvtArgs):ISubject<TEvtArgs>;
 }
 
+interface IFulfillTopic{
+    $__isFulfilledTopic__:boolean;
+    fulfillValue:any;
+}
 
 
 /**
@@ -174,14 +473,14 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @type {[topic:string]:Function[]}
      * @memberof Observable
      */
-    $_topics:{[topic:string]:{(evt:TEvtArgs):any}[]};
+    $__topics__:{[topic:string]:any};
     
     constructor(){
-        Object.defineProperty(this,"$_topics",{enumerable:false,writable:true,configurable:false});
+        Object.defineProperty(this,"$__topics__",{enumerable:false,writable:false,configurable:false,value:{}});
     }
     /**
      * 注册监听函数
-     * $notify的时候，注册了相关主题的监听函数会被调用
+     * notify的时候，注册了相关主题的监听函数会被调用
      * 如果不指明主题topic，默认topic=""
      *
      * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
@@ -189,25 +488,29 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $subscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>{
+    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>{
         if(listener===undefined) {
-            listener = topicOrListener as {(evt:TEvtArgs):any};
-            topicOrListener="";
-        }else if(typeof topicOrListener==="function"){
+            listener = topic as {(evt:TEvtArgs):any};
+            topic="";
+        }else if(typeof topic==="function"){
             disposible = listener as IDisposiable;
-            listener = topicOrListener as {(evt:TEvtArgs):any};
-            topicOrListener="";
+            listener = topic as {(evt:TEvtArgs):any};
+            topic="";
         }
-        let topics = this.$_topics ||(this.$_topics={});
-        if( typeof topicOrListener ==="function") debugger;
-        let handlers = topics[topicOrListener as string] ||(topics[topicOrListener as string] =[]);
+        let topics = this.$__topics__,handlers = topics[topic as string];
+        if(handlers){
+            if(handlers.$__isFulfilledTopic__) {
+                (listener as Function).call(this,handlers.filfillValue);
+                return this;
+            }
+        }else  topics[topic as string] =handlers =[];
         handlers.push(listener as {(evt:TEvtArgs):any});
-        if(disposible) disposible.$dispose((a)=>this.$unsubscribe(topicOrListener,listener as {(evt:TEvtArgs):any}));
+        if(disposible && disposible.dispose) disposible.dispose((a)=>this.unsubscribe(topic,listener as {(evt:TEvtArgs):any}));
         return this;
     }
     /**
      * 取消主题订阅
-     * $notify操作时，被取消的监听器不会被调用
+     * notify操作时，被取消的监听器不会被调用
      * 如果不指明主题topic，默认topic=""
      *
      * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
@@ -215,14 +518,13 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $unsubscribe(topicOrListener:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>{
+    unsubscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}):ISubject<TEvtArgs>{
         if(listener===undefined) {
-            listener = topicOrListener as {(evt:TEvtArgs):any};
-            topicOrListener="";
+            listener = topic as {(evt:TEvtArgs):any};
+            topic="";
         }
-        let topics,handlers;
-        if(!(topics = this.$_topics)) return this;
-        if(!(handlers=topics[topicOrListener as string])) return this;
+        let topics = this.$__topics__,handlers = topics[topic as string];
+        if(!handlers) return this;
         for(let i =0,j=handlers.length;i<j;i++){
             let existed = handlers.shift();
             if(existed!==listener) handlers.push(existed);
@@ -239,20 +541,126 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $notify(topicOrEvtArgs:string|TEvtArgs,evtArgs?:TEvtArgs):ISubject<TEvtArgs>{
+    notify(topic:string|TEvtArgs,evtArgs?:TEvtArgs):ISubject<TEvtArgs>{
         if(evtArgs===undefined){
-            evtArgs = topicOrEvtArgs as TEvtArgs;
-            topicOrEvtArgs="";
+            evtArgs = topic as TEvtArgs;
+            topic="";
         }
-        let topics,handlers;
-        if(!(topics = this.$_topics)) return this;
-        if(!(handlers=topics[topicOrEvtArgs as string])) return this;
+        let topics=this.$__topics__,handlers=topics[topic as string];
+        if(!handlers) return this;
+        for(const i in handlers){
+            handlers[i].call(this,evtArgs);
+        }
+        return this;
+    }
+
+    fulfill(topic:string|TEvtArgs,evtArgs?:TEvtArgs):ISubject<TEvtArgs>{
+        if(evtArgs===undefined){
+            evtArgs = topic as TEvtArgs;
+            topic="";
+        }
+        let topics=this.$__topics__,handlers=topics[topic as string];
+        if(handlers.$__isFulfilledTopic__) throw new Error(`${topic} 已经具备终值，不可以再发送终值.`);
+        topics[topic as string] = {
+            $__isFulfilledTopic__:true,$fulfillValue:evtArgs
+        };
+        let accelerator = (this as any)[topic as string];
+        if(accelerator && accelerator.$__isEventAccelerator__){
+            Object.defineProperty(this,topic as string,{enumerable:false,writable:true,configurable:true,value:function(handler){
+                handler.call(this,evtArgs);return this;
+            }});
+        }
+        if(!handlers) return this;
         for(const i in handlers){
             handlers[i].call(this,evtArgs);
         }
         return this;
     }
 }
+
+export function eventable(subject:any,topic:string){
+    let accelorator = subject[topic];
+    if(accelorator && accelorator.$__isEventAccelerator__) return subject;
+    accelorator = function(handler:any){
+        let topics = this.$__topics__;
+        if(!topics) Object.defineProperty(this,"$__topics__",{enumerable:false,writable:false,configurable:false,value:topics={}});
+        let handlers = topics[topic];
+        if(typeof handler==="function"){
+            if(!handlers) topics[topic]=[];
+            handlers.push(handler);
+        }else {
+            let result = handler;
+            Object.defineProperty(this,topic,{enumerable:false,configurable:true,writable:true,value:function(handler){
+                handler.call(result);return this;
+            }});
+            topics[topic]={$__isFulfilledTopic__:true,fulfillValue:handler};
+            if(!handlers) return this;
+            for(const i in handlers) handlers[i].call(this,result);            
+
+        }
+        return this;
+    }
+    Object.defineProperty(subject,topic,{enumerable:false,writable:true,configurable:true,value:accelorator});
+    return subject;
+}
+
+
+
+
+
+
+
+let cidSeed = 0;
+export function new_cid(){
+    if(++cidSeed===2100000000) cidSeed=-cidSeed;
+    else if(cidSeed===0) return cidSeed=1;
+    return cidSeed;
+}
+//===============================================================================
+
+export interface IDisposiable{
+    dispose(onRelease?:(sender:any,args?:any)=>any);
+    $isDisposed:boolean;
+}
+
+
+
+export class Disposable{
+    $isDisposed:boolean;
+    private $__onReleases__:Function[];
+    constructor(target:any){
+        target || (target=this);
+        
+        
+        Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
+        Object.defineProperty(target,"$__onReleases__",{enumerable:false,configurable:false,writable:true,value:undefined});
+        
+        Object.defineProperty(target,"dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:(obj:any)=>any):IDisposiable{
+            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
+            if(onRelease===undefined){
+                let onReleases = this.$_onReleases;
+                try{
+                    for(const release of onReleases){
+                        release.call(this,this);
+                    }
+                }finally{
+                    Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
+                }
+            }else {
+                let onReleases = this.$_onReleases;
+                if(!onReleases) Object.defineProperty(this,"$_onrelases",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
+                onReleases.push(onRelease);
+            }
+            return this;
+        }});
+        return target;
+        
+    }
+    dispose(onRealse:(obj:any,args?:any)=>any):IDisposiable{
+        return this;
+    }
+}
+
 
 //defineMembers(Observable.prototype);
 
@@ -277,9 +685,9 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $type:DataTypes;
     $extras?:any;
     $target?:TData;
-    $get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
-    $set(newValue:TData,updateImmediately?:boolean):IObservable<TData>;
-    $update():boolean;
+    get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
+    set(newValue:TData,updateImmediately?:boolean):IObservable<TData>;
+    update():boolean;
 }
 
 
@@ -412,7 +820,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
     
 
-    $get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>{
+    get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>{
         if(accessMode===undefined) accessMode = Observable.accessMode;
         if(accessMode == ObservableModes.Raw ) return this.$_raw();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
@@ -420,14 +828,14 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         return (this.$_modifiedValue===undefined)?this.$target:(this.$_modifiedValue===Undefined?undefined:this.$_modifiedValue);
     }
 
-    $set(newValue:TData,updateImmediately?:boolean):IObservable<TData>{
-        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
+    set(newValue:TData,updateImmediately?:boolean):IObservable<TData>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
         if(Observable.accessMode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
         this.$_modifiedValue=newValue===undefined?Undefined:newValue;
-        if(updateImmediately) this.$update();
+        if(updateImmediately) this.update();
         return this;
     }
-    $update():boolean{
+    update():boolean{
         let newValue :any= this.$_modifiedValue;
         if(newValue===undefined) return true;
         this.$_modifiedValue=undefined;
@@ -436,7 +844,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         if(newValue!==oldValue) {
             this.$_raw(this.$target = newValue);
             let evtArgs:IChangeEventArgs<TData> = {type:ChangeTypes.Value,value:newValue,old:oldValue,sender:this};
-            this.$notify(evtArgs);
+            this.notify(evtArgs);
             return evtArgs.cancel!==true;
         }
         return true;
@@ -444,7 +852,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
 
     toString(){
-        let  currentValue = this.$get(ObservableModes.Default);
+        let  currentValue = this.get(ObservableModes.Default);
         return currentValue===undefined || currentValue===null?"":currentValue.toString();
     }
     static accessMode:ObservableModes = ObservableModes.Default; 
@@ -488,7 +896,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         if(!this.$target) this.$_raw(this.$target={} as any);
         if(!this.$schema){
             this.$schema = new ObservableSchema<TData>(this.$target);
-            this.$schema.$initObject(this);
+            this.$schema.initObject(this);
         }
         
         
@@ -500,7 +908,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         });
     }
 
-    $get(accessMode?:ObservableModes):any{
+    get(accessMode?:ObservableModes):any{
         if(accessMode===undefined) accessMode = Observable.accessMode;
         if(accessMode=== ObservableModes.Raw ) return this.$_raw();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
@@ -510,7 +918,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
                 for(const n in this){
                     if(n==="constructor" || n[0]==="$") continue;
                     let prop = this[n] as any;
-                    rs[n] = prop.$get(ObservableModes.Value);
+                    rs[n] = prop.get(ObservableModes.Value);
                 }
                 return rs;
             });
@@ -519,28 +927,28 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         return this;
     }
 
-    $set(newValue:TData,updateImmediately?:boolean):IObservableObject<TData>{
-        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
-        super.$set(newValue||null);
+    set(newValue:TData,updateImmediately?:boolean):IObservableObject<TData>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
+        super.set(newValue||null);
         if(!newValue) return this;
         proxyMode(()=>{
             for(const n in this){
                 if(n==="constructor" || n[0]==="$") continue;
                 let proxy :any= this[n];
-                if(proxy instanceof Observable) proxy.$set((newValue as any)[n] as any);
+                if(proxy instanceof Observable) proxy.set((newValue as any)[n] as any);
             }
         });
         if(updateImmediately) this.$update();
         return this;
     }
 
-    $update():boolean{
-        let result = super.$update();
+    update():boolean{
+        let result = super.update();
         if(result===false) return false;
         proxyMode(()=>{
             for(const n in this){
                 let proxy :any= this[n];
-                if(proxy instanceof Observable) proxy.$update();
+                if(proxy instanceof Observable) proxy.update();
             }
         });
         return true;
@@ -596,7 +1004,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
             for(let i =0,j=this.$_length;i<j;i++){
                 let item = this[i];
                 if(i!==0) ret +=",";
-                ret += `${item.$get(ObservableModes.Default)}`;
+                ret += `${item.get(ObservableModes.Default)}`;
             }
         });
         return ret;
@@ -634,7 +1042,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
-    $get(accessMode?:ObservableModes):any{
+    get(accessMode?:ObservableModes):any{
         if(accessMode===undefined) accessMode = Observable.accessMode;
         if(accessMode=== ObservableModes.Raw ) return this.$_raw();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
@@ -644,7 +1052,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                 for(const n in this){
                     if(n==="constructor" || n[0]==="$") continue;
                     let prop = this[n];
-                    rs.push(prop.$get(ObservableModes.Value));
+                    rs.push(prop.get(ObservableModes.Value));
                 }
                 return rs;
             });
@@ -653,31 +1061,31 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
-    $set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
-        if(newValue && newValue instanceof Observable) newValue = newValue.$get(ObservableModes.Value);
+    set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
+        if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
         else {
             let newArr =[];
             for(let item of newValue){
-                if(item instanceof Observable) newArr.push(item.$get(ObservableModes.Value));
+                if(item instanceof Observable) newArr.push(item.get(ObservableModes.Value));
                 else newArr.push(item);
             }
             newValue = newArr;
         }
         newValue || (newValue=[]);
         this.clear();
-        super.$set(newValue);
+        super.set(newValue);
         if(Observable.accessMode=== ObservableModes.Raw){
             return this;
         }
         
         for(const i in newValue)makeArrayItem(this,i as any as number);;
         this.$_length = newValue.length;
-        if(updateImmediately) this.$update();
+        if(updateImmediately) this.update();
         return this;
     }
 
-    $update():boolean{
-        if(!super.$update()) return true;
+    update():boolean{
+        if(!super.update()) return true;
         let changes = this.$_changes;
         if(!changes || this.$_changes.length===0) return true;
         this.$_changes = undefined;
@@ -687,40 +1095,40 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
             let change = changes[i];
             switch(change.type){
                 case ChangeTypes.Remove:
-                    change.sender.$notify(change);
+                    change.sender.notify(change);
                 case ChangeTypes.Push:
                     arr.push(change.value);
-                    this.$notify(change);
-                    //if(change.cancel!==true && change.item) change.item.$notify(change);
+                    this.notify(change);
+                    //if(change.cancel!==true && change.item) change.item.notify(change);
                     break;
                 case ChangeTypes.Pop:
                     arr.pop();
-                    this.$notify(change);
+                    this.notify(change);
                     if(change.cancel!==true && change.item) {
                         change.sender = change.item;
-                        change.item.$notify(change);
+                        change.item.notify(change);
                     }
                     break;
                 case ChangeTypes.Unshift:
                     arr.unshift(change.value);
-                    this.$notify(change);
+                    this.notify(change);
                     break;
                 case ChangeTypes.Shift:
                     arr.shift();
-                    this.$notify(change);
+                    this.notify(change);
                     if(change.cancel!==true && change.item) {
                         change.sender = change.item;
-                        change.item.$notify(change);
+                        change.item.notify(change);
                     }
                     break;
                 case ChangeTypes.Item:
                     arr[change.index] = change.value;
-                    this.$notify(change);
+                    this.notify(change);
                     if(change.cancel!==true){
                         let itemEvts :any= {};for(const n in change) itemEvts[n]=change[n];
                         itemEvts.sender =change.item;
                         itemEvts.type = ChangeTypes.Value;
-                        itemEvts.sender.$notify(itemEvts);
+                        itemEvts.sender.notify(itemEvts);
                     } 
                     break;
             }
@@ -735,7 +1143,7 @@ function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
     let item = new obArray.$_itemSchema.$ctor(obArray,index,undefined);
     item.$_index = index;
     Object.defineProperty(obArray,index as any as string,{enumerable:true,configurable:true
-        ,get:(mode?:ObservableModes) => item.$get(mode)
+        ,get:(mode?:ObservableModes) => item.get(mode)
         ,set:(item_value:TItem)=>{
             (obArray.$_changes || (obArray.$_changes=[])).push({
                 sender:obArray,
@@ -744,7 +1152,7 @@ function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
                 item:item,
                 value:item_value
             });
-            item.$set(item_value);
+            item.set(item_value);
         }
     });
 }
@@ -761,14 +1169,14 @@ function defineProp<TObject>(target:any,name:string,accessorFactory:{(proxy:Obse
                 enumerable:false,configurable:false,writable:false,value:ob=accessorFactory.call(this,target,name)
             });
             
-            return ob.get?ob.get(param):ob.$get(param);
+            return ob.get(param);
         },
         set:function(val){
             let ob = this[private_prop_name];
             if(!ob) Object.defineProperty(this,private_prop_name,{
                 enumerable:false,configurable:false,writable:false,value:ob=accessorFactory.call(this,target,name)
             });
-            return ob.set?ob.set(val):ob.$set(val);
+            return ob.set(val);
         }
     });  
     return this;
@@ -813,13 +1221,13 @@ export class ObservableSchema<TData>{
         if(initData){
             let t = Object.prototype.toString.call(initData);
             if(t==="[object Object]") {
-                this.$asObject();           
+                this.asObject();           
                 for(const n in initData){
-                    this.$defineProp(n,initData[n]);
+                    this.defineProp(n,initData[n]);
                 }
             }
             else if(t==="[object Array]"){
-                this.$asArray();
+                this.asArray();
             }else {
                 this.$type = DataTypes.Value;
                 this.$ctor = Observable;
@@ -829,7 +1237,7 @@ export class ObservableSchema<TData>{
 
     
 
-    $getFromRoot(root:any ,mode:ObservableModes=ObservableModes.Observable):any{
+    getFromRoot(root:any ,mode:ObservableModes=ObservableModes.Observable):any{
         return observableMode(mode,()=>{
             let data = root;
             for(const i in this.$paths){
@@ -840,7 +1248,7 @@ export class ObservableSchema<TData>{
         });
     }
 
-    $asObject():ObservableSchema<TData>{
+    asObject():ObservableSchema<TData>{
         if(this.$type===DataTypes.Object) return this;
         if(this.$type === DataTypes.Array) throw new Error("无法将ObservableSchema从Array转化成Object.");
         this.$type = DataTypes.Object;
@@ -855,7 +1263,7 @@ export class ObservableSchema<TData>{
         return this;
     }
 
-    $defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
+    defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
         if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
         Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
@@ -864,7 +1272,7 @@ export class ObservableSchema<TData>{
     }
 
 
-    $asArray():ObservableSchema<TData>{
+    asArray():ObservableSchema<TData>{
         if(this.$type===DataTypes.Array) return this;
         if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
         this.$type = DataTypes.Array;
@@ -887,7 +1295,7 @@ export class ObservableSchema<TData>{
     }
 
     
-    $initObject(ob:Observable<TData>){
+    initObject(ob:Observable<TData>){
         for(const n in this){
             if(n==="constructor" || n[0]==="$" || n===ObservableSchema.schemaToken) continue;
             let propSchema = this[n] as any as ObservableSchema<any>;
@@ -907,7 +1315,7 @@ export class ObservableSchema<TData>{
 //=======================================================================
 
 export enum ReactiveTypes{
-    NotReactive=0,
+    None=0,
     Internal = -1,
     Iterator = -2,
     In = 1,
@@ -1139,7 +1547,7 @@ function initComponent(firstComponent:IInternalComponent){
     for(const name in meta.reactives){
         
         let stateInfo = meta.reactives[name];
-        if(stateInfo.type === ReactiveTypes.NotReactive) continue;
+        if(stateInfo.type === ReactiveTypes.None) continue;
         let initData = firstComponent[stateInfo.name];
         let schema = stateInfo.schema; 
         if(!schema){
@@ -1153,7 +1561,7 @@ function initComponent(firstComponent:IInternalComponent){
     for(const name in meta.templates){
         initTemplate(firstComponent,meta.templates[name]);
     }
-    if(!meta.ctor.prototype.$dispose){
+    if(!meta.ctor.prototype.dispose){
         Disposable.call(meta.ctor.prototype);
     }
         
@@ -1171,13 +1579,13 @@ function initReactive(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             let ob = states[stateInfo.name];  
             if(!ob) ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
                 
-            return ob.$get();
+            return ob.get();
         }
         ,set:function(val:any){
             let states = this.$reactives ||(this.$reactives={});
-            let ob = states[stateInfo.name];
-            if(val&&val.$get) val=val.$get(ObservableModes.Value);
-            if(ob) ob.$set(val);
+            let ob: IObservable<any> = states[stateInfo.name];
+            if(val&&val.get) val=val.get(ObservableModes.Value);
+            if(ob) ob.set(val);
             else ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
         }
     };
@@ -1194,7 +1602,7 @@ function initIterator(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
             if(Observable.accessMode===ObservableModes.Schema) return stateInfo.schema;
             let states = firstComponent.$reactives ||(firstComponent.$reactives={});
             let ob = states[stateInfo.name]  
-            return ob?ob.$get():undefined;
+            return ob?ob.get():undefined;
         }
         ,set:function(val:any){
             let states = firstComponent.$reactives ||(firstComponent.$reactives={});
@@ -1203,7 +1611,7 @@ function initIterator(firstComponent:IInternalComponent,stateInfo:IReactiveInfo)
                 return;
             }
             let ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);  
-            //ob.$set(val);
+            
         }
     };
     Object.defineProperty(firstComponent,stateInfo.name,descriptor);
@@ -1261,7 +1669,7 @@ function makeAction(component:IComponent,method){
     return function () {
         let rs= method.apply(component,arguments);
         for(const n in component.$reactives){
-            component.$reactives[n].$update();
+            component.$reactives[n].update();
         }
         return rs;
     }
@@ -1343,9 +1751,9 @@ export class VirtualTextNode extends VirtualNode{
     render(component:IComponent,container?:any):any{
         let elem;
         if(this.content instanceof ObservableSchema){
-            let ob = this.content.$getFromRoot(component);
-            elem = Host.createText(ob.$get());
-            ob.$subscribe((e)=>{
+            let ob = this.content.getFromRoot(component);
+            elem = Host.createText(ob.get());
+            ob.subscribe((e)=>{
                 elem.nodeValue = e.value;
             });
         }else{
@@ -1383,9 +1791,9 @@ export class VirtualElementNode extends VirtualNode{
             if(attrValue instanceof ObservableSchema){
                 if(binder) bindResult= binder.call(component,elem,attrValue,component,this);
                 else (function(name,attrValue) {
-                    let ob = attrValue.$getFromRoot(component);
-                    Host.setAttribute(elem,name,ob.$get(ObservableModes.Raw));
-                    ob.$subscribe((e)=>{
+                    let ob:IObservable<any> = attrValue.getFromRoot(component);
+                    Host.setAttribute(elem,name,ob.get(ObservableModes.Raw));
+                    ob.subscribe((e)=>{
                         Host.setAttribute(elem,name,e.value);
                     });
                 })(attrName,attrValue);
@@ -1463,25 +1871,25 @@ function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrN
     let subStateType = stateInfo?stateInfo.type:undefined;
     if(subStateType===ReactiveTypes.Internal || subStateType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${subAttrName}是内部变量，不可以在外部赋值`);
     
-    let subAttr = subComponent[subAttrName];
+    let subAttr:Observable<any> = subComponent[subAttrName];
 
     if(subStateType === ReactiveTypes.Out){
         if(bindValue instanceof ObservableSchema){
-            subAttr.$subscribe(e=>{
+            subAttr.subscribe(e=>{
                 //这里的级联update可能会有性能问题，要优化
-                bindValue.$getFromRoot(component).$set(e.value,true);
+                bindValue.getFromRoot(component).set(e.value,true);
             },component);
         }else{
             throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
         }
     } else if(subStateType===ReactiveTypes.In){
         if(bindValue instanceof ObservableSchema){
-            let bindOb = bindValue.$getFromRoot(component);
-            bindOb.$subscribe((e)=>{
+            let bindOb:IObservable<any> = bindValue.getFromRoot(component);
+            bindOb.subscribe((e)=>{
                 //这里的级联update可能会有性能问题，要优化
-                subAttr.$set(e.value,true);
+                subAttr.set(e.value,true);
             },subComponent);
-            subAttr.$_raw(subAttr.$target = clone(bindOb.$get(ObservableModes.Raw),true));
+            subAttr.$_raw(subAttr.$target = clone(bindOb.get(ObservableModes.Raw),true));
         }else{
             subAttr.$_raw(subAttr.$target = bindValue);
             console.warn(`未能绑定[IN]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
@@ -1489,16 +1897,16 @@ function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrN
     } else if(subStateType===ReactiveTypes.Parameter){
         if(bindValue instanceof ObservableSchema){
             //这里的级联update可能会有性能问题，要优化
-            let bindOb = bindValue.$getFromRoot(component);
-            bindOb.$subscribe((e)=>subAttr.$set(e.value,true),subComponent);
-            subAttr.$_raw(subAttr.$target = bindOb.$get(ObservableModes.Raw));
-            subAttr.$subscribe((e)=>bindValue.$getFromRoot(component).$set(e.value,true),component);
+            let bindOb :IObservable<any>= bindValue.getFromRoot(component);
+            bindOb.subscribe((e)=>subAttr.set(e.value,true),subComponent);
+            subAttr.$_raw(subAttr.$target = bindOb.get(ObservableModes.Raw));
+            subAttr.subscribe((e)=>bindValue.getFromRoot(component).set(e.value,true),component);
         }else{
             subAttr.$_raw(subAttr.$target = bindValue);
             console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
         }
     }else{
-        let value =bindValue instanceof ObservableSchema?bindValue.$getFromRoot(component).$get():bindValue;
+        let value =bindValue instanceof ObservableSchema?bindValue.getFromRoot(component).get():bindValue;
         value = clone(value,true);
         if(subAttr instanceof Observable) subAttr.$_raw(value);
         else subComponent[subAttrName] = value;
@@ -1532,9 +1940,9 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
     let value = bindValue[1];
     let key = bindValue[2];
     if(each instanceof ObservableSchema){
-        each = each.$getFromRoot(component);
+        each = each.getFromRoot(component) as IObservable<any>;
         if(!ignoreAddRel)addRelElements(each,elem);
-        each.$subscribe((e:IChangeEventArgs<any>)=>{
+        each.subscribe((e:IChangeEventArgs<any>)=>{
             if(e.type===ChangeTypes.Value){
                 elem.innerHTML = "";
                 observableMode(ObservableModes.Observable,()=>{
@@ -1549,14 +1957,14 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
     
     for(const k in each){
         if(k==="constructor" || k[0]==="$") continue;
-        //if(key)  key.$getFromRoot(component).$renew(k);
+        
         let item =each[k];
 
-        let obItem = setIterator(component,value,item);
+        let obItem :Observable<any>= setIterator(component,value,item);
         for(const i in vnode.children){
             let childElements = vnode.children[i].render(component,elem);
             addRelElements(obItem,childElements);
-            obItem.$subscribe((e:IChangeEventArgs<any>)=>{
+            obItem.subscribe((e:IChangeEventArgs<any>)=>{
                 if(e.type===ChangeTypes.Remove) {
                     let obItem = e.sender;
                     let nodes = getRelElements(obItem);
@@ -1564,7 +1972,7 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
                         let node = nodes[i];if(node.parentNode) node.parentNode.removeChild(node);
                         if(node.$_YA_COMPONENT){
                             if(!node.$_YA_COMPONENT.$isDisposed){
-                                node.$_YA_COMPONENT.$dispose();
+                                node.$_YA_COMPONENT.dispose();
                             }
                             node.$_YA_COMPONENT = undefined;
                         }
@@ -1578,9 +1986,9 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
 
 attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode) {
     if(bindValue instanceof ObservableSchema){
-        let ob = bindValue.$getFromRoot(component);
+        let ob = bindValue.getFromRoot(component) as IObservable<any>;
         let placeholder = Host.createPlaceholder();
-        let isElementInContainer=ob.$get();
+        let isElementInContainer=ob.get();
         if(!isElementInContainer){
             let p = Host.getParent(elem);
             if(p){
@@ -1588,7 +1996,7 @@ attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vno
                 Host.removeChild(p,elem);
             }else Host.hide(elem);
         }
-        ob.$subscribe((e)=>{
+        ob.subscribe((e)=>{
             if(e.value){
                 if(!isElementInContainer){
                     let p = Host.getParent(placeholder);
@@ -1629,8 +2037,8 @@ attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent
         return;
     }
     if(bindValue instanceof ObservableSchema){
-        let ob = bindValue.$getFromRoot(component);
-        let val = ob.$get(ObservableModes.Value);
+        let ob :IObservable<any>= bindValue.getFromRoot(component);
+        let val = ob.get(ObservableModes.Value);
         if(typeof val==="string") elem.style.cssText = val;
         else {
             for(let n in val){
@@ -1638,7 +2046,7 @@ attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent
                 elem.style[n] = convertor?convertor(val[n]):val[n];
             }
         }
-        ob.$subscribe((e)=>{
+        ob.subscribe((e)=>{
             let val = e.value;
             if(typeof val==="string") elem.style.cssText = val;
             else {
@@ -1653,16 +2061,16 @@ attrBinders.style=function bindStyle(elem:any,bindValue:any,component:IComponent
         let ob:Observable<any>;
         let styleValue :any;
         let convertor = styleConvertors[styleName];
-        if(subValue instanceof Observable){ ob = subValue; styleValue = ob.$get();}
+        if(subValue instanceof Observable){ ob = subValue; styleValue = ob.get();}
         else if(subValue instanceof ObservableSchema){
-            ob = subValue.$getFromRoot(component);
-            styleValue = ob.$get();
+            ob = subValue.getFromRoot(component);
+            styleValue = ob.get();
         } else styleValue = subValue;
         elem.style[styleName] = convertor?convertor(styleValue):styleValue;
 
         if(ob){
             addRelElements(ob,elem);
-            ob.$subscribe((e)=>{
+            ob.subscribe((e)=>{
                 elem.style[styleName] =convertor?convertor(e.value):e.value;
             });
         }
@@ -1684,7 +2092,7 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
 export interface IHost{
     isElement(elem:any,includeText?:boolean):boolean;
     isActive(elem:any):boolean;
-    createElement(tag:string):any;
+    createElement(tag:any,container?:any):any;
     createText(text:string):any;
     createPlaceholder():any;
     setAttribute(elem:any,name:string,value:any);
@@ -1697,6 +2105,7 @@ export interface IHost{
     hide(elem:any,immeditately?:boolean);
     show(elem:any,immeditately?:boolean);
     removeAllChildrens(parent:any);
+    setContent(elem:any,content:string);
     attach(elem:any,evtname:string,handler:Function);
     document:any;
     window:any;
@@ -1709,8 +2118,19 @@ Host.isElement=(elem,includeText?:boolean):boolean=>{
     return includeText?true:(elem as HTMLElement).nodeType === 1;
 };
 
-Host.createElement=(tag:string):any=>{
-    return document.createElement(tag);
+Host.createElement=(tag:any,container?:any):any=>{
+    let tagName,attrs;
+    if(typeof tag==="object"){
+        tagName = tag.tagName;
+        attrs = tag;
+    }else tagName = tag;
+    let elem = document.createElement(tag);
+    if(container) Host.appendChild(container,elem);
+    if(attrs) for(let n in attrs) {
+        if(n==="content") Host.setContent(elem,attrs[n]);
+        else if(n!=="tagName")Host.setAttribute(elem,n,attrs[n]);
+    }
+    return elem;
 };
 
 Host.createText=(txt:string):any=>{
@@ -1722,6 +2142,9 @@ Host.createPlaceholder=():any=>{
     rs.style.display = "none";
     return rs;
 };
+Host.setContent=(elem:any,content:string)=>{
+    elem.innerHTML = content;
+}
 
 Host.setAttribute=(elem:any,name:string,value:any)=>{
     elem.setAttribute(name,value);
@@ -1803,12 +2226,30 @@ export function THIS(obj:any,name:string|Function){
 
 //=======================================================================
 
+
+
+//=======================================================================
+
+export function queryString(str:string){
+    let at = str.indexOf("#");
+    if(at>=0) str = str.substr(0,at-1);
+    let pairs = str.split('&');
+    let rs = {};
+    for(let i in pairs){
+        let pair = pairs[i].split("=");
+        rs[pair[0]] = pair[1];
+    }
+    return rs;
+}
+
+
+//=======================================================================
 let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
     ,component,state: reactive,IN,OUT,PARAM,template,attrBinders
     ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,NOT,EXP
     ,Host,styleConvertors
-    ,intimate,clone
+    ,intimate,clone,Promise
     
 };
 if(typeof window!=='undefined') (window as any).YA = YA;

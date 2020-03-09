@@ -30,11 +30,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //记录传递给监听函数的参数
                 var argPassToListener;
                 //3 注册监听器
-                ob.$subscribe(listener);
+                ob.subscribe(listener);
                 //4 定义事件参数
                 var evtArgs = {};
                 //5 发送/通知事件
-                ob.$notify(evtArgs);
+                ob.notify(evtArgs);
                 assert_statement(function (assert) {
                     assert(true, argPassToListener !== undefined, "监听函数会被调用:evtArgs!==undefined");
                     assert(evtArgs, argPassToListener, "监听函数中接收到的参数，就是$notify发送的参数:evtArgs===argPassToListener");
@@ -44,7 +44,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //1 创建一个主题对象 
                 var ob = new YA.Subject();
                 //2 订阅监听器
-                ob.$subscribe(function () { });
+                ob.subscribe(function () { });
                 //3 给主题对象赋予一个属性
                 ob.name = "test";
                 var propnames = [];
@@ -66,18 +66,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 // 2 定义2个监听者函数,并订阅默认事件
                 var listener1 = function (evt) { evtInListener1 = evt; };
                 var listener2 = function (evt) { evtInListener2 = evt; };
-                ob.$subscribe(listener1);
-                ob.$subscribe(listener2);
+                ob.subscribe(listener1);
+                ob.subscribe(listener2);
                 //3 定义事件参数，并发布事件
                 var evtArgs = {};
-                ob.$notify(evtArgs);
+                ob.notify(evtArgs);
                 assert_statement(function (assert) {
                     assert(evtArgs, evtInListener1);
                     assert(evtArgs, evtInListener2, "2个监听器都应该被调用且收到相同的事件参数:evtInListener1===evtInListener2===evtArgs");
                 });
                 evtInListener1 = evtInListener2 = undefined;
                 var evtArgs2 = {};
-                ob.$notify(evtArgs2);
+                ob.notify(evtArgs2);
                 assert_statement(function (assert) {
                     assert(evtArgs2, evtInListener1);
                     assert(evtArgs2, evtInListener2, "可以多次发送事件，每次发送所有订阅过的监听器都会被调用:evtInListener1===evtInListener2===evtArgs2");
@@ -90,10 +90,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 // 2 定义2个监听者函数,分别订阅topic1跟topic2
                 var listener1 = function (evt) { evtInListener1 = evt; };
                 var listener2 = function (evt) { evtInListener2 = evt; };
-                ob.$subscribe("topic1", listener1);
-                ob.$subscribe("topic2", listener2);
+                ob.subscribe("topic1", listener1);
+                ob.subscribe("topic2", listener2);
                 // 3 发送topic1主题事件
-                ob.$notify("topic1", "topic1_eventArgs");
+                ob.notify("topic1", "topic1_eventArgs");
                 assert_statement(function (assert) {
                     assert("topic1_eventArgs", evtInListener1, "topic1的监听器接收到事件:evtInListener1==='topic1_eventArgs'");
                     assert(undefined, evtInListener2, "topic2的监听器不能接收到事件:evtInListener2===undefined");
@@ -101,7 +101,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 // 清洗数据，准备下一调用
                 evtInListener1 = evtInListener2 = undefined;
                 // 4 发送topic2 主题事件
-                ob.$notify("topic2", "topic2_eventArgs");
+                ob.notify("topic2", "topic2_eventArgs");
                 assert_statement(function (assert) {
                     assert(undefined, evtInListener1, "topic1的监听器不能接收到事件:evtInListener1===undefined");
                     assert("topic2_eventArgs", evtInListener2, "topic2的监听器接收到事件:evtInListener2==='topic2_eventArgs'");
@@ -114,10 +114,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 // 2 定义监听者，其功能为向records写入一个字符串。
                 var listener = function (evt) { records.push("listener invoked."); };
                 //3 用相同的监听器，向同一个主题订阅订阅2次
-                ob.$subscribe("topic1", listener);
-                ob.$subscribe("topic1", listener);
+                ob.subscribe("topic1", listener);
+                ob.subscribe("topic1", listener);
                 // 4 发布topic1事件
-                ob.$notify("topic1", null);
+                ob.notify("topic1", null);
                 assert_statement(function (assert) {
                     assert("listener invoked.,listener invoked.", records.join(","), "listener被调用了2次:records==['listener invoked.','listener invoked.']");
                 });
@@ -134,12 +134,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var listener2 = function (evt) { return order.push("listener2"); };
                 var listener3 = function (evt) { return order.push("listener3"); };
                 // 3 订阅默认事件
-                ob.$subscribe(listener1);
-                ob.$subscribe(listener2);
-                ob.$subscribe(listener3);
+                ob.subscribe(listener1);
+                ob.subscribe(listener2);
+                ob.subscribe(listener3);
                 //发布默认事件
                 var evtArgs = {};
-                ob.$notify(evtArgs);
+                ob.notify(evtArgs);
                 assert_statement(function (assert) {
                     assert(3, order.length, "每个监听函数都会被调用:order.length===3");
                     assert("listener1", order[0], '第一个注册的listener1首先被调用:order[0]==="listener1"');
@@ -152,9 +152,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var ob = new YA.Subject();
                 // 2 不订阅默认事件，直接发布默认事件
                 var evtArgs = {};
-                ob.$notify(evtArgs);
+                ob.notify(evtArgs);
                 // 3 不订阅topic，但发布了topic
-                ob.$notify("topic", null);
+                ob.notify("topic", null);
                 // 这些操作是允许的，只是没有任何效果的空操作
             });
         };
@@ -167,13 +167,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var listener1 = function (evt) { return evt.listener1Invoked = true; };
                 var listener2 = function (evt) { return evt.listener2Invoked = true; };
                 // 2 用这2个监听器订阅默认事件
-                ob.$subscribe(listener1);
-                ob.$subscribe(listener2);
+                ob.subscribe(listener1);
+                ob.subscribe(listener2);
                 // 3 取消listener1的订阅
-                ob.$unsubscribe(listener1);
+                ob.unsubscribe(listener1);
                 // 3 发布默认事件
                 var evtArgs = { listener1Invoked: false, listener2Invoked: false };
-                ob.$notify(evtArgs);
+                ob.notify(evtArgs);
                 assert_statement(function (assert) {
                     assert(false, evtArgs.listener1Invoked, "被取消订阅的listener1不会被调用:evtArgs.listener1Invoked===false.");
                     assert(true, evtArgs.listener2Invoked, "未被取消订阅listener2被调用:evtArgs.listener2Invoked===true.");
@@ -186,16 +186,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var listener1 = function (evt) { return evt.listener1Count++; };
                 var listener2 = function (evt) { return evt.listener2Count++; };
                 // 2 用这2个监听器订阅topic事件
-                ob.$subscribe("topic", listener1);
-                ob.$subscribe("topic", listener2);
+                ob.subscribe("topic", listener1);
+                ob.subscribe("topic", listener2);
                 // 3 发布topic事件
                 var evtArgs = { listener1Count: 0, listener2Count: 0 };
-                ob.$notify("topic", evtArgs);
+                ob.notify("topic", evtArgs);
                 // 4 取消listener2的订阅
                 //   即使发布过事件，也可以取消订阅
-                ob.$unsubscribe("topic", listener2);
+                ob.unsubscribe("topic", listener2);
                 // 5 再次以相同的事件参数发布topic事件
-                ob.$notify("topic", evtArgs);
+                ob.notify("topic", evtArgs);
                 assert_statement(function (assert) {
                     assert(2, evtArgs.listener1Count, "监听器listener1会被调用2次:evtArgs.listener1Count===2");
                     assert(1, evtArgs.listener2Count, "由于第二次发布前取消了监听器listener2的订阅，listener2只会被调用1次::evtArgs.listener1Count===2");
@@ -209,16 +209,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var listener1 = function (evt) { return order.push("listener1 invoked by " + evt); };
                 var listener2 = function (evt) { return order.push("listener2 invoked by " + evt); };
                 // 2 用这2个监听器订阅默认事件
-                ob.$subscribe(listener1);
-                ob.$subscribe(listener2);
-                ob.$subscribe(listener1);
+                ob.subscribe(listener1);
+                ob.subscribe(listener2);
+                ob.subscribe(listener1);
                 // 3 发布事件
-                ob.$notify("@notify1");
+                ob.notify("@notify1");
                 // 4 取消listener1的订阅
                 //   即使发布过事件，也可以取消订阅
-                ob.$unsubscribe(listener1);
+                ob.unsubscribe(listener1);
                 // 5 再次以相同的事件参数发布topic事件
-                ob.$notify("@notify2");
+                ob.notify("@notify2");
                 assert_statement(function (assert) {
                     assert("listener1 invoked by @notify1,listener2 invoked by @notify1,listener1 invoked by @notify1,listener2 invoked by @notify2", order.join(","), "listener1\u4F1A\u5728\u7B2C\u4E00\u6B21notify\u65F6\u88AB\u8C03\u7528\u4E24\u6B21,\u88AB\u53D6\u6D88\u6389\u540E\uFF0C\u7B2C\u4E8C\u6B21notify\u53EA\u8C03\u7528\u4E86\u4E00\u6B21listener2:order==[\"listener1 invoked by @notify1\",\"listener2 invoked by @notify1\",\"listener1 invoked by @notify1\",\"listener2 invoked by @notify2\"]");
                 });

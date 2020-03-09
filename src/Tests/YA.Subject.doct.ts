@@ -22,13 +22,13 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let argPassToListener :any;
             
             //3 注册监听器
-            ob.$subscribe(listener);
+            ob.subscribe(listener);
 
             //4 定义事件参数
             let evtArgs = {};
 
             //5 发送/通知事件
-            ob.$notify(evtArgs); 
+            ob.notify(evtArgs); 
 
             assert_statement((assert:TAssert)=>{
                 assert(true,argPassToListener!==undefined,"监听函数会被调用:evtArgs!==undefined");
@@ -40,7 +40,7 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let ob = new YA.Subject<any>();    
 
             //2 订阅监听器
-            ob.$subscribe(()=>{});
+            ob.subscribe(()=>{});
 
             //3 给主题对象赋予一个属性
             (ob as any).name = "test";
@@ -72,12 +72,12 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             // 2 定义2个监听者函数,并订阅默认事件
             let listener1 = (evt)=>{evtInListener1=evt;}
             let listener2 = (evt)=>{evtInListener2=evt;}
-            ob.$subscribe(listener1);
-            ob.$subscribe(listener2); 
+            ob.subscribe(listener1);
+            ob.subscribe(listener2); 
 
             //3 定义事件参数，并发布事件
             let evtArgs = {};
-            ob.$notify(evtArgs); 
+            ob.notify(evtArgs); 
             
             assert_statement((assert:TAssert)=>{
                 assert(evtArgs,evtInListener1);
@@ -86,7 +86,7 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             
             evtInListener1= evtInListener2 = undefined;
             let evtArgs2 = {};
-            ob.$notify(evtArgs2);
+            ob.notify(evtArgs2);
             
             assert_statement((assert:TAssert)=>{
                 assert(evtArgs2,evtInListener1);
@@ -104,11 +104,11 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             // 2 定义2个监听者函数,分别订阅topic1跟topic2
             let listener1 = (evt)=>{evtInListener1=evt;}
             let listener2 = (evt)=>{evtInListener2=evt;}
-            ob.$subscribe("topic1",listener1);
-            ob.$subscribe("topic2",listener2); 
+            ob.subscribe("topic1",listener1);
+            ob.subscribe("topic2",listener2); 
 
             // 3 发送topic1主题事件
-            ob.$notify("topic1","topic1_eventArgs");
+            ob.notify("topic1","topic1_eventArgs");
 
             assert_statement((assert:TAssert)=>{
                 assert("topic1_eventArgs",evtInListener1,"topic1的监听器接收到事件:evtInListener1==='topic1_eventArgs'");
@@ -118,7 +118,7 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             // 清洗数据，准备下一调用
             evtInListener1 = evtInListener2 = undefined;
             // 4 发送topic2 主题事件
-            ob.$notify("topic2","topic2_eventArgs");
+            ob.notify("topic2","topic2_eventArgs");
 
             assert_statement((assert:TAssert)=>{
                 assert(undefined,evtInListener1,"topic1的监听器不能接收到事件:evtInListener1===undefined");
@@ -135,11 +135,11 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let listener = (evt)=>{records.push("listener invoked.");}
 
             //3 用相同的监听器，向同一个主题订阅订阅2次
-            ob.$subscribe("topic1",listener);
-            ob.$subscribe("topic1",listener);
+            ob.subscribe("topic1",listener);
+            ob.subscribe("topic1",listener);
 
             // 4 发布topic1事件
-            ob.$notify("topic1",null);
+            ob.notify("topic1",null);
 
             assert_statement((assert:TAssert)=>{
                 assert("listener invoked.,listener invoked.",records.join(","),"listener被调用了2次:records==['listener invoked.','listener invoked.']");
@@ -165,13 +165,13 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let listener3 = (evt)=>order.push("listener3");
 
             // 3 订阅默认事件
-            ob.$subscribe(listener1);
-            ob.$subscribe(listener2);
-            ob.$subscribe(listener3); 
+            ob.subscribe(listener1);
+            ob.subscribe(listener2);
+            ob.subscribe(listener3); 
 
             //发布默认事件
             let evtArgs = {};
-            ob.$notify(evtArgs);
+            ob.notify(evtArgs);
 
             assert_statement((assert)=>{
                 assert(3,order.length,"每个监听函数都会被调用:order.length===3");
@@ -186,9 +186,9 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
 
             // 2 不订阅默认事件，直接发布默认事件
             let evtArgs = {};
-            ob.$notify(evtArgs);
+            ob.notify(evtArgs);
             // 3 不订阅topic，但发布了topic
-            ob.$notify("topic",null);
+            ob.notify("topic",null);
             
             // 这些操作是允许的，只是没有任何效果的空操作
             
@@ -212,15 +212,15 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let listener2 = (evt)=>evt.listener2Invoked=true;
 
             // 2 用这2个监听器订阅默认事件
-            ob.$subscribe(listener1);
-            ob.$subscribe(listener2);
+            ob.subscribe(listener1);
+            ob.subscribe(listener2);
 
             // 3 取消listener1的订阅
-            ob.$unsubscribe(listener1);
+            ob.unsubscribe(listener1);
 
             // 3 发布默认事件
             let evtArgs= {listener1Invoked:false,listener2Invoked:false};
-            ob.$notify(evtArgs);
+            ob.notify(evtArgs);
 
             assert_statement((assert)=>{
                 assert(false,evtArgs.listener1Invoked,"被取消订阅的listener1不会被调用:evtArgs.listener1Invoked===false.");
@@ -237,19 +237,19 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let listener2 = (evt)=>evt.listener2Count++;
 
             // 2 用这2个监听器订阅topic事件
-            ob.$subscribe("topic",listener1);
-            ob.$subscribe("topic",listener2);
+            ob.subscribe("topic",listener1);
+            ob.subscribe("topic",listener2);
 
             // 3 发布topic事件
             let evtArgs= {listener1Count:0,listener2Count:0};
-            ob.$notify("topic",evtArgs);
+            ob.notify("topic",evtArgs);
 
             // 4 取消listener2的订阅
             //   即使发布过事件，也可以取消订阅
-            ob.$unsubscribe("topic",listener2);
+            ob.unsubscribe("topic",listener2);
 
             // 5 再次以相同的事件参数发布topic事件
-            ob.$notify("topic",evtArgs);
+            ob.notify("topic",evtArgs);
 
             assert_statement((assert)=>{
                 assert(2,evtArgs.listener1Count,"监听器listener1会被调用2次:evtArgs.listener1Count===2");
@@ -268,20 +268,20 @@ doc.usage("基本用法",`通过$subscribe订阅，$notify发布`,(assert_statem
             let listener2 = (evt)=>order.push("listener2 invoked by " + evt);
 
             // 2 用这2个监听器订阅默认事件
-            ob.$subscribe(listener1);
-            ob.$subscribe(listener2);
-            ob.$subscribe(listener1);
+            ob.subscribe(listener1);
+            ob.subscribe(listener2);
+            ob.subscribe(listener1);
 
             // 3 发布事件
             
-            ob.$notify("@notify1");
+            ob.notify("@notify1");
 
             // 4 取消listener1的订阅
             //   即使发布过事件，也可以取消订阅
-            ob.$unsubscribe(listener1);
+            ob.unsubscribe(listener1);
 
             // 5 再次以相同的事件参数发布topic事件
-            ob.$notify("@notify2");
+            ob.notify("@notify2");
 
             assert_statement((assert)=>{
                 assert(

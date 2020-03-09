@@ -31,16 +31,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     assert(12, proxy.$target, "\u4EE3\u7406\u7684\u76EE\u6807\u4E3A\u5F53\u524D\u7684\u503C:proxy.$target===12");
                 });
                 //2 可以通过$get()获取到它的值
-                var value_beforeSet = proxy.$get();
+                var value_beforeSet = proxy.get();
                 assert_statement(function (assert) {
                     assert(12, value_beforeSet, "value_beforeSet===raw_value===12");
                 });
                 //2 在代理上注册一个监听器,将接收到的事件参数存入changeInfo
                 var changeInfo;
-                proxy.$subscribe(function (e) { return changeInfo = e; });
+                proxy.subscribe(function (e) { return changeInfo = e; });
                 //3 通过$set改变代理的值
-                proxy.$set(33);
-                var value_afterSet = proxy.$get();
+                proxy.set(33);
+                var value_afterSet = proxy.get();
                 assert_statement(function (assert) {
                     assert(33, value_afterSet, "set操作后，代理的数据为修改后的值:value_afterSet===33");
                     assert(12, raw_data, "update操作之前，被代理的数据不会变化:raw_value===12");
@@ -49,7 +49,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     assert(undefined, changeInfo, "监听器也不会触发");
                 });
                 //4 用最新写入的数据，更新被代理的数据
-                proxy.$update();
+                proxy.update();
                 assert_statement(function (assert) {
                     assert(33, raw_data, "更新update操作后，被代理的数据变更为修改后的值:raw_data===33");
                     assert(33, proxy.$target, "代理引用的被代理数据变更为新值:proxy.$target===33");
@@ -64,8 +64,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var raw_data = 12;
                 var ob = new YA.Observable(function (val) { return val === undefined ? raw_data : raw_data = val; }, {});
                 //2 做一些操作
-                ob.$subscribe(function () { });
-                ob.$set(12);
+                ob.subscribe(function () { });
+                ob.set(12);
                 //3 给可观察对象赋予一个属性
                 ob.name = "test";
                 var propnames = [];

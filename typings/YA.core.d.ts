@@ -1,18 +1,72 @@
 export declare function intimate(strong?: boolean | any, members?: any): (target: any, propName?: string) => void;
+export declare function is_string(obj: any): boolean;
+export declare function is_bool(obj: any): boolean;
+export declare function is_number(obj: any): boolean;
+export declare function is_assoc(obj: any): boolean;
+export declare function is_object(obj: any): boolean;
 export declare function is_array(obj: any): boolean;
-export declare function array_index(obj: any, item: any, start?: number): number;
+export declare function is_empty(obj: any): boolean;
+/**
+ *  去掉两边空格
+ *
+ * @export
+ * @param {*} text
+ * @returns {string}
+ */
 export declare function trim(text: any): string;
-export declare function percent(text: any): number;
+/**
+ * 是否是百分数
+ *
+ * @export
+ * @param {*} text
+ * @returns {number}
+ */
+export declare function is_percent(text: any): number;
+export declare function array_index(obj: any, item: any, start?: number): number;
+export declare function array_add_unique(arr: any[], item: any): boolean;
 export declare let extend: (...args: any[]) => any;
-export interface IDisposiable {
-    $dispose(onRelease?: (sender: any, args?: any) => any): any;
-    $isDisposed: boolean;
+export declare class DPath {
+    paths: string[];
+    constructor(pathtext: string);
+    getValue(data: any): any;
+    setValue(data: any, value: any): void;
+    static caches: {
+        [patht: string]: DPath;
+    };
+    static fetch(tpath: string): DPath;
+    static getValue(data: any, tpath: string): any;
+    static setValue(data: any, tpath: string, value: any): void;
+    static replace(template: string, data?: any): string;
 }
-export declare class Disposable {
-    $isDisposed: boolean;
-    private $_onReleases;
-    constructor(target: any);
-    $dispose(onRealse: (obj: any, args?: any) => any): IDisposiable;
+export declare type TAsyncStatement = (resolve: (result: any) => any, reject: (err: any) => any) => any;
+export interface IThenable {
+    then(fulfillCallback: (result: any) => any, rejectCallback?: (result: any) => any): IThenable;
+}
+export declare enum PromiseStates {
+    Pending = 0,
+    Fulfilled = 1,
+    Rejected = -1
+}
+export declare class Promise implements IThenable {
+    $_promise_status: PromiseStates;
+    $_promise_fulfillCallbacks: {
+        (result: any, isSuccess?: boolean): any;
+    }[];
+    $_promise_rejectCallbacks: {
+        (result: any, isSuccess?: boolean): any;
+    }[];
+    $_promise_result: any;
+    constructor(statement?: TAsyncStatement, sync?: boolean);
+    then(fulfillCallback: (result: any) => any, rejectCallback?: (result: any) => any): Promise;
+    resolve(result: any): Promise;
+    reject(result: any): Promise;
+    success(callback: (result: any) => any): Promise;
+    error(callback: (result: any) => any): Promise;
+    complete(callback: (result: any) => any): Promise;
+    catch(callback: (result: any) => any): Promise;
+    static resolve(value: any): Promise;
+    static reject(value: any): Promise;
+    static all(thenables: IThenable[], sync?: boolean): IThenable;
 }
 /**
  * 可监听对象接口
@@ -28,35 +82,36 @@ export interface ISubject<TEvtArgs> {
      * @type {[topic:string]:Function[]}
      * @memberof ISubject
      */
-    $_topics: {
-        [topic: string]: Function[];
+    $__topics__: {
+        [topic: string]: any;
     };
     /**
      * 注册监听函数
-     * $notify的时候，注册了相关主题的监听函数会被调用
+     * notify的时候，注册了相关主题的监听函数会被调用
+     * 如果该主题已经fulfill，该监听会立即执行
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+     * @param {(string|{(evt:TEvtArgs):any})} topic 监听函数或则主题
      * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $subscribe(topicOrListener: string | {
+    subscribe(topic: string | {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    }, disposible?: IDisposiable): ISubject<TEvtArgs>;
+    } | IDisposiable, disposible?: IDisposiable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
-     * $notify操作时，被取消的监听器不会被调用
+     * notify操作时，被取消的监听器不会被调用
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+     * @param {(string|{(evt:TEvtArgs):any})} topic 要需要的主题或监听器
      * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $unsubscribe(topicOrListener: string | {
+    unsubscribe(topic: string | {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
@@ -66,12 +121,21 @@ export interface ISubject<TEvtArgs> {
      * 如果相关主题上有监听器，会逐个调用监听器
      * 如果不指明主题topic，默认topic=""
      *
-     * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+     * @param {(string|TEvtArgs)} topic 通知的主题或事件参数
      * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    $notify(topicOrEvtArgs: string | TEvtArgs, evt?: TEvtArgs): ISubject<TEvtArgs>;
+    notify(topic: string | TEvtArgs, evt?: TEvtArgs): ISubject<TEvtArgs>;
+    /**
+     * 产生一个终值，以后subscribe会立即执行
+     *
+     * @param {(string|TEvtArgs)} topic
+     * @param {TEvtArgs} [evt]
+     * @returns {ISubject<TEvtArgs>}
+     * @memberof ISubject
+     */
+    fulfill(topic: string | TEvtArgs, evt?: TEvtArgs): ISubject<TEvtArgs>;
 }
 /**
  * 可监听对象类
@@ -93,15 +157,13 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
      * @type {[topic:string]:Function[]}
      * @memberof Observable
      */
-    $_topics: {
-        [topic: string]: {
-            (evt: TEvtArgs): any;
-        }[];
+    $__topics__: {
+        [topic: string]: any;
     };
     constructor();
     /**
      * 注册监听函数
-     * $notify的时候，注册了相关主题的监听函数会被调用
+     * notify的时候，注册了相关主题的监听函数会被调用
      * 如果不指明主题topic，默认topic=""
      *
      * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
@@ -109,14 +171,14 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $subscribe(topicOrListener: string | {
+    subscribe(topic: string | {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
     } | IDisposiable, disposible?: IDisposiable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
-     * $notify操作时，被取消的监听器不会被调用
+     * notify操作时，被取消的监听器不会被调用
      * 如果不指明主题topic，默认topic=""
      *
      * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
@@ -124,7 +186,7 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $unsubscribe(topicOrListener: string | {
+    unsubscribe(topic: string | {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
@@ -139,7 +201,20 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    $notify(topicOrEvtArgs: string | TEvtArgs, evtArgs?: TEvtArgs): ISubject<TEvtArgs>;
+    notify(topic: string | TEvtArgs, evtArgs?: TEvtArgs): ISubject<TEvtArgs>;
+    fulfill(topic: string | TEvtArgs, evtArgs?: TEvtArgs): ISubject<TEvtArgs>;
+}
+export declare function eventable(subject: any, topic: string): any;
+export declare function new_cid(): number;
+export interface IDisposiable {
+    dispose(onRelease?: (sender: any, args?: any) => any): any;
+    $isDisposed: boolean;
+}
+export declare class Disposable {
+    $isDisposed: boolean;
+    private $__onReleases__;
+    constructor(target: any);
+    dispose(onRealse: (obj: any, args?: any) => any): IDisposiable;
 }
 export declare enum DataTypes {
     Value = 0,
@@ -157,9 +232,9 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
     $extras?: any;
     $target?: TData;
-    $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    $set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
-    $update(): boolean;
+    get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
+    set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
+    update(): boolean;
 }
 export declare function observableMode(mode: ObservableModes, statement: () => any): any;
 export declare function proxyMode(statement: () => any): any;
@@ -201,9 +276,9 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any, initValue?: any);
-    $get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    $set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
-    $update(): boolean;
+    get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
+    set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
+    update(): boolean;
     toString(): string;
     static accessMode: ObservableModes;
 }
@@ -228,9 +303,9 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
         (val?: TData): any;
     } | TData, index?: any, extras?: any, initValue?: any);
     $prop(name: string): any;
-    $get(accessMode?: ObservableModes): any;
-    $set(newValue: TData, updateImmediately?: boolean): IObservableObject<TData>;
-    $update(): boolean;
+    get(accessMode?: ObservableModes): any;
+    set(newValue: TData, updateImmediately?: boolean): IObservableObject<TData>;
+    update(): boolean;
 }
 export interface IObservableArray<TItem> extends IObservable<TItem[]> {
     [index: number]: any;
@@ -247,9 +322,9 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     } | TItem[], index?: any, itemSchemaOrExtras?: any, extras?: any);
     toString(): string;
     clear(): ObservableArray<TItem>;
-    $get(accessMode?: ObservableModes): any;
-    $set(newValue: any, updateImmediately?: boolean): ObservableArray<TItem>;
-    $update(): boolean;
+    get(accessMode?: ObservableModes): any;
+    set(newValue: any, updateImmediately?: boolean): ObservableArray<TItem>;
+    update(): boolean;
 }
 export declare class ObservableSchema<TData> {
     [index: string]: any;
@@ -265,15 +340,15 @@ export declare class ObservableSchema<TData> {
     $itemSchema?: ObservableSchema<TData>;
     $initData?: any;
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
-    $getFromRoot(root: any, mode?: ObservableModes): any;
-    $asObject(): ObservableSchema<TData>;
-    $defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
-    $asArray(): ObservableSchema<TData>;
-    $initObject(ob: Observable<TData>): void;
+    getFromRoot(root: any, mode?: ObservableModes): any;
+    asObject(): ObservableSchema<TData>;
+    defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
+    asArray(): ObservableSchema<TData>;
+    initObject(ob: Observable<TData>): void;
     static schemaToken: string;
 }
 export declare enum ReactiveTypes {
-    NotReactive = 0,
+    None = 0,
     Internal = -1,
     Iterator = -2,
     In = 1,
@@ -417,7 +492,7 @@ export declare let styleConvertors: any;
 export interface IHost {
     isElement(elem: any, includeText?: boolean): boolean;
     isActive(elem: any): boolean;
-    createElement(tag: string): any;
+    createElement(tag: any, container?: any): any;
     createText(text: string): any;
     createPlaceholder(): any;
     setAttribute(elem: any, name: string, value: any): any;
@@ -430,6 +505,7 @@ export interface IHost {
     hide(elem: any, immeditately?: boolean): any;
     show(elem: any, immeditately?: boolean): any;
     removeAllChildrens(parent: any): any;
+    setContent(elem: any, content: string): any;
     attach(elem: any, evtname: string, handler: Function): any;
     document: any;
     window: any;
@@ -437,6 +513,7 @@ export interface IHost {
 export declare let Host: IHost;
 export declare function clone(src: any, deep?: boolean): any;
 export declare function THIS(obj: any, name: string | Function): () => any;
+export declare function queryString(str: string): {};
 declare let YA: {
     Subject: typeof Subject;
     ObservableModes: typeof ObservableModes;
@@ -466,5 +543,6 @@ declare let YA: {
     styleConvertors: any;
     intimate: typeof intimate;
     clone: typeof clone;
+    Promise: typeof Promise;
 };
 export default YA;

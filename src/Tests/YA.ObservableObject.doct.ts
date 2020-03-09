@@ -25,7 +25,7 @@ export class ObservableObjectTest {
             // 在title属性上注册一个事件监听
             let titleChangeInfo:YA.IChangeEventArgs<string>;
             YA.proxyMode(()=>{
-                (proxy.title as YA.IObservable<string>).$subscribe((e)=>{
+                (proxy.title as YA.IObservable<string>).subscribe((e)=>{
                     titleChangeInfo = e;
                 });
             });
@@ -39,7 +39,7 @@ export class ObservableObjectTest {
             //在Proxy访问模式下，可以从模型中获取到原始的值
             let raw_title_value:string;
             YA.proxyMode(()=>{
-                raw_title_value = (proxy.title as YA.IObservable<string>).$get(YA.ObservableModes.Raw) as string;
+                raw_title_value = (proxy.title as YA.IObservable<string>).get(YA.ObservableModes.Raw) as string;
             });
             assert_statement((assert:TAssert)=>{
                 assert("YA framework",raw_title_value,"raw_title_vale === 'YA framework'");

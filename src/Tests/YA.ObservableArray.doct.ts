@@ -23,7 +23,7 @@ export class ObservableArrayTest {
 
             let evtForIndex2:YA.IChangeEventArgs<string>;
             YA.proxyMode(()=>{
-                proxy[2].$subscribe((e)=>evtForIndex2=e);
+                proxy[2].subscribe((e)=>evtForIndex2=e);
             });
 
             proxy[2] = "YA framework";
@@ -36,7 +36,7 @@ export class ObservableArrayTest {
             });
 
             //更新数组代理
-            proxy.$update();
+            proxy.update();
 
             assert_statement((assert:TAssert)=>{
                 
@@ -78,8 +78,8 @@ export class ObservableArrayTest {
             let item3EvtArgs:any;
             let arrEvtArgs:any;
             YA.observableMode(YA.ObservableModes.Observable,()=>{
-                obArray[3].$subscribe((e)=>item3EvtArgs=e);
-                obArray.$subscribe((e)=>{arrEvtArgs=e;});
+                obArray[3].subscribe((e)=>item3EvtArgs=e);
+                obArray.subscribe((e)=>{arrEvtArgs=e;});
             });
             //给数组的某个项赋值
             obArray[3] = {author:{name:"yiy4"},title:"new YA"};
@@ -89,7 +89,7 @@ export class ObservableArrayTest {
                 assert(true,item3EvtArgs===undefined && arrEvtArgs===undefined,`所有的事件都未触发`);
             });
             //更新数组数据
-            obArray.$update();
+            obArray.update();
             assert_statement((assert:TAssert)=>{
                 assert("yiy4new YA",data[3].author.name + data[3].title,`原始数据得到更新:data[3]=={title:"new YA",author:{name:"yiy4"}}`);
                 assert(true , arrEvtArgs!==undefined,"注册在obArray上的事件被触发：arrEvtArgs!==undefined");
@@ -108,7 +108,7 @@ export class ObservableArrayTest {
             ];
             item3EvtArgs = arrEvtArgs=undefined;
             //整个的重设数组的值,并更新数组
-            obArray.$set(newData).$update();
+            obArray.set(newData).update();
 
             assert_statement((assert:TAssert)=>{
                 assert(true , item3EvtArgs!==undefined,"注册在obArray[3]上的事件被触发");

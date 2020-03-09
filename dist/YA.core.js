@@ -1,4 +1,8 @@
-//implicit 
+////////////////////////////////////////////////////////////////////
+//
+// 语言机制与一些对象上的扩展
+//
+////////////////////////////////////////////////////////////////////
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -29,6 +33,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    //implicit 
     function intimate(strong, members) {
         if (members) {
             for (var n in members) {
@@ -48,12 +53,82 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
     }
     exports.intimate = intimate;
+    ///////////////////////////////////////////////////////////////
+    // 类型判断
+    function is_string(obj) {
+        return typeof obj === "string";
+    }
+    exports.is_string = is_string;
+    function is_bool(obj) {
+        return typeof obj === "boolean";
+    }
+    exports.is_bool = is_bool;
+    function is_number(obj) {
+        return typeof obj === "number";
+    }
+    exports.is_number = is_number;
+    function is_assoc(obj) {
+        if (!obj)
+            return false;
+        return Object.prototype.toString.call(obj) === "[object Object]";
+    }
+    exports.is_assoc = is_assoc;
+    function is_object(obj) {
+        if (!obj)
+            return false;
+        var t = Object.prototype.toString.call(obj);
+        if (t.indexOf("[object ") == 0)
+            return true;
+    }
+    exports.is_object = is_object;
     function is_array(obj) {
         if (!obj)
             return false;
         return Object.prototype.toString.call(obj) === "[object Array]";
     }
     exports.is_array = is_array;
+    function is_empty(obj) {
+        if (obj === undefined || obj === null || obj === "" || obj === 0)
+            return true;
+        for (var n in obj)
+            return true;
+        return false;
+    }
+    exports.is_empty = is_empty;
+    ////////////////////////////////////////////////////////
+    // 字符串处理
+    var trimreg = /(^\s+)|(\s+$)/g;
+    /**
+     *  去掉两边空格
+     *
+     * @export
+     * @param {*} text
+     * @returns {string}
+     */
+    function trim(text) {
+        if (text === null || text === undefined)
+            return "";
+        text = text.toString().replace(trimreg, "");
+    }
+    exports.trim = trim;
+    var percentRegx = /([+-]?[\d,]+(?:.\d+))%/g;
+    /**
+     * 是否是百分数
+     *
+     * @export
+     * @param {*} text
+     * @returns {number}
+     */
+    function is_percent(text) {
+        if (text === null || text === undefined)
+            return undefined;
+        var match = text.toString().match(percentRegx);
+        if (match)
+            return match[1];
+    }
+    exports.is_percent = is_percent;
+    /////////////////////
+    // 数组处理
     function array_index(obj, item, start) {
         if (start === void 0) { start = 0; }
         if (!obj)
@@ -65,22 +140,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return -1;
     }
     exports.array_index = array_index;
-    var trimreg = /(^\s+)|(\s+$)/g;
-    function trim(text) {
-        if (text === null || text === undefined)
-            return "";
-        text = text.toString().replace(trimreg, "");
+    function array_add_unique(arr, item) {
+        for (var i = 0, j = arr.length; i < j; i++) {
+            if (arr[i] === item)
+                return false;
+        }
+        arr.push(item);
+        return true;
     }
-    exports.trim = trim;
-    var percentRegx = /(\d+(?:.\d+))%/g;
-    function percent(text) {
-        if (text === null || text === undefined)
-            return undefined;
-        var match = text.toString().match(percentRegx);
-        if (match)
-            return match[1];
-    }
-    exports.percent = percent;
+    exports.array_add_unique = array_add_unique;
+    ///////////////////////////////////////
+    // 对象处理
     exports.extend = function () {
         var target = arguments[0] || {};
         for (var i = 1, j = arguments.length; i < j; i++) {
@@ -91,12 +161,418 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return target;
     };
+    var DPath = /** @class */ (function () {
+        function DPath(pathtext) {
+            this.paths = pathtext.split(".");
+        }
+        DPath.prototype.getValue = function (data) {
+            for (var i in this.paths) {
+                if (!data)
+                    return undefined;
+                data = data[this.paths[i]];
+            }
+            return data;
+        };
+        DPath.prototype.setValue = function (data, value) {
+            for (var i = 0, j = this.paths.length - 1; i < j; i++) {
+                var path = this.paths[i];
+                var sub = data[path];
+                if (typeof sub !== "object") {
+                    sub = {};
+                    data[path] = sub;
+                }
+                data = sub;
+            }
+            data[this.paths[this.paths.length - 1]] = value;
+        };
+        DPath.fetch = function (tpath) {
+            return DPath.caches[tpath] || (DPath.caches[tpath] = new DPath(tpath));
+        };
+        DPath.getValue = function (data, tpath) {
+            var dpath = DPath.caches[tpath] || (DPath.caches[tpath] = new DPath(tpath));
+            return dpath.getValue(data);
+        };
+        DPath.setValue = function (data, tpath, value) {
+            var dpath = DPath.caches[tpath] || (DPath.caches[tpath] = new DPath(tpath));
+            return dpath.setValue(data, value);
+        };
+        DPath.replace = function (template, data) {
+            return data ? template.replace(replaceByDataRegx, (function (match) {
+                return DPath.getValue(data, match);
+            })) : template;
+        };
+        DPath.caches = {};
+        return DPath;
+    }());
+    exports.DPath = DPath;
+    var replaceByDataRegx = /\$\{[a-zA-Z_0-9]+(?:.[a-zA-Z0-9_])\}/g;
+    var PromiseStates;
+    (function (PromiseStates) {
+        PromiseStates[PromiseStates["Pending"] = 0] = "Pending";
+        PromiseStates[PromiseStates["Fulfilled"] = 1] = "Fulfilled";
+        PromiseStates[PromiseStates["Rejected"] = -1] = "Rejected";
+    })(PromiseStates = exports.PromiseStates || (exports.PromiseStates = {}));
+    var Promise = /** @class */ (function () {
+        function Promise(statement, sync) {
+            var _this = this;
+            var status = this.$_promise_status = PromiseStates.Pending;
+            var result = this.$_promise_result = undefined;
+            var fulfillCallbacks = this.$_promise_fulfillCallbacks = [];
+            var rejectCallbacks = this.$_promise_rejectCallbacks = [];
+            //Object.defineProperty(this,"$_promise_status",{enumerable:false,configurable:false,get:()=>status});   
+            //Object.defineProperty(this,"$_promise_fulfillCallbacks",{enumerable:false,configurable:false,get:()=>fulfillCallbacks});
+            //Object.defineProperty(this,"$_promise_rejectCallbacks",{enumerable:false,configurable:false,get:()=>rejectCallbacks});   
+            //Object.defineProperty(this,"$_promise_result",{enumerable:false,configurable:false,get:()=>result});   
+            var resolve = function (result) {
+                if (status !== PromiseStates.Pending) {
+                    console.warn("settled状态不应该再调用resolve/reject");
+                    return _this;
+                }
+                //如果是自己，就丢出错误
+                if (result === _this)
+                    throw new TypeError("不能把自己resolve掉啊.");
+                //resolve的结果是了一个thenable
+                if (result && typeof result.then === "function") {
+                    //让该Promise的状态跟resolve result的状态保持一致
+                    result.then(function (value) { return fulfill(value); }, function (value) { return reject(value); });
+                }
+                else {
+                    //如果是其他的类型，就让promise 变更为fulfill状态
+                    fulfill(result);
+                }
+                return _this;
+            };
+            var reject = function (value) {
+                if (status !== PromiseStates.Pending) {
+                    console.warn("settled状态不应该再调用resolve/reject");
+                    return _this;
+                }
+                status = _this.$_promise_status = PromiseStates.Fulfilled;
+                result = _this.$_promise_result = value;
+                _this.resolve = _this.reject = function (params) { return this; };
+                setTimeout(function () {
+                    var rejectHandlers = fulfillCallbacks;
+                    _this.$_promise_fulfillCallbacks = _this.$_promise_rejectCallbacks
+                        = fulfillCallbacks = rejectCallbacks = null;
+                    for (var i in rejectHandlers)
+                        rejectHandlers[i].call(_this, result, false);
+                }, 0);
+                return _this;
+            };
+            var fulfill = function (value) {
+                if (status !== PromiseStates.Pending) {
+                    //循环引用，给个警告，什么都不做
+                    console.warn("已经处于Settled状态，无法再更正状态");
+                    return;
+                }
+                status = _this.$_promise_status = PromiseStates.Fulfilled;
+                result = _this.$_promise_result = value;
+                var complete = function () {
+                    var fulfillHandlers = fulfillCallbacks;
+                    _this.$_promise_fulfillCallbacks = _this.$_promise_rejectCallbacks
+                        = fulfillCallbacks = rejectCallbacks = null;
+                    for (var i in fulfillHandlers)
+                        fulfillHandlers[i].call(_this, result, true);
+                };
+                setTimeout(complete, 0);
+            };
+            // ajax().then((rs)=>ajax1()).then
+            this.then = function (fulfillHandler, rejectHandler) {
+                if (status === PromiseStates.Fulfilled && fulfillHandler) {
+                    setTimeout(function () {
+                        fulfillHandler.call(_this, result, true);
+                    }, 0);
+                }
+                if (status === PromiseStates.Rejected && rejectHandler) {
+                    setTimeout(function () {
+                        rejectHandler.call(_this, result, false);
+                    }, 0);
+                }
+                if (status !== PromiseStates.Pending)
+                    return _this;
+                if (!fulfillHandler && !rejectHandler)
+                    return _this;
+                var innerResolve;
+                var innerReject;
+                var newPromise = new Promise(function (resolve, reject) {
+                    innerResolve = resolve;
+                    innerResolve = reject;
+                });
+                if (fulfillHandler) {
+                    fulfillCallbacks.push(function (value) {
+                        var rs = fulfillHandler.call(_this, value, true);
+                        if (rs && typeof rs.then === "function") {
+                            rs.then(innerResolve, innerReject);
+                        }
+                        else
+                            innerResolve.call(newPromise, rs);
+                    });
+                }
+                if (rejectHandler) {
+                    rejectCallbacks.push(function (value) {
+                        rejectHandler.call(_this, value, false);
+                        innerResolve(undefined);
+                    });
+                }
+                return newPromise;
+            };
+            if (statement) {
+                if (sync) {
+                    try {
+                        statement.call(this, resolve, reject);
+                    }
+                    catch (ex) {
+                        reject(ex);
+                    }
+                }
+                else
+                    setTimeout(function () {
+                        try {
+                            statement.call(_this, resolve, reject);
+                        }
+                        catch (ex) {
+                            reject(ex);
+                        }
+                    }, 0);
+            }
+            else {
+                this.resolve = function (value) { setTimeout(function () { return resolve(value); }, 0); return _this; };
+                this.reject = function (value) { setTimeout(function () { return reject(value); }, 0); return _this; };
+            }
+        }
+        Promise.prototype.then = function (fulfillCallback, rejectCallback) {
+            console.warn("called on placehold method.");
+            return this;
+        };
+        Promise.prototype.resolve = function (result) {
+            console.warn("当Promise设置了异步函数时，resolve/reject应该由Promise的异步函数调用");
+            return this;
+        };
+        Promise.prototype.reject = function (result) {
+            console.warn("当Promise设置了异步函数时，resolve/reject应该由Promise的异步函数调用");
+            return this;
+        };
+        Promise.prototype.success = function (callback) {
+            return this.then(callback);
+        };
+        Promise.prototype.error = function (callback) {
+            return this.then(undefined, callback);
+        };
+        Promise.prototype.complete = function (callback) {
+            return this.then(callback, callback);
+        };
+        Promise.prototype.catch = function (callback) {
+            return this.then(undefined, callback);
+        };
+        Promise.resolve = function (value) {
+            return new Promise(function (resolve, reject) { return resolve(value); });
+        };
+        Promise.reject = function (value) {
+            return new Promise(function (resolve, reject) { return reject(value); });
+        };
+        Promise.all = function (thenables, sync) {
+            return new Promise(function (resolve, reject) {
+                var waitCount = thenables.length;
+                var rs = [];
+                for (var i in thenables)
+                    (function (thenable, i) {
+                        thenables[i].then(function (value) {
+                            if (rs) {
+                                rs[i] = value;
+                                if (--waitCount == 0)
+                                    resolve(rs);
+                            }
+                        }, function (err) {
+                            rs = undefined;
+                            reject(err);
+                        });
+                    })(thenables[i], i);
+            }, sync);
+        };
+        return Promise;
+    }());
+    exports.Promise = Promise;
+    if (typeof window !== 'undefined') {
+        if (!window.Promise)
+            window.Promise = Promise;
+    }
+    /**
+     * 可监听对象类
+     * 实现订阅/发布模式
+     * 它支持订阅/发布某个主题;如果未指定主题，默认主题为""
+     * 它的所有关于订阅发布的成员字段/函数都是enumerable=false的
+     * 一般用作其他类型的基类
+     *
+     * @export
+     * @class Observable
+     * @implements {IObservable<TEvtArgs>}
+     * @template TEvtArgs 事件参数的类型
+     */
+    var Subject = /** @class */ (function () {
+        function Subject() {
+            Object.defineProperty(this, "$__topics__", { enumerable: false, writable: false, configurable: false, value: {} });
+        }
+        /**
+         * 注册监听函数
+         * notify的时候，注册了相关主题的监听函数会被调用
+         * 如果不指明主题topic，默认topic=""
+         *
+         * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
+         * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
+         * @returns {ISubject<TEvtArgs>} 可监听对象
+         * @memberof Observable
+         */
+        Subject.prototype.subscribe = function (topic, listener, disposible) {
+            var _this = this;
+            if (listener === undefined) {
+                listener = topic;
+                topic = "";
+            }
+            else if (typeof topic === "function") {
+                disposible = listener;
+                listener = topic;
+                topic = "";
+            }
+            var topics = this.$__topics__, handlers = topics[topic];
+            if (handlers) {
+                if (handlers.$__isFulfilledTopic__) {
+                    listener.call(this, handlers.filfillValue);
+                    return this;
+                }
+            }
+            else
+                topics[topic] = handlers = [];
+            handlers.push(listener);
+            if (disposible && disposible.dispose)
+                disposible.dispose(function (a) { return _this.unsubscribe(topic, listener); });
+            return this;
+        };
+        /**
+         * 取消主题订阅
+         * notify操作时，被取消的监听器不会被调用
+         * 如果不指明主题topic，默认topic=""
+         *
+         * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
+         * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
+         * @returns {ISubject<TEvtArgs>} 可监听对象
+         * @memberof Observable
+         */
+        Subject.prototype.unsubscribe = function (topic, listener) {
+            if (listener === undefined) {
+                listener = topic;
+                topic = "";
+            }
+            var topics = this.$__topics__, handlers = topics[topic];
+            if (!handlers)
+                return this;
+            for (var i = 0, j = handlers.length; i < j; i++) {
+                var existed = handlers.shift();
+                if (existed !== listener)
+                    handlers.push(existed);
+            }
+            return this;
+        };
+        /**
+         * 发送通知
+         * 如果相关主题上有监听器，会逐个调用监听器
+         * 如果不指明主题topic，默认topic=""
+         *
+         * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
+         * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
+         * @returns {ISubject<TEvtArgs>} 可监听对象
+         * @memberof Observable
+         */
+        Subject.prototype.notify = function (topic, evtArgs) {
+            if (evtArgs === undefined) {
+                evtArgs = topic;
+                topic = "";
+            }
+            var topics = this.$__topics__, handlers = topics[topic];
+            if (!handlers)
+                return this;
+            for (var i in handlers) {
+                handlers[i].call(this, evtArgs);
+            }
+            return this;
+        };
+        Subject.prototype.fulfill = function (topic, evtArgs) {
+            if (evtArgs === undefined) {
+                evtArgs = topic;
+                topic = "";
+            }
+            var topics = this.$__topics__, handlers = topics[topic];
+            if (handlers.$__isFulfilledTopic__)
+                throw new Error(topic + " \u5DF2\u7ECF\u5177\u5907\u7EC8\u503C\uFF0C\u4E0D\u53EF\u4EE5\u518D\u53D1\u9001\u7EC8\u503C.");
+            topics[topic] = {
+                $__isFulfilledTopic__: true, $fulfillValue: evtArgs
+            };
+            var accelerator = this[topic];
+            if (accelerator && accelerator.$__isEventAccelerator__) {
+                Object.defineProperty(this, topic, { enumerable: false, writable: true, configurable: true, value: function (handler) {
+                        handler.call(this, evtArgs);
+                        return this;
+                    } });
+            }
+            if (!handlers)
+                return this;
+            for (var i in handlers) {
+                handlers[i].call(this, evtArgs);
+            }
+            return this;
+        };
+        Subject = __decorate([
+            intimate()
+        ], Subject);
+        return Subject;
+    }());
+    exports.Subject = Subject;
+    function eventable(subject, topic) {
+        var accelorator = subject[topic];
+        if (accelorator && accelorator.$__isEventAccelerator__)
+            return subject;
+        accelorator = function (handler) {
+            var topics = this.$__topics__;
+            if (!topics)
+                Object.defineProperty(this, "$__topics__", { enumerable: false, writable: false, configurable: false, value: topics = {} });
+            var handlers = topics[topic];
+            if (typeof handler === "function") {
+                if (!handlers)
+                    topics[topic] = [];
+                handlers.push(handler);
+            }
+            else {
+                var result_1 = handler;
+                Object.defineProperty(this, topic, { enumerable: false, configurable: true, writable: true, value: function (handler) {
+                        handler.call(result_1);
+                        return this;
+                    } });
+                topics[topic] = { $__isFulfilledTopic__: true, fulfillValue: handler };
+                if (!handlers)
+                    return this;
+                for (var i in handlers)
+                    handlers[i].call(this, result_1);
+            }
+            return this;
+        };
+        Object.defineProperty(subject, topic, { enumerable: false, writable: true, configurable: true, value: accelorator });
+        return subject;
+    }
+    exports.eventable = eventable;
+    var cidSeed = 0;
+    function new_cid() {
+        if (++cidSeed === 2100000000)
+            cidSeed = -cidSeed;
+        else if (cidSeed === 0)
+            return cidSeed = 1;
+        return cidSeed;
+    }
+    exports.new_cid = new_cid;
     var Disposable = /** @class */ (function () {
         function Disposable(target) {
             target || (target = this);
             Object.defineProperty(target, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: false });
-            Object.defineProperty(target, "$_onrelases", { enumerable: false, configurable: false, writable: true, value: undefined });
-            Object.defineProperty(target, "$dispose", { enumerable: false, configurable: false, writable: true, value: function (onRelease) {
+            Object.defineProperty(target, "$__onReleases__", { enumerable: false, configurable: false, writable: true, value: undefined });
+            Object.defineProperty(target, "dispose", { enumerable: false, configurable: false, writable: true, value: function (onRelease) {
                     if (this.$isDisposed)
                         throw new Error("不能释放已经释放的资源");
                     if (onRelease === undefined) {
@@ -121,116 +597,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 } });
             return target;
         }
-        Disposable.prototype.$dispose = function (onRealse) {
+        Disposable.prototype.dispose = function (onRealse) {
             return this;
         };
         return Disposable;
     }());
     exports.Disposable = Disposable;
-    /**
-     * 可监听对象类
-     * 实现订阅/发布模式
-     * 它支持订阅/发布某个主题;如果未指定主题，默认主题为""
-     * 它的所有关于订阅发布的成员字段/函数都是enumerable=false的
-     * 一般用作其他类型的基类
-     *
-     * @export
-     * @class Observable
-     * @implements {IObservable<TEvtArgs>}
-     * @template TEvtArgs 事件参数的类型
-     */
-    var Subject = /** @class */ (function () {
-        function Subject() {
-            Object.defineProperty(this, "$_topics", { enumerable: false, writable: true, configurable: false });
-        }
-        /**
-         * 注册监听函数
-         * $notify的时候，注册了相关主题的监听函数会被调用
-         * 如果不指明主题topic，默认topic=""
-         *
-         * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 监听函数或则主题
-         * @param {{(evt:TEvtArgs):any}} [listener] 监听函数。如果第一个参数是主题，该参数才起作用。
-         * @returns {ISubject<TEvtArgs>} 可监听对象
-         * @memberof Observable
-         */
-        Subject.prototype.$subscribe = function (topicOrListener, listener, disposible) {
-            var _this = this;
-            if (listener === undefined) {
-                listener = topicOrListener;
-                topicOrListener = "";
-            }
-            else if (typeof topicOrListener === "function") {
-                disposible = listener;
-                listener = topicOrListener;
-                topicOrListener = "";
-            }
-            var topics = this.$_topics || (this.$_topics = {});
-            if (typeof topicOrListener === "function")
-                debugger;
-            var handlers = topics[topicOrListener] || (topics[topicOrListener] = []);
-            handlers.push(listener);
-            if (disposible)
-                disposible.$dispose(function (a) { return _this.$unsubscribe(topicOrListener, listener); });
-            return this;
-        };
-        /**
-         * 取消主题订阅
-         * $notify操作时，被取消的监听器不会被调用
-         * 如果不指明主题topic，默认topic=""
-         *
-         * @param {(string|{(evt:TEvtArgs):any})} topicOrListener 要需要的主题或监听器
-         * @param {{(evt:TEvtArgs):any}} [listener] 要取消的监听器，只有当topicOrListner参数为topic时，才需要该参数
-         * @returns {ISubject<TEvtArgs>} 可监听对象
-         * @memberof Observable
-         */
-        Subject.prototype.$unsubscribe = function (topicOrListener, listener) {
-            if (listener === undefined) {
-                listener = topicOrListener;
-                topicOrListener = "";
-            }
-            var topics, handlers;
-            if (!(topics = this.$_topics))
-                return this;
-            if (!(handlers = topics[topicOrListener]))
-                return this;
-            for (var i = 0, j = handlers.length; i < j; i++) {
-                var existed = handlers.shift();
-                if (existed !== listener)
-                    handlers.push(existed);
-            }
-            return this;
-        };
-        /**
-         * 发送通知
-         * 如果相关主题上有监听器，会逐个调用监听器
-         * 如果不指明主题topic，默认topic=""
-         *
-         * @param {(string|TEvtArgs)} topicOrEvtArgs 通知的主题或事件参数
-         * @param {TEvtArgs} [evt] 事件参数，只有topicOrEvtArgs是topic才需要该参数
-         * @returns {ISubject<TEvtArgs>} 可监听对象
-         * @memberof Observable
-         */
-        Subject.prototype.$notify = function (topicOrEvtArgs, evtArgs) {
-            if (evtArgs === undefined) {
-                evtArgs = topicOrEvtArgs;
-                topicOrEvtArgs = "";
-            }
-            var topics, handlers;
-            if (!(topics = this.$_topics))
-                return this;
-            if (!(handlers = topics[topicOrEvtArgs]))
-                return this;
-            for (var i in handlers) {
-                handlers[i].call(this, evtArgs);
-            }
-            return this;
-        };
-        Subject = __decorate([
-            intimate()
-        ], Subject);
-        return Subject;
-    }());
-    exports.Subject = Subject;
     //defineMembers(Observable.prototype);
     //================================================================
     var DataTypes;
@@ -339,7 +711,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return _this;
         }
         Observable_1 = Observable;
-        Observable.prototype.$get = function (accessMode) {
+        Observable.prototype.get = function (accessMode) {
             if (accessMode === undefined)
                 accessMode = Observable_1.accessMode;
             if (accessMode == ObservableModes.Raw)
@@ -350,19 +722,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return this;
             return (this.$_modifiedValue === undefined) ? this.$target : (this.$_modifiedValue === Undefined ? undefined : this.$_modifiedValue);
         };
-        Observable.prototype.$set = function (newValue, updateImmediately) {
+        Observable.prototype.set = function (newValue, updateImmediately) {
             if (newValue && newValue instanceof Observable_1)
-                newValue = newValue.$get(ObservableModes.Value);
+                newValue = newValue.get(ObservableModes.Value);
             if (Observable_1.accessMode === ObservableModes.Raw) {
                 this.$_raw.call(this, newValue);
                 return this;
             }
             this.$_modifiedValue = newValue === undefined ? Undefined : newValue;
             if (updateImmediately)
-                this.$update();
+                this.update();
             return this;
         };
-        Observable.prototype.$update = function () {
+        Observable.prototype.update = function () {
             var newValue = this.$_modifiedValue;
             if (newValue === undefined)
                 return true;
@@ -372,13 +744,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (newValue !== oldValue) {
                 this.$_raw(this.$target = newValue);
                 var evtArgs = { type: ChangeTypes.Value, value: newValue, old: oldValue, sender: this };
-                this.$notify(evtArgs);
+                this.notify(evtArgs);
                 return evtArgs.cancel !== true;
             }
             return true;
         };
         Observable.prototype.toString = function () {
-            var currentValue = this.$get(ObservableModes.Default);
+            var currentValue = this.get(ObservableModes.Default);
             return currentValue === undefined || currentValue === null ? "" : currentValue.toString();
         };
         var Observable_1;
@@ -417,7 +789,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 _this.$_raw(_this.$target = {});
             if (!_this.$schema) {
                 _this.$schema = new ObservableSchema(_this.$target);
-                _this.$schema.$initObject(_this);
+                _this.$schema.initObject(_this);
             }
             return _this;
         }
@@ -427,7 +799,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return _this[name];
             });
         };
-        ObservableObject.prototype.$get = function (accessMode) {
+        ObservableObject.prototype.get = function (accessMode) {
             var _this = this;
             if (accessMode === undefined)
                 accessMode = Observable.accessMode;
@@ -442,18 +814,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         if (n === "constructor" || n[0] === "$")
                             continue;
                         var prop = _this[n];
-                        rs[n] = prop.$get(ObservableModes.Value);
+                        rs[n] = prop.get(ObservableModes.Value);
                     }
                     return rs;
                 });
             }
             return this;
         };
-        ObservableObject.prototype.$set = function (newValue, updateImmediately) {
+        ObservableObject.prototype.set = function (newValue, updateImmediately) {
             var _this = this;
             if (newValue && newValue instanceof Observable)
-                newValue = newValue.$get(ObservableModes.Value);
-            _super.prototype.$set.call(this, newValue || null);
+                newValue = newValue.get(ObservableModes.Value);
+            _super.prototype.set.call(this, newValue || null);
             if (!newValue)
                 return this;
             proxyMode(function () {
@@ -462,23 +834,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         continue;
                     var proxy = _this[n];
                     if (proxy instanceof Observable)
-                        proxy.$set(newValue[n]);
+                        proxy.set(newValue[n]);
                 }
             });
             if (updateImmediately)
                 this.$update();
             return this;
         };
-        ObservableObject.prototype.$update = function () {
+        ObservableObject.prototype.update = function () {
             var _this = this;
-            var result = _super.prototype.$update.call(this);
+            var result = _super.prototype.update.call(this);
             if (result === false)
                 return false;
             proxyMode(function () {
                 for (var n in _this) {
                     var proxy = _this[n];
                     if (proxy instanceof Observable)
-                        proxy.$update();
+                        proxy.update();
                 }
             });
             return true;
@@ -533,7 +905,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     var item = _this[i];
                     if (i !== 0)
                         ret += ",";
-                    ret += "" + item.$get(ObservableModes.Default);
+                    ret += "" + item.get(ObservableModes.Default);
                 }
             });
             return ret;
@@ -567,7 +939,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
             return this;
         };
-        ObservableArray.prototype.$get = function (accessMode) {
+        ObservableArray.prototype.get = function (accessMode) {
             var _this = this;
             if (accessMode === undefined)
                 accessMode = Observable.accessMode;
@@ -582,22 +954,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         if (n === "constructor" || n[0] === "$")
                             continue;
                         var prop = _this[n];
-                        rs.push(prop.$get(ObservableModes.Value));
+                        rs.push(prop.get(ObservableModes.Value));
                     }
                     return rs;
                 });
             }
             return this;
         };
-        ObservableArray.prototype.$set = function (newValue, updateImmediately) {
+        ObservableArray.prototype.set = function (newValue, updateImmediately) {
             if (newValue && newValue instanceof Observable)
-                newValue = newValue.$get(ObservableModes.Value);
+                newValue = newValue.get(ObservableModes.Value);
             else {
                 var newArr = [];
                 for (var _i = 0, newValue_1 = newValue; _i < newValue_1.length; _i++) {
                     var item = newValue_1[_i];
                     if (item instanceof Observable)
-                        newArr.push(item.$get(ObservableModes.Value));
+                        newArr.push(item.get(ObservableModes.Value));
                     else
                         newArr.push(item);
                 }
@@ -605,7 +977,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             newValue || (newValue = []);
             this.clear();
-            _super.prototype.$set.call(this, newValue);
+            _super.prototype.set.call(this, newValue);
             if (Observable.accessMode === ObservableModes.Raw) {
                 return this;
             }
@@ -614,11 +986,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             ;
             this.$_length = newValue.length;
             if (updateImmediately)
-                this.$update();
+                this.update();
             return this;
         };
-        ObservableArray.prototype.$update = function () {
-            if (!_super.prototype.$update.call(this))
+        ObservableArray.prototype.update = function () {
+            if (!_super.prototype.update.call(this))
                 return true;
             var changes = this.$_changes;
             if (!changes || this.$_changes.length === 0)
@@ -629,42 +1001,42 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var change = changes[i];
                 switch (change.type) {
                     case ChangeTypes.Remove:
-                        change.sender.$notify(change);
+                        change.sender.notify(change);
                     case ChangeTypes.Push:
                         arr.push(change.value);
-                        this.$notify(change);
-                        //if(change.cancel!==true && change.item) change.item.$notify(change);
+                        this.notify(change);
+                        //if(change.cancel!==true && change.item) change.item.notify(change);
                         break;
                     case ChangeTypes.Pop:
                         arr.pop();
-                        this.$notify(change);
+                        this.notify(change);
                         if (change.cancel !== true && change.item) {
                             change.sender = change.item;
-                            change.item.$notify(change);
+                            change.item.notify(change);
                         }
                         break;
                     case ChangeTypes.Unshift:
                         arr.unshift(change.value);
-                        this.$notify(change);
+                        this.notify(change);
                         break;
                     case ChangeTypes.Shift:
                         arr.shift();
-                        this.$notify(change);
+                        this.notify(change);
                         if (change.cancel !== true && change.item) {
                             change.sender = change.item;
-                            change.item.$notify(change);
+                            change.item.notify(change);
                         }
                         break;
                     case ChangeTypes.Item:
                         arr[change.index] = change.value;
-                        this.$notify(change);
+                        this.notify(change);
                         if (change.cancel !== true) {
                             var itemEvts = {};
                             for (var n in change)
                                 itemEvts[n] = change[n];
                             itemEvts.sender = change.item;
                             itemEvts.type = ChangeTypes.Value;
-                            itemEvts.sender.$notify(itemEvts);
+                            itemEvts.sender.notify(itemEvts);
                         }
                         break;
                 }
@@ -682,7 +1054,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var item = new obArray.$_itemSchema.$ctor(obArray, index, undefined);
         item.$_index = index;
         Object.defineProperty(obArray, index, { enumerable: true, configurable: true,
-            get: function (mode) { return item.$get(mode); },
+            get: function (mode) { return item.get(mode); },
             set: function (item_value) {
                 (obArray.$_changes || (obArray.$_changes = [])).push({
                     sender: obArray,
@@ -691,7 +1063,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     item: item,
                     value: item_value
                 });
-                item.$set(item_value);
+                item.set(item_value);
             }
         });
     }
@@ -707,7 +1079,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     Object.defineProperty(this, private_prop_name, {
                         enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
                     });
-                return ob.get ? ob.get(param) : ob.$get(param);
+                return ob.get(param);
             },
             set: function (val) {
                 var ob = this[private_prop_name];
@@ -715,7 +1087,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     Object.defineProperty(this, private_prop_name, {
                         enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
                     });
-                return ob.set ? ob.set(val) : ob.$set(val);
+                return ob.set(val);
             }
         });
         return this;
@@ -749,13 +1121,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (initData) {
                 var t = Object.prototype.toString.call(initData);
                 if (t === "[object Object]") {
-                    this.$asObject();
+                    this.asObject();
                     for (var n in initData) {
-                        this.$defineProp(n, initData[n]);
+                        this.defineProp(n, initData[n]);
                     }
                 }
                 else if (t === "[object Array]") {
-                    this.$asArray();
+                    this.asArray();
                 }
                 else {
                     this.$type = DataTypes.Value;
@@ -764,7 +1136,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         }
         ObservableSchema_1 = ObservableSchema;
-        ObservableSchema.prototype.$getFromRoot = function (root, mode) {
+        ObservableSchema.prototype.getFromRoot = function (root, mode) {
             var _this = this;
             if (mode === void 0) { mode = ObservableModes.Observable; }
             return observableMode(mode, function () {
@@ -777,7 +1149,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return data;
             });
         };
-        ObservableSchema.prototype.$asObject = function () {
+        ObservableSchema.prototype.asObject = function () {
             if (this.$type === DataTypes.Object)
                 return this;
             if (this.$type === DataTypes.Array)
@@ -795,7 +1167,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this.$ctor = _ObservableObject;
             return this;
         };
-        ObservableSchema.prototype.$defineProp = function (propname, initValue) {
+        ObservableSchema.prototype.defineProp = function (propname, initValue) {
             if (this.$type !== DataTypes.Object)
                 throw new Error("调用$defineProp之前，要首先调用$asObject");
             var propSchema = new ObservableSchema_1(initValue, propname, this);
@@ -803,7 +1175,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             defineProp(this.$ctor.prototype, propname, function (owner, name) { return new propSchema.$ctor(this, name); });
             return propSchema;
         };
-        ObservableSchema.prototype.$asArray = function () {
+        ObservableSchema.prototype.asArray = function () {
             if (this.$type === DataTypes.Array)
                 return this;
             if (this.$type === DataTypes.Object)
@@ -830,7 +1202,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _ObservableArray.prototype.$schema = this;
             this.$ctor = _ObservableArray;
         };
-        ObservableSchema.prototype.$initObject = function (ob) {
+        ObservableSchema.prototype.initObject = function (ob) {
             var _loop_1 = function (n) {
                 if (n === "constructor" || n[0] === "$" || n === ObservableSchema_1.schemaToken)
                     return "continue";
@@ -853,7 +1225,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var ReactiveTypes;
     (function (ReactiveTypes) {
-        ReactiveTypes[ReactiveTypes["NotReactive"] = 0] = "NotReactive";
+        ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
         ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
         ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
         ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
@@ -1036,7 +1408,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         for (var name_1 in meta.reactives) {
             var stateInfo = meta.reactives[name_1];
-            if (stateInfo.type === ReactiveTypes.NotReactive)
+            if (stateInfo.type === ReactiveTypes.None)
                 continue;
             var initData = firstComponent[stateInfo.name];
             var schema = stateInfo.schema;
@@ -1050,7 +1422,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         for (var name_2 in meta.templates) {
             initTemplate(firstComponent, meta.templates[name_2]);
         }
-        if (!meta.ctor.prototype.$dispose) {
+        if (!meta.ctor.prototype.dispose) {
             Disposable.call(meta.ctor.prototype);
         }
         meta.inited = true;
@@ -1068,15 +1440,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var ob = states[stateInfo.name];
                 if (!ob)
                     ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
-                return ob.$get();
+                return ob.get();
             },
             set: function (val) {
                 var states = this.$reactives || (this.$reactives = {});
                 var ob = states[stateInfo.name];
-                if (val && val.$get)
-                    val = val.$get(ObservableModes.Value);
+                if (val && val.get)
+                    val = val.get(ObservableModes.Value);
                 if (ob)
-                    ob.$set(val);
+                    ob.set(val);
                 else
                     ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
             }
@@ -1093,7 +1465,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     return stateInfo.schema;
                 var states = firstComponent.$reactives || (firstComponent.$reactives = {});
                 var ob = states[stateInfo.name];
-                return ob ? ob.$get() : undefined;
+                return ob ? ob.get() : undefined;
             },
             set: function (val) {
                 var states = firstComponent.$reactives || (firstComponent.$reactives = {});
@@ -1102,7 +1474,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     return;
                 }
                 var ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-                //ob.$set(val);
             }
         };
         Object.defineProperty(firstComponent, stateInfo.name, descriptor);
@@ -1162,7 +1533,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return function () {
             var rs = method.apply(component, arguments);
             for (var n in component.$reactives) {
-                component.$reactives[n].$update();
+                component.$reactives[n].update();
             }
             return rs;
         };
@@ -1239,9 +1610,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         VirtualTextNode.prototype.render = function (component, container) {
             var elem;
             if (this.content instanceof ObservableSchema) {
-                var ob = this.content.$getFromRoot(component);
-                elem = exports.Host.createText(ob.$get());
-                ob.$subscribe(function (e) {
+                var ob = this.content.getFromRoot(component);
+                elem = exports.Host.createText(ob.get());
+                ob.subscribe(function (e) {
                     elem.nodeValue = e.value;
                 });
             }
@@ -1284,9 +1655,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         bindResult = binder.call(component, elem, attrValue, component, this);
                     else
                         (function (name, attrValue) {
-                            var ob = attrValue.$getFromRoot(component);
-                            exports.Host.setAttribute(elem, name, ob.$get(ObservableModes.Raw));
-                            ob.$subscribe(function (e) {
+                            var ob = attrValue.getFromRoot(component);
+                            exports.Host.setAttribute(elem, name, ob.get(ObservableModes.Raw));
+                            ob.subscribe(function (e) {
                                 exports.Host.setAttribute(elem, name, e.value);
                             });
                         })(attrName, attrValue);
@@ -1366,9 +1737,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var subAttr = subComponent[subAttrName];
         if (subStateType === ReactiveTypes.Out) {
             if (bindValue instanceof ObservableSchema) {
-                subAttr.$subscribe(function (e) {
+                subAttr.subscribe(function (e) {
                     //这里的级联update可能会有性能问题，要优化
-                    bindValue.$getFromRoot(component).$set(e.value, true);
+                    bindValue.getFromRoot(component).set(e.value, true);
                 }, component);
             }
             else {
@@ -1377,12 +1748,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         else if (subStateType === ReactiveTypes.In) {
             if (bindValue instanceof ObservableSchema) {
-                var bindOb = bindValue.$getFromRoot(component);
-                bindOb.$subscribe(function (e) {
+                var bindOb = bindValue.getFromRoot(component);
+                bindOb.subscribe(function (e) {
                     //这里的级联update可能会有性能问题，要优化
-                    subAttr.$set(e.value, true);
+                    subAttr.set(e.value, true);
                 }, subComponent);
-                subAttr.$_raw(subAttr.$target = clone(bindOb.$get(ObservableModes.Raw), true));
+                subAttr.$_raw(subAttr.$target = clone(bindOb.get(ObservableModes.Raw), true));
             }
             else {
                 subAttr.$_raw(subAttr.$target = bindValue);
@@ -1392,10 +1763,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else if (subStateType === ReactiveTypes.Parameter) {
             if (bindValue instanceof ObservableSchema) {
                 //这里的级联update可能会有性能问题，要优化
-                var bindOb = bindValue.$getFromRoot(component);
-                bindOb.$subscribe(function (e) { return subAttr.$set(e.value, true); }, subComponent);
-                subAttr.$_raw(subAttr.$target = bindOb.$get(ObservableModes.Raw));
-                subAttr.$subscribe(function (e) { return bindValue.$getFromRoot(component).$set(e.value, true); }, component);
+                var bindOb = bindValue.getFromRoot(component);
+                bindOb.subscribe(function (e) { return subAttr.set(e.value, true); }, subComponent);
+                subAttr.$_raw(subAttr.$target = bindOb.get(ObservableModes.Raw));
+                subAttr.subscribe(function (e) { return bindValue.getFromRoot(component).set(e.value, true); }, component);
             }
             else {
                 subAttr.$_raw(subAttr.$target = bindValue);
@@ -1403,7 +1774,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         }
         else {
-            var value = bindValue instanceof ObservableSchema ? bindValue.$getFromRoot(component).$get() : bindValue;
+            var value = bindValue instanceof ObservableSchema ? bindValue.getFromRoot(component).get() : bindValue;
             value = clone(value, true);
             if (subAttr instanceof Observable)
                 subAttr.$_raw(value);
@@ -1445,10 +1816,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var value = bindValue[1];
         var key = bindValue[2];
         if (each instanceof ObservableSchema) {
-            each = each.$getFromRoot(component);
+            each = each.getFromRoot(component);
             if (!ignoreAddRel)
                 addRelElements(each, elem);
-            each.$subscribe(function (e) {
+            each.subscribe(function (e) {
                 if (e.type === ChangeTypes.Value) {
                     elem.innerHTML = "";
                     observableMode(ObservableModes.Observable, function () {
@@ -1463,13 +1834,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         for (var k in each) {
             if (k === "constructor" || k[0] === "$")
                 continue;
-            //if(key)  key.$getFromRoot(component).$renew(k);
             var item = each[k];
             var obItem = setIterator(component, value, item);
             for (var i in vnode.children) {
                 var childElements = vnode.children[i].render(component, elem);
                 addRelElements(obItem, childElements);
-                obItem.$subscribe(function (e) {
+                obItem.subscribe(function (e) {
                     if (e.type === ChangeTypes.Remove) {
                         var obItem_1 = e.sender;
                         var nodes = getRelElements(obItem_1);
@@ -1479,7 +1849,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                                 node.parentNode.removeChild(node);
                             if (node.$_YA_COMPONENT) {
                                 if (!node.$_YA_COMPONENT.$isDisposed) {
-                                    node.$_YA_COMPONENT.$dispose();
+                                    node.$_YA_COMPONENT.dispose();
                                 }
                                 node.$_YA_COMPONENT = undefined;
                             }
@@ -1492,9 +1862,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     };
     exports.attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
         if (bindValue instanceof ObservableSchema) {
-            var ob = bindValue.$getFromRoot(component);
+            var ob = bindValue.getFromRoot(component);
             var placeholder_1 = exports.Host.createPlaceholder();
-            var isElementInContainer_1 = ob.$get();
+            var isElementInContainer_1 = ob.get();
             if (!isElementInContainer_1) {
                 var p = exports.Host.getParent(elem);
                 if (p) {
@@ -1504,7 +1874,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 else
                     exports.Host.hide(elem);
             }
-            ob.$subscribe(function (e) {
+            ob.subscribe(function (e) {
                 if (e.value) {
                     if (!isElementInContainer_1) {
                         var p = exports.Host.getParent(placeholder_1);
@@ -1548,8 +1918,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return;
         }
         if (bindValue instanceof ObservableSchema) {
-            var ob = bindValue.$getFromRoot(component);
-            var val = ob.$get(ObservableModes.Value);
+            var ob = bindValue.getFromRoot(component);
+            var val = ob.get(ObservableModes.Value);
             if (typeof val === "string")
                 elem.style.cssText = val;
             else {
@@ -1558,7 +1928,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     elem.style[n] = convertor ? convertor(val[n]) : val[n];
                 }
             }
-            ob.$subscribe(function (e) {
+            ob.subscribe(function (e) {
                 var val = e.value;
                 if (typeof val === "string")
                     elem.style.cssText = val;
@@ -1577,18 +1947,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var convertor = exports.styleConvertors[styleName];
                 if (subValue instanceof Observable) {
                     ob = subValue;
-                    styleValue = ob.$get();
+                    styleValue = ob.get();
                 }
                 else if (subValue instanceof ObservableSchema) {
-                    ob = subValue.$getFromRoot(component);
-                    styleValue = ob.$get();
+                    ob = subValue.getFromRoot(component);
+                    styleValue = ob.get();
                 }
                 else
                     styleValue = subValue;
                 elem.style[styleName] = convertor ? convertor(styleValue) : styleValue;
                 if (ob) {
                     addRelElements(ob, elem);
-                    ob.$subscribe(function (e) {
+                    ob.subscribe(function (e) {
                         elem.style[styleName] = convertor ? convertor(e.value) : e.value;
                     });
                 }
@@ -1613,8 +1983,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return false;
         return includeText ? true : elem.nodeType === 1;
     };
-    exports.Host.createElement = function (tag) {
-        return document.createElement(tag);
+    exports.Host.createElement = function (tag, container) {
+        var tagName, attrs;
+        if (typeof tag === "object") {
+            tagName = tag.tagName;
+            attrs = tag;
+        }
+        else
+            tagName = tag;
+        var elem = document.createElement(tag);
+        if (container)
+            exports.Host.appendChild(container, elem);
+        if (attrs)
+            for (var n in attrs) {
+                if (n === "content")
+                    exports.Host.setContent(elem, attrs[n]);
+                else if (n !== "tagName")
+                    exports.Host.setAttribute(elem, n, attrs[n]);
+            }
+        return elem;
     };
     exports.Host.createText = function (txt) {
         return document.createTextNode(txt);
@@ -1624,6 +2011,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         rs.className = "YA-PLACEHOLDER";
         rs.style.display = "none";
         return rs;
+    };
+    exports.Host.setContent = function (elem, content) {
+        elem.innerHTML = content;
     };
     exports.Host.setAttribute = function (elem, name, value) {
         elem.setAttribute(name, value);
@@ -1715,12 +2105,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.THIS = THIS;
     //=======================================================================
+    //=======================================================================
+    function queryString(str) {
+        var at = str.indexOf("#");
+        if (at >= 0)
+            str = str.substr(0, at - 1);
+        var pairs = str.split('&');
+        var rs = {};
+        for (var i in pairs) {
+            var pair = pairs[i].split("=");
+            rs[pair[0]] = pair[1];
+        }
+        return rs;
+    }
+    exports.queryString = queryString;
+    //=======================================================================
     var YA = {
         Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders,
         VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: EXP,
         Host: exports.Host, styleConvertors: exports.styleConvertors,
-        intimate: intimate, clone: clone
+        intimate: intimate, clone: clone, Promise: Promise
     };
     if (typeof window !== 'undefined')
         window.YA = YA;

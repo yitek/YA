@@ -39,7 +39,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 // 在title属性上注册一个事件监听
                 var titleChangeInfo;
                 YA.proxyMode(function () {
-                    proxy.title.$subscribe(function (e) {
+                    proxy.title.subscribe(function (e) {
                         titleChangeInfo = e;
                     });
                 });
@@ -53,7 +53,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //在Proxy访问模式下，可以从模型中获取到原始的值
                 var raw_title_value;
                 YA.proxyMode(function () {
-                    raw_title_value = proxy.title.$get(YA.ObservableModes.Raw);
+                    raw_title_value = proxy.title.get(YA.ObservableModes.Raw);
                 });
                 assert_statement(function (assert) {
                     assert("YA framework", raw_title_value, "raw_title_vale === 'YA framework'");

@@ -19,18 +19,18 @@ export class ObservableTest {
             });
             
             //2 可以通过$get()获取到它的值
-            let value_beforeSet = proxy.$get();
+            let value_beforeSet = proxy.get();
             assert_statement((assert:TAssert)=>{
                 assert(12,value_beforeSet,"value_beforeSet===raw_value===12");
             });
 
             //2 在代理上注册一个监听器,将接收到的事件参数存入changeInfo
             let changeInfo :YA.IChangeEventArgs<number>;
-            proxy.$subscribe((e:YA.IChangeEventArgs<number>)=>changeInfo=e);
+            proxy.subscribe((e:YA.IChangeEventArgs<number>)=>changeInfo=e);
 
             //3 通过$set改变代理的值
-            proxy.$set(33);
-            let value_afterSet = proxy.$get();
+            proxy.set(33);
+            let value_afterSet = proxy.get();
             assert_statement((assert:TAssert)=>{
                 assert(33,value_afterSet,"set操作后，代理的数据为修改后的值:value_afterSet===33");
                 assert(12,raw_data,"update操作之前，被代理的数据不会变化:raw_value===12");
@@ -40,7 +40,7 @@ export class ObservableTest {
             });
 
             //4 用最新写入的数据，更新被代理的数据
-            proxy.$update();
+            proxy.update();
             assert_statement((assert:TAssert)=>{
                 assert(33,raw_data,"更新update操作后，被代理的数据变更为修改后的值:raw_data===33");
                 assert(33,proxy.$target,"代理引用的被代理数据变更为新值:proxy.$target===33");
@@ -57,8 +57,8 @@ export class ObservableTest {
             let ob = new YA.Observable((val:number)=>val===undefined?raw_data:raw_data=val,{});    
 
             //2 做一些操作
-            ob.$subscribe(()=>{});
-            ob.$set(12);
+            ob.subscribe(()=>{});
+            ob.set(12);
 
             //3 给可观察对象赋予一个属性
             (ob as any).name = "test";

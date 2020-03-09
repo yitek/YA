@@ -10,18 +10,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "../YA.doct", "../YA.core"], factory);
+        define(["require", "exports", "../YA.doct", "../YA.core", "../dom/YA.dom"], factory);
     }
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA_doct_1 = require("../YA.doct");
     var YA = require("../YA.core");
+    var YA_dom_1 = require("../dom/YA.dom");
     YA_doct_1.doct.output = YA_doct_1.outputToElement;
     var DomTest = /** @class */ (function () {
         function DomTest(cdoc) {
             cdoc.description = "UI\u63A7\u4EF6";
             cdoc.usage("基本用法", function (assert_statement, container) {
+                //Dom的测试
             });
         }
         DomTest.prototype.mask = function (mdoc) {
@@ -50,9 +52,36 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 b.render(container);
             });
         };
+        DomTest.prototype.messageBox = function (mdoc) {
+            mdoc.usage("消息框", function (assert_statement, container) {
+                var Comp = /** @class */ (function () {
+                    function Comp() {
+                        this.message = "点击后面的按键会弹出一个消息框";
+                    }
+                    Comp.prototype.render = function (container) {
+                        return YA.virtualNode("div", null,
+                            YA.virtualNode("input", { type: 'text', "b-value": this.message }),
+                            YA.virtualNode("button", { onclick: this.showMessageBox }, "\u6D88\u606F\u6846"));
+                    };
+                    Comp.prototype.showMessageBox = function (e) {
+                        YA_dom_1.messageBox(this.message).then(function (val) { return console.log("message box return:" + val); });
+                        return false;
+                    };
+                    Comp = __decorate([
+                        YA.component("CompM")
+                    ], Comp);
+                    return Comp;
+                }());
+                var b = new Comp();
+                b.render(container);
+            });
+        };
         __decorate([
             YA_doct_1.doct()
         ], DomTest.prototype, "mask", null);
+        __decorate([
+            YA_doct_1.doct()
+        ], DomTest.prototype, "messageBox", null);
         DomTest = __decorate([
             YA_doct_1.doct("YA.dom")
         ], DomTest);

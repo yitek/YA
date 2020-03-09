@@ -1,17 +1,54 @@
-.mask {
-  z-index: 99999990;
+.ya-mask {
+  z-index: 999999990;
 }
 
-.mask .mask-backend {
+.ya-mask .ya-mask-backend {
   z-index: 99999991;
   background-color: #888888;
   opacity: 0.3;
 }
 
-.mask .mask-front {
-  z-index: 99999992;
+.ya-mask .ya-mask-front {
+  z-index: 9999992;
   background-color: white;
   border: 1px solid white;
   border-radius: 6px;
+  padding: 10px;
+  opacity: 0.9;
+}
+
+.ya-messageBox {
+  z-index: 9999999990;
+}
+
+.ya-messageBox .ya-messageBox-backend {
+  z-index: 9999999991;
+  background-color: #666;
+  opacity: 0.5;
+}
+
+.ya-messageBox .ya-messageBox-front {
+  z-index: 9999999992;
+  background-color: #efefef;
+  border: 1px solid #999;
+  border-radius: 6px;
   padding: 6px;
+  opacity: 0.9;
+}
+
+.ya-messageBox .ya-messageBox-head {
+  border-bottom: 1px solid #aaa;
+  padding: 3px;
+}
+
+.ya-messageBox .ya-messageBox-head .ya-messageBox-closer {
+  padding: 2px;
+}
+
+.ya-messageBox .ya-messageBox-head .ya-messageBox-closer:hover {
+  font-weight: bold;
+}
+
+.ya-messageBox .ya-messageBox-body {
+  margin: 5px;
 }
