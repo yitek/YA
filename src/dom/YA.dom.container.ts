@@ -2,7 +2,7 @@
 import * as YA from "../YA.core";
 import {Dom,dom,Size,Pointer} from "YA.dom";
 
-let Host = YA.Host;
+let Host = YA.DomUtility;
 
 export enum Directions{
     Vertical,
@@ -117,10 +117,10 @@ export class Resizeable{
         apos.x +=evt.clientX;apos.y +=evt.clientY;
         this._msPos = apos;
         this._msSize = this.target.size() as Size;
-        let doc = Host.document;
+        let doc:HTMLDocument = Host.document as any;
         let msk = dom(`<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;'></div>`)
-            .width(Math.max(doc.body.offsetWidth,doc.documentElement.offsetWidth))
-            .height(Math.max(doc.body.offsetHeight,doc.documentElement.offsetHeight))
+            .width(Math.max((doc as any).body.offsetWidth,(doc as any).documentElement.offsetWidth))
+            .height(Math.max(doc.body.offsetHeight,(doc as any).documentElement.offsetHeight))
             .parent(doc.body)
             .on("mousemove",(evt:MouseEvent)=>move_handler.call(this,evt))
             .on("mouseup",(evt)=>{

@@ -1,6 +1,6 @@
 import * as YA from "YA.core";
 
-let Host = YA.Host;
+let Host = YA.DomUtility;
 export interface IDom{
     [index:number]:HTMLElement;
     length:number;
@@ -61,7 +61,7 @@ export class Dom  {
         };
         let handleStr=(str:string)=>{
             if(str[0]==="#"){
-                let elem = Host.document.getElementById(str.substr(1));
+                let elem = (Host.document as any).getElementById(str.substr(1));
                 if(elem) {
                     Object.defineProperty(this,count as any,{enumerable:true,writable:false,configurable:false,value:elem});
                     //if(!(elem as any)[Dom.token]) 
@@ -601,7 +601,7 @@ Dom.object("ydata",(elem:any,name:string)=>{
 
 Dom.element("append",null,(target,opEl)=>target.appendChild(opEl));
 
-let element_wrapper:HTMLElement = YA.Host.document.createElement("div");
+let element_wrapper:HTMLElement = YA.DomUtility.document.createElement("div") as any;
 
 let attach:(elem:HTMLElement,eventId:string,listener:any)=>any;
 let detech:(elem:HTMLElement,eventId:string,listener:any)=>any;
@@ -878,7 +878,7 @@ export class Dragable{
         this._msPos = new Pointer(x,y);
         this._positionValue = this.target.style("position") as string;
         
-        let doc = Host.document;
+        let doc:HTMLDocument = Host.document as any;
         let msk = dom(`<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;opacity:0.1;user-select:none;margin:0;padding:0;' onselectstart="return false;"></div>`)
             .width(Math.max(doc.body.offsetWidth,doc.documentElement.offsetWidth))
             .height(Math.max(doc.body.offsetHeight,doc.documentElement.offsetHeight))
@@ -956,7 +956,7 @@ export class MessageBox extends YA.Promise{
         this._adjacentBackend = ()=>adjBk.call(this);
     }
     open(){
-        let view = document.compatMode ==="CSS1Compat"?Host.document.documentElement:Host.document.body;
+        let view = document.compatMode ==="CSS1Compat"?(Host.document as any).documentElement:(Host.document as any).body;
         this.box = dom(`<div class="ya-messageBox ${this.opts.css?this.opts.css:""}" style="position:fixed;top:0;left:0;widht:${view.clientWidth}px;height:${view.clientHeight}px;overflow:hidden;z-index:99999990;">
 <div class="ya-messageBox-backend" style="position:fixed;top:0;left:0;width:${view.clientWidth}px;height:${view.clientHeight}px;overflow:hidden;z-index:99999991;"></div>
 <div class="ya-messageBox-front" style="position:fixed;overflow:hidden;z-index:99999992;margin:0;padding:0;">
@@ -965,7 +965,7 @@ export class MessageBox extends YA.Promise{
     <div class="ya-messageBox-foot"></div>
 </div>
 </div>`);
-        this.box.parent(Host.document.body);
+        this.box.parent((Host.document as any).body);
         this.backend = this.box.first(true);
         this.front = this.box.last(true);
         this.head = this.front.first(true);
@@ -999,11 +999,11 @@ export class MessageBox extends YA.Promise{
         return this;
     }
     private _center(){
-        let view = document.compatMode ==="CSS1Compat"?Host.document.documentElement:Host.document.body;
+        let view = document.compatMode ==="CSS1Compat"?(Host.document as any).documentElement:(Host.document as any).body;
         this.front.left((view.clientWidth-this.front.width())/2).top((view.clientHeight-this.front.height())/2);
     }
     private _adjacentBackend(){
-        let view = document.compatMode ==="CSS1Compat"?Host.document.documentElement:Host.document.body;
+        let view = document.compatMode ==="CSS1Compat"?(Host.document as any).documentElement:(Host.document as any).body;
         let sz = dom(view).size();
         this.backend.size(sz);
     }

@@ -1,3 +1,4 @@
+import { Dom, IDom } from "./dom/YA.dom";
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -7,8 +8,11 @@
 
 //implicit 
 
-export function intimate(strong?:boolean|any,members?:any){
+export function implicit(strong?:boolean|any,members?:any,value?:any){
     if(members){
+        if(value){
+            Object.defineProperty(strong,members as string,{enumerable:false,writable:true,configurable:true,value:value});
+        }
         for(const n in members){
             Object.defineProperty(strong,n,{enumerable:false,writable:true,configurable:true,value:members[n]});
         }
@@ -168,7 +172,24 @@ export class DPath{
 }
 let replaceByDataRegx = /\$\{[a-zA-Z_0-9]+(?:.[a-zA-Z0-9_])\}/g;
 
+export function  clone(src:any,deep?:boolean) {
+    if(!src) return src;
+    let srcT = Object.prototype.toString.call(src);
+    if(srcT==="[object String]" || srcT==="[object Number]" || srcT==="[object Boolean]") return src;
+    let rs;
+    if(srcT==="[object Function]"){
+        let raw = src;
+        if(src.$clone_raw) raw = src.$clone_raw;
+        let rs = function () {return raw.apply(arguments);};
+        Object.defineProperty(rs,"$clone_raw",{enumerable:false,writable:false,configurable:false,value:raw});
+    }else if(srcT==="[object Object]") rs = {};
+    else if(srcT==="[object Array]") rs = [];
 
+    if(deep) for(const n in src)rs[n] = clone(src[n],true);
+    else for(const n in src)rs[n] = src[n];
+
+    return rs;
+}
 
 //=======================================================================
 // Promise /异步
@@ -464,7 +485,7 @@ interface IFulfillTopic{
  * @implements {IObservable<TEvtArgs>}
  * @template TEvtArgs 事件参数的类型
  */
-@intimate()
+@implicit()
 export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
     /**
      * 内部的主题列表，可以访问它，但不推荐直接使用，主要是debug时使用
@@ -745,7 +766,7 @@ export interface IObservableIndexable<TData extends {[index in keyof object]:any
     $target:any;
     $_modifiedValue:any;
 }
-@intimate()
+@implicit()
 export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData>{
     $type:DataTypes;
 
@@ -811,7 +832,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         }
     
         
-        intimate(this, {
+        implicit(this, {
             $target:this.$target,$extras:this.$extras,$type:DataTypes.Value,$schema:this.$schema
             ,$_raw:this.$_raw,$_index:this.$_index,$_modifiedValue:undefined,$_owner:this.$_owner
         });
@@ -887,7 +908,7 @@ export interface IObservableObject<TData extends {[index:string]:any}> extends I
 
 
 
-@intimate()
+@implicit()
 export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>,IObservableIndexable<TData>{
     [index:string]:any;
     constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
@@ -958,7 +979,7 @@ export interface IObservableArray<TItem> extends IObservable<TItem[]>{
     [index:number]:any;  
     length:number; 
 }
-@intimate()
+@implicit()
 export class ObservableArray<TItem> extends Observable<TItem[]> implements IObservableArray<TItem>,IObservableIndexable<TItem[]>{
     [index:number]:any;
     length:number;
@@ -990,7 +1011,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         let item_index:number=0;
         for(let i =0,j=target.length;i<j;i++) makeArrayItem(this,item_index++);
         
-        intimate(this,{
+        implicit(this,{
             $_changes:undefined,$_length:target.length,$_itemSchema:this.$_itemSchema
         });
         Object.defineProperty(this,"length",{
@@ -1185,7 +1206,7 @@ function defineProp<TObject>(target:any,name:string,accessorFactory:{(proxy:Obse
 
  
 //=======================================================================
-@intimate()
+@implicit()
 export class ObservableSchema<TData>{
     [index:string]:any;
     $type:DataTypes;
@@ -1208,7 +1229,7 @@ export class ObservableSchema<TData>{
         };
         if(index!=="")paths.push(index);
 
-        intimate(this,{
+        implicit(this,{
             "$type":DataTypes.Value
             ,"$index":index
             ,"$paths":paths
@@ -1451,7 +1472,7 @@ export interface IComponent extends IDisposiable{
     [propname:string]:any; 
 }
 export type TComponentCtor = {new (...args:any[]):IComponent};
-export type TComponentType = TComponentCtor & {$meta:IComponentInfo};
+export type TComponentType = TComponentCtor & {prototype:{$meta:IComponentInfo}};
 export interface IDisposeInfo{
     activeTime?:Date;
     inactiveTime?:Date;
@@ -1481,7 +1502,7 @@ function inherits(extendCls, basCls) {
     extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
 }
 
-export function component(tag:string,ComponentType?:{new(...args:any[]):IComponent}|boolean):any{
+export function component(tag:string|{new(...args:any[]):IComponent}|boolean|Function,ComponentType?:{new(...args:any[]):IComponent}|boolean|Function):any{
     let makeComponent = function (componentCtor:TComponentCtor):TComponentType {
         let meta = metaInfo(componentCtor.prototype) as IComponentInfo;
         let _Component = function () {
@@ -1494,20 +1515,34 @@ export function component(tag:string,ComponentType?:{new(...args:any[]):ICompone
         for(let k in componentCtor) _Component[k] = componentCtor[k];
         inherits(_Component,componentCtor);
         let metaDesc = {enumerable:false,configurable:false,get:()=>componentCtor.prototype.$meta};
-        Object.defineProperty(_Component,"$meta",metaDesc);
+        //Object.defineProperty(_Component,"$meta",metaDesc);
         Object.defineProperty(_Component.prototype,"$meta",metaDesc);
-        Object.defineProperty(componentCtor,"$meta",metaDesc);
+       
+        //Object.defineProperty(componentCtor.prototype,"$meta",metaDesc);
         
-        meta.tag = tag;
+        
         meta.ctor = componentCtor as TComponentType;
         meta.wrapper = _Component as any as TComponentType;
-        meta.explicitMode = ComponentType as boolean;
-        componentInfos[tag]= meta;
+        if(typeof ComponentType==="boolean")meta.explicitMode = ComponentType as boolean;
+        if(tag){
+            meta.tag = tag as string;
+            componentInfos[tag as string]= meta;
+        }
         return _Component as any as TComponentType;
     }
+    let t = typeof tag;
+    if(t ==="function"|| t==="boolean"){ComponentType=tag as Function|boolean;tag="";}
+    
     if(ComponentType!==undefined && ComponentType!==true && ComponentType!==false) {
-        return makeComponent(ComponentType);
+        let wrapped= makeComponent(ComponentType as TComponentCtor);
+        return attachManualAPI(wrapped);
     }else return makeComponent;
+}
+
+function attachManualAPI(componentType:TComponentType):TComponentType{
+    implicit(componentType,"create",function(){ return new componentType();});
+    implicit(componentType,"render",function(container?:any){ return new componentType().render(container);});
+    return componentType;
 }
 
 function createComponent(componentInfo:IComponentInfo,context?:any) {
@@ -1557,9 +1592,12 @@ function initComponent(firstComponent:IInternalComponent){
         (schema as ObservableSchema<any>).$index= name;
         initReactive(firstComponent,stateInfo);
     }
-
+    
     for(const name in meta.templates){
         initTemplate(firstComponent,meta.templates[name]);
+    }
+    if(!meta.templates["render"] && firstComponent.render){
+        initTemplate(firstComponent,{name:"render"}); 
     }
     if(!meta.ctor.prototype.dispose){
         Disposable.call(meta.ctor.prototype);
@@ -1628,7 +1666,6 @@ function setIterator(component:IComponent,schema:ObservableSchema<any>,value:any
     component[name] = value;
     return component[name];
 }
-//<table rows={rows} take={10} skip={start} ><col name="name" type='text' label='名称' onchange={abc}/></table>
 function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
     let rawMethod = firstComponent[tplInfo.name];
     if((rawMethod as any).$orign) {
@@ -1641,7 +1678,7 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
         let result :any;
         observableMode(ObservableModes.Schema,()=>{
             let vnode = rawMethod.call(component,container);
-            if(Host.isElement(vnode)) {tplInfo.render = rawMethod;result=vnode;}
+            if(DomUtility.isElement(vnode)) {tplInfo.render = rawMethod;result=vnode;}
             else {tplInfo.vnode = vnode;result=Undefined;}
 
         });
@@ -1708,8 +1745,20 @@ function getRelElements(ob:Observable<any>,includeSubs?:boolean|any[]){
     return rs;
     
 }
-
-export class VirtualNode{
+export interface IVirtualNode{
+    tag?:string;
+    id?:string;
+    className?:string;
+    name?:string;
+    value?:string;
+    type?:string;
+    title?:string;
+    placeholder?:string;
+    attrs?:{[name:string]:any};
+    content?:any;
+    children?:IVirtualNode[];
+}
+export class VirtualNode implements IVirtualNode{
     tag?:string;
     attrs?:{[name:string]:any};
     content?:any;
@@ -1725,8 +1774,8 @@ export class VirtualNode{
     static create(tag:string|TComponentType,attrs:{[attrName:string]:any}){
         
         let vnode :VirtualNode;
-        if(tag && (tag as any).$meta ){
-            vnode = new VirtualComponentNode(tag ,attrs);
+        if(tag && (tag as TComponentType).prototype ){
+            vnode = new VirtualComponentNode((tag as TComponentType).prototype.$meta ,attrs);
         }else {
             let componentInfo = componentInfos[tag as string];
             if(componentInfo)vnode = new VirtualComponentNode(tag as string,attrs);
@@ -1752,14 +1801,14 @@ export class VirtualTextNode extends VirtualNode{
         let elem;
         if(this.content instanceof ObservableSchema){
             let ob = this.content.getFromRoot(component);
-            elem = Host.createText(ob.get());
+            elem = DomUtility.createText(ob.get());
             ob.subscribe((e)=>{
                 elem.nodeValue = e.value;
             });
         }else{
-            elem = Host.createText(this.content);
+            elem = DomUtility.createText(this.content);
         }
-        if(container) Host.appendChild(container,elem);
+        if(container) DomUtility.appendChild(container,elem);
         return elem;
     }
     
@@ -1773,9 +1822,9 @@ export class VirtualElementNode extends VirtualNode{
     }
 
     render(component:IComponent,container?:any):any{
-        let elem = Host.createElement(this.tag);
+        let elem = DomUtility.createElement(this.tag);
         let ignoreChildren:boolean = false;
-        if(container)Host.appendChild(container,elem);
+        if(container)DomUtility.appendChild(container,elem);
         let anchorElem = elem;
         for(const attrName in this.attrs){
             let attrValue= this.attrs[attrName];
@@ -1783,7 +1832,7 @@ export class VirtualElementNode extends VirtualNode{
             let match = attrName.match(evtnameRegx);
             if(match && elem[attrName]!==undefined && typeof attrValue==="function"){
                 let evtName = match[1];
-                Host.attach(elem,evtName,makeAction(component,attrValue));
+                DomUtility.attach(elem,evtName,makeAction(component,attrValue));
                 continue;
             }
             let binder:Function = attrBinders[attrName];
@@ -1792,14 +1841,14 @@ export class VirtualElementNode extends VirtualNode{
                 if(binder) bindResult= binder.call(component,elem,attrValue,component,this);
                 else (function(name,attrValue) {
                     let ob:IObservable<any> = attrValue.getFromRoot(component);
-                    Host.setAttribute(elem,name,ob.get(ObservableModes.Raw));
+                    DomUtility.setAttribute(elem,name,ob.get(ObservableModes.Raw));
                     ob.subscribe((e)=>{
-                        Host.setAttribute(elem,name,e.value);
+                        DomUtility.setAttribute(elem,name,e.value);
                     });
                 })(attrName,attrValue);
             }else {
                 if(binder) bindResult= binder.call(component,elem,attrValue,component,this);
-                else Host.setAttribute(elem,attrName,attrValue);
+                else DomUtility.setAttribute(elem,attrName,attrValue);
             }
             if(bindResult === RenderDirectives.IgnoreChildren) ignoreChildren=true;
             
@@ -1823,15 +1872,21 @@ export class VirtualElementNode extends VirtualNode{
 export class VirtualComponentNode extends VirtualNode{
     children?:VirtualNode[];
     meta:IComponentInfo;
-    constructor(tag:string|TComponentType,public attrs:{[name:string]:any}){
+    constructor(tag:string|TComponentType|IComponentInfo,public attrs:{[name:string]:any}){
         super();
-        if(tag&& (tag as TComponentType).$meta){
-            this.meta = (tag as TComponentType).$meta;
+        let t = typeof tag;
+        if(t==="function"){
+            this.meta = (tag as TComponentType).prototype.$meta;
             this.tag = this.meta.tag;
-        }else{
+        }else if(t==="object"){
+            this.meta = tag as IComponentInfo;
+
+        }else if(t==="string"){
             this.tag = tag as string;
             this.meta = componentInfos[this.tag];
-        } 
+        } else {
+            throw new Error("Invalid arguments");
+        }
     }
 
     render(component:IComponent,container?:any):any{
@@ -1845,7 +1900,7 @@ export class VirtualComponentNode extends VirtualNode{
             let tpl = subMeta.templates[n];
             let elems = subComponent[tpl.name].call(subComponent,container);
             if(elems){
-                if(Host.isElement(elems)){
+                if(DomUtility.isElement(elems)){
                     (elems as any).$_YA_COMPONENT = subComponent;
                     subNodes.push(elems);
                 }else if(is_array(elems)){
@@ -1987,41 +2042,41 @@ attrBinders.for = function bindFor(elem:any,bindValue:any,component:IComponent,v
 attrBinders.if = function bindIf(elem:any,bindValue:any,component:IComponent,vnode:VirtualNode) {
     if(bindValue instanceof ObservableSchema){
         let ob = bindValue.getFromRoot(component) as IObservable<any>;
-        let placeholder = Host.createPlaceholder();
+        let placeholder = DomUtility.createPlaceholder();
         let isElementInContainer=ob.get();
         if(!isElementInContainer){
-            let p = Host.getParent(elem);
+            let p = DomUtility.getParent(elem);
             if(p){
-                Host.insertBefore(placeholder,elem);
-                Host.removeChild(p,elem);
-            }else Host.hide(elem);
+                DomUtility.insertBefore(placeholder,elem);
+                DomUtility.remove(elem);
+            }else DomUtility.hide(elem);
         }
         ob.subscribe((e)=>{
             if(e.value){
                 if(!isElementInContainer){
-                    let p = Host.getParent(placeholder);
+                    let p = DomUtility.getParent(placeholder);
                     if(p){
-                        Host.insertBefore(elem,placeholder);
-                        Host.removeChild(p,placeholder);
+                        DomUtility.insertBefore(elem,placeholder);
+                        DomUtility.remove(placeholder);
                         isElementInContainer=true;
                     }
                     
                 }
             }else{
                 if(isElementInContainer){
-                    let p = Host.getParent(elem);
+                    let p = DomUtility.getParent(elem);
                     if(p){
-                        Host.insertBefore(placeholder,elem);
-                        Host.removeChild(p,elem);
+                        DomUtility.insertBefore(placeholder,elem);
+                        DomUtility.remove(elem);
                         isElementInContainer=false;
-                    }else Host.hide(elem);
+                    }else DomUtility.hide(elem);
                 }
             }
         });
     }else {
         if(!bindValue){
-            let p = Host.getParent(elem);
-            if(p)Host.removeChild(p,elem);
+            let p = DomUtility.getParent(elem);
+            if(p)DomUtility.remove(elem);
         }
     }
 }
@@ -2088,97 +2143,197 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
 
 
 
-//===========================================================================
-export interface IHost{
-    isElement(elem:any,includeText?:boolean):boolean;
-    isActive(elem:any):boolean;
-    createElement(tag:any,container?:any):any;
-    createText(text:string):any;
-    createPlaceholder():any;
-    setAttribute(elem:any,name:string,value:any);
-    getAttribute(elem:any,name:string):any;
-    appendChild(parent:any,child:any);
-    insertBefore(inserted:any,before:any);
-    insertAfter(inserted:any,after:any);
-    removeChild(container:any,child:any);
-    getParent(elem:any):any;
-    hide(elem:any,immeditately?:boolean);
-    show(elem:any,immeditately?:boolean);
-    removeAllChildrens(parent:any);
-    setContent(elem:any,content:string);
-    attach(elem:any,evtname:string,handler:Function);
-    document:any;
+//////////////////////////////////////////////////////////////////////////////
+// DOM操作
+//////////////////////////////////////////////////////////////////////////////
+
+export interface IDomNode{
+    nodeType:number;
+    nodeValue:any;
+    tagName:string;
+    className:string;
+}
+export interface IDomDocument{
+    createElement(tag:string):IDomNode;
+    createTextNode(text:string):IDomNode;
+
+}
+export interface IDomUtility{
+    isElement(obj:any,includeText?:boolean):boolean;
+    isActive(obj:any):boolean;
+    createElement(tag:IVirtualNode|string,attrs?:{[name:string]:string}|IDomNode,...children:any[]):IDomNode;
+    createText(text:string,parent?:IDomNode):IDomNode;
+    createPlaceholder():IDomNode;
+    setContent(node:IDomNode,content:string):IDomUtility;
+    getContent(node:IDomNode):string;
+    setAttribute(node:IDomNode,name:string,value:string):IDomUtility;
+    getAttribute(node:IDomNode,name:string):string;
+    removeAttribute(node:IDomNode,name:string):IDomUtility;
+    setProperty(node:IDomNode,name:string,value:any):IDomUtility;
+    getProperty(node:IDomNode,name:string):any;
+    appendChild(parent:IDomNode,child:IDomNode):IDomUtility;
+    insertBefore(insert:IDomNode,rel:IDomNode):IDomUtility;
+    insertAfter(insert:IDomNode,rel:IDomNode):IDomUtility;
+    remove(node:IDomNode):IDomUtility;
+    getParent(node:IDomNode):IDomNode;
+    hide(node:any,immeditately?:boolean):IDomUtility;
+    show(node:any,immeditately?:boolean):IDomUtility;
+    removeAllChildrens(node:IDomNode):IDomUtility;
+    getChildren(node:IDomNode):IDomNode[];
+    getStyle(node:IDomNode,name:string):string;
+    setStyle(node:IDomNode,name:string,value:string):IDomUtility;
+    hasClass(node:IDomNode,cls:string):boolean;
+    addClass(node:IDomNode,cls:string):IDomUtility;
+    removeClass(node:IDomNode,cls:string):IDomUtility;
+    replaceClass(node:IDomNode,oldCls:string,newCls:string,alwaysAdd?:boolean):IDomUtility;
+
+    
+    attach(elem:IDomNode,evtname:string,handler:Function);
+    detech(elem:IDomNode,evtname:string,handler:Function);
+    parse(domString:string):IDomNode[];
+    document:IDomDocument;
+    global:any;
     window:any;
+    wrapper:IDomNode;
     
 }
-export let Host:IHost={} as any;
-Host.isElement=(elem,includeText?:boolean):boolean=>{
+export let DomUtility:IDomUtility={} as any;
+DomUtility.isElement=(elem,includeText?:boolean):boolean=>{
     if(!elem) return false;
     if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
     return includeText?true:(elem as HTMLElement).nodeType === 1;
 };
 
-Host.createElement=(tag:any,container?:any):any=>{
-    let tagName,attrs;
-    if(typeof tag==="object"){
-        tagName = tag.tagName;
-        attrs = tag;
-    }else tagName = tag;
-    let elem = document.createElement(tag);
-    if(container) Host.appendChild(container,elem);
-    if(attrs) for(let n in attrs) {
-        if(n==="content") Host.setContent(elem,attrs[n]);
-        else if(n!=="tagName")Host.setAttribute(elem,n,attrs[n]);
+DomUtility.createElement=function(tag:IVirtualNode|string,attrs?:{[name:string]:string}|IDomNode):any{
+    let t= typeof(tag);
+    if(t==="string"){
+        let elem = DomUtility.document.createElement(tag as string);
+        if(DomUtility.isElement(attrs)) DomUtility.appendChild(attrs as any,elem);
+        else if(typeof attrs==="object"){
+            for(let n in attrs) DomUtility.setAttribute(elem,n,attrs[n]);
+            for(let i=2,j=arguments.length;i<j;i++){
+                let child = arguments[i];
+                if(typeof child==="string") DomUtility.appendChild(elem,DomUtility.createText(child));
+                else DomUtility.appendChild(elem,child);
+            }
+        }
+        return elem;
     }
-    return elem;
+    if(t==="object"){
+        let vnode  = tag as IVirtualNode;
+        let node = vnode.tag?DomUtility.document.createElement(vnode.tag):DomUtility.createText(vnode.content);
+        if(attrs) DomUtility.appendChild(attrs as IDomNode,node);
+        let _attrs = vnode.attrs ||{}; 
+        if(vnode.className)_attrs["className"] = vnode.className;
+        if(vnode.name) _attrs["name"] = vnode.name;
+        if(vnode.value) _attrs["value"] = vnode.value;
+        if(vnode.id) _attrs["id"] = vnode.id;
+        if(vnode.type) _attrs["type"] = vnode.type;
+        if(vnode.title) _attrs["title"] = vnode.title;
+        if(vnode.placeholder) _attrs["placeholder"] = vnode.placeholder;
+        for(let n in _attrs){
+            DomUtility.setAttribute(node,n,vnode.attrs[n]);
+        }
+        if(vnode.children){
+            for(const i in vnode.children){
+                let child = vnode.children[i];
+                if(typeof child==="string")DomUtility.createText(child,node);
+                else DomUtility.createElement(child,node);
+            }
+            
+        }
+        return node;
+    }
+    
 };
 
-Host.createText=(txt:string):any=>{
-    return document.createTextNode(txt);
+DomUtility.createText=(txt:string,parent?:IDomNode):IDomNode=>{
+    let node= DomUtility.document.createTextNode(txt);
+    if(parent) DomUtility.appendChild(parent,node);
+    return node;
 };
-Host.createPlaceholder=():any=>{
+DomUtility.createPlaceholder=():IDomNode=>{
     let rs = document.createElement("span");
     rs.className="YA-PLACEHOLDER";
     rs.style.display = "none";
     return rs;
 };
-Host.setContent=(elem:any,content:string)=>{
-    elem.innerHTML = content;
+DomUtility.setContent=(elem:IDomNode,content:string):IDomUtility=>{
+    if(elem.nodeType===1)(elem as any).innerHTML = content;
+    else elem.nodeValue = content;
+    return DomUtility;
 }
-
-Host.setAttribute=(elem:any,name:string,value:any)=>{
-    elem.setAttribute(name,value);
+DomUtility.getContent=(elem:IDomNode):string=>{
+    return elem.nodeType===1?(elem as any).innerHTML:elem.nodeValue;
 };
 
-Host.appendChild=(container:any,child:any)=>{
-    container.appendChild(child);
+DomUtility.setAttribute=(elem:IDomNode,name:string,value:string):IDomUtility=>{
+    (elem as any).setAttribute(name,value);
+    return DomUtility;
+};
+DomUtility.getAttribute=(elem:IDomNode,name:string):string=>{
+    return (elem as any).getAttribute(name);
+};
+DomUtility.removeAttribute=(elem:IDomNode,name:string):IDomUtility=>{
+    (elem as any).removeAttribute(name);
+    return DomUtility;
 };
 
-Host.insertBefore=(inserted:any,before:any)=>{
-    if(before.parentNode)before.parentNode.insertBefore(inserted,before);
+DomUtility.setProperty=(elem:IDomNode,name:string,value:any):IDomUtility=>{
+    (elem as any)[name]=value;
+    return DomUtility;
+};
+DomUtility.getProperty=(elem:IDomNode,name:string):any=>{
+    return (elem as any)[name];
 };
 
-Host.insertAfter=(inserted:any,after:any)=>{
-    if(after.parentNode)after.parentNode.insertAfter(inserted,after);
+DomUtility.appendChild=(container:IDomNode,child:IDomNode):IDomUtility=>{
+    (container as any).appendChild(child);
+    return DomUtility;
 };
-Host.getParent=(elem:any)=>elem.parentNode;
-Host.removeChild = (container:any,child:any)=>container.removeChild(child);
-Host.removeAllChildrens=(elem:any)=>{
-    elem.innerHTML = elem.nodeValue="";
+
+DomUtility.insertBefore=(insert:IDomNode,rel:IDomNode):IDomUtility=>{
+    if((rel as any).parentNode)(rel as any).parentNode.insertBefore(insert,rel);
+    return DomUtility;
 };
-Host.show = (elem:any,immeditately?:boolean)=>{
-    elem.style.display="";
+
+DomUtility.insertAfter=(insert:IDomNode,rel:any):IDomUtility=>{
+    if(rel.parentNode)rel.parentNode.insertAfter(insert,rel);
+    return DomUtility;
+};
+DomUtility.getParent=(elem:IDomNode)=>(elem as any).parentNode as IDomNode;
+DomUtility.remove = (node:IDomNode):IDomUtility=>{
+    if((node as any).parentNode) (node as any).parentNode.removeChild(node);
+    return DomUtility;
 }
-Host.hide = (elem:any,immeditately?:boolean)=>{
-    elem.style.display="none";
+DomUtility.removeAllChildrens=(elem:IDomNode):IDomUtility=>{
+    (elem as any).innerHTML = elem.nodeValue="";
+    return DomUtility;
+};
+DomUtility.getChildren=(elem:IDomNode)=>(elem as any).childNodes;
+
+DomUtility.show = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+    (elem as any).style.display="";
+    return DomUtility;
+}
+DomUtility.hide = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+    (elem as any).style.display="none";
+    return DomUtility;
 };
 
-Host.attach = (elem:any,evtname:string,handler:Function)=>{
+DomUtility.attach = (elem:any,evtname:string,handler:Function):IDomUtility=>{
     if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
     else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
     else elem['on'+evtname] = handler;
+    return DomUtility;
 }
-Host.isActive = (elem:any):boolean=>{
+DomUtility.detech = (elem:any,evtname:string,handler:Function)=>{
+    if(elem.removeEventListener) elem.removeEventListener(evtname,handler,false);
+    else if(elem.detechEvent) elem.detechEvent('on' + evtname,handler);
+    else elem['on'+evtname] = null;
+    return DomUtility;
+}
+DomUtility.isActive = (elem:any):boolean=>{
     let doc = (elem as HTMLElement).ownerDocument;
     while(elem){
         elem = elem.parentNode;
@@ -2188,30 +2343,85 @@ Host.isActive = (elem:any):boolean=>{
     return true;
 }
 
-if(typeof document!=="undefined") Host.document = document;
-if(typeof window!=="undefined") Host.window = window;
+if(typeof document!=="undefined") DomUtility.document = document as any as IDomDocument;
+if(typeof window!=="undefined") DomUtility.global =  DomUtility.window = window;
+
+try{
+    let element_wrapper:HTMLElement = DomUtility.wrapper = DomUtility.createElement("div") as any;
+
+    if((element_wrapper as any).currentStyle){
+        DomUtility.getStyle = (node,name)=> (node as any).currentStyle[name];
+    }else {
+        DomUtility.getStyle = (node,name)=>getComputedStyle(node as any,false as any)[name];
+    }
+    DomUtility.setStyle = (node:IDomNode,name:string,value:string):IDomUtility=>{
+        let convertor = styleConvertors[name];
+        (node as any).style[name] = convertor?convertor(value):value;
+        return DomUtility;
+    }
+    DomUtility.parse = (domString:string):IDomNode[]=>{
+        element_wrapper.innerHTML = domString;
+        return element_wrapper.childNodes as any;
+    }
+}catch(ex){}
+
+
+
+let emptyStringRegx = /\s+/g;
+function findClassAt(clsnames:string,cls:string):number{
+    let at = clsnames.indexOf(cls);
+    let len = cls.length;
+    while(at>=0){
+        if(at>0){
+            let prev = clsnames[at-1];
+            if(!emptyStringRegx.test(prev)){at = clsnames.indexOf(cls,at+len);continue;}
+        }
+        if((at+len)!==clsnames.length){
+            let next = clsnames[at+length];
+            if(!emptyStringRegx.test(next)){at = clsnames.indexOf(cls,at+len);continue;}
+        }
+        return at;
+    }
+    return at;
+}
+
+DomUtility.hasClass=(node:IDomNode,cls:string):boolean=>{
+    return findClassAt(node.className,cls)>=0;
+}
+DomUtility.addClass=(node:IDomNode,cls:string):IDomUtility =>{ //IDom{
+    if(findClassAt(node.className,cls)>=0) return DomUtility;
+    node.className+= " " + cls;
+    return DomUtility;
+}
+DomUtility.removeClass = (node:IDomNode,cls:string):IDomUtility => { //IDom{
+    let clsnames = node.className;
+    let at = findClassAt(clsnames,cls);
+    if(at<=0) return DomUtility;
+    let prev = clsnames.substring(0,at);
+    let next =clsnames.substr(at+cls.length);
+    node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
+}
+DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd?:boolean):IDomUtility => { //IDom{
+    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
+    let clsnames = node.className;
+    let at = findClassAt(clsnames,old_cls);
+    if(at<=0) {
+        if(alwaysAdd) node.className = clsnames + " " + new_cls;
+        return DomUtility;
+    }
+    let prev = clsnames.substring(0,at);
+    let next =clsnames.substr(at+old_cls.length);
+    node.className= prev +new_cls+ next;
+    
+    return DomUtility;
+}   
+
+
 //======================================================================
 
 
  
-export function  clone(src:any,deep?:boolean) {
-    if(!src) return src;
-    let srcT = Object.prototype.toString.call(src);
-    if(srcT==="[object String]" || srcT==="[object Number]" || srcT==="[object Boolean]") return src;
-    let rs;
-    if(srcT==="[object Function]"){
-        let raw = src;
-        if(src.$clone_raw) raw = src.$clone_raw;
-        let rs = function () {return raw.apply(arguments);};
-        Object.defineProperty(rs,"$clone_raw",{enumerable:false,writable:false,configurable:false,value:raw});
-    }else if(srcT==="[object Object]") rs = {};
-    else if(srcT==="[object Array]") rs = [];
 
-    if(deep) for(const n in src)rs[n] = clone(src[n],true);
-    else for(const n in src)rs[n] = src[n];
-
-    return rs;
-}
 
 export function THIS(obj:any,name:string|Function){
     let method = name as Function;
@@ -2248,8 +2458,8 @@ let YA={
     Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
     ,component,state: reactive,IN,OUT,PARAM,template,attrBinders
     ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,NOT,EXP
-    ,Host,styleConvertors
-    ,intimate,clone,Promise
+    ,Host: DomUtility,styleConvertors
+    ,intimate: implicit,clone,Promise
     
 };
 if(typeof window!=='undefined') (window as any).YA = YA;

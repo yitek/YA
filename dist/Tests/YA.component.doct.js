@@ -20,7 +20,24 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     YA_doct_1.doct.output = YA_doct_1.outputToElement;
     var componentTest = /** @class */ (function () {
         function componentTest(cdoc) {
-            cdoc.description = "UI\u63A7\u4EF6";
+            cdoc.description = "\u63A7\u4EF6";
+            cdoc.usage("基本用法-js原生", function (assert_statement, container) {
+                var comp = YA.component(function () {
+                    var _this = this;
+                    this.model = { title: "YA.component的基本用法" };
+                    this.render = function (container) {
+                        return YA.virtualNode("div", { onclick: _this.changeTitle },
+                            "\u70B9\u51FB\u8FD9\u91CC\u4F1A\u5F39\u51FA\u4E00\u4E2A\u8F93\u5165\u6846,\u8F93\u5165\u7684\u6587\u672C\u5C06\u663E\u793A\u5728\u8FD9\u91CC:[",
+                            _this.model.title,
+                            "].");
+                    };
+                    this.changeTitle = function () {
+                        var newTitle = window.prompt("请输入新的标题:", _this.model.title);
+                        _this.model.title = newTitle;
+                    };
+                });
+                comp.render(container);
+            });
             cdoc.usage("基本用法", function (assert_statement, container) {
                 var MyComponent = /** @class */ (function () {
                     function MyComponent() {
@@ -66,7 +83,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     //assert("id,title",membernames.join(","),"可以且只可以枚举原始数据的字段:membernames=['1','title']");
                 });
             });
-            cdoc.usage("模板函数中的if", function (assert_statement, container) {
+        }
+        componentTest.prototype.IF = function (mdoc) {
+            mdoc.usage("模板函数中的if", function (assert_statement, container) {
                 var MyComponent = /** @class */ (function () {
                     function MyComponent() {
                         this.model = { title: "YA framework", showTitle: true };
@@ -99,7 +118,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var myComponent = new MyComponent();
                 myComponent.render(container);
             });
-            cdoc.usage("模板函数中的for", function (assert_statement, container) {
+        };
+        componentTest.prototype.For = function (mdoc) {
+            mdoc.usage("模板函数中的for", function (assert_statement, container) {
                 var MyComponent = /** @class */ (function () {
                     function MyComponent() {
                         this.queries = { title: "" };
@@ -165,7 +186,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 myComponent.rows = myComponent.data;
                 myComponent.render(container);
             });
-        }
+        };
         componentTest.prototype.composite = function (mdoc) {
             mdoc.usage("控件组合使用", function (assert_statement, container) {
                 debugger;
@@ -226,6 +247,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 b.render(container);
             });
         };
+        __decorate([
+            YA_doct_1.doct()
+        ], componentTest.prototype, "IF", null);
+        __decorate([
+            YA_doct_1.doct()
+        ], componentTest.prototype, "For", null);
         __decorate([
             YA_doct_1.doct()
         ], componentTest.prototype, "composite", null);

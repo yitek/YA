@@ -1,8 +1,3 @@
-////////////////////////////////////////////////////////////////////
-//
-// 语言机制与一些对象上的扩展
-//
-////////////////////////////////////////////////////////////////////
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -32,10 +27,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
 })(function (require, exports) {
     "use strict";
+    var _this = this;
     Object.defineProperty(exports, "__esModule", { value: true });
+    ////////////////////////////////////////////////////////////////////
+    //
+    // 语言机制与一些对象上的扩展
+    //
+    ////////////////////////////////////////////////////////////////////
     //implicit 
-    function intimate(strong, members) {
+    function implicit(strong, members, value) {
         if (members) {
+            if (value) {
+                Object.defineProperty(strong, members, { enumerable: false, writable: true, configurable: true, value: value });
+            }
             for (var n in members) {
                 Object.defineProperty(strong, n, { enumerable: false, writable: true, configurable: true, value: members[n] });
             }
@@ -52,7 +56,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         };
     }
-    exports.intimate = intimate;
+    exports.implicit = implicit;
     ///////////////////////////////////////////////////////////////
     // 类型判断
     function is_string(obj) {
@@ -206,6 +210,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.DPath = DPath;
     var replaceByDataRegx = /\$\{[a-zA-Z_0-9]+(?:.[a-zA-Z0-9_])\}/g;
+    function clone(src, deep) {
+        if (!src)
+            return src;
+        var srcT = Object.prototype.toString.call(src);
+        if (srcT === "[object String]" || srcT === "[object Number]" || srcT === "[object Boolean]")
+            return src;
+        var rs;
+        if (srcT === "[object Function]") {
+            var raw_1 = src;
+            if (src.$clone_raw)
+                raw_1 = src.$clone_raw;
+            var rs_1 = function () { return raw_1.apply(arguments); };
+            Object.defineProperty(rs_1, "$clone_raw", { enumerable: false, writable: false, configurable: false, value: raw_1 });
+        }
+        else if (srcT === "[object Object]")
+            rs = {};
+        else if (srcT === "[object Array]")
+            rs = [];
+        if (deep)
+            for (var n in src)
+                rs[n] = clone(src[n], true);
+        else
+            for (var n in src)
+                rs[n] = src[n];
+        return rs;
+    }
+    exports.clone = clone;
     var PromiseStates;
     (function (PromiseStates) {
         PromiseStates[PromiseStates["Pending"] = 0] = "Pending";
@@ -521,7 +552,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return this;
         };
         Subject = __decorate([
-            intimate()
+            implicit()
         ], Subject);
         return Subject;
     }());
@@ -702,7 +733,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     _this.$_raw = function (val) { return val === undefined ? init : init = val; };
                 }
             }
-            intimate(_this, {
+            implicit(_this, {
                 $target: _this.$target, $extras: _this.$extras, $type: DataTypes.Value, $schema: _this.$schema,
                 $_raw: _this.$_raw, $_index: _this.$_index, $_modifiedValue: undefined, $_owner: _this.$_owner
             });
@@ -756,7 +787,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var Observable_1;
         Observable.accessMode = ObservableModes.Default;
         Observable = Observable_1 = __decorate([
-            intimate()
+            implicit()
         ], Observable);
         return Observable;
     }(Subject));
@@ -856,7 +887,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return true;
         };
         ObservableObject = __decorate([
-            intimate()
+            implicit()
         ], ObservableObject);
         return ObservableObject;
     }(Observable));
@@ -889,7 +920,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var item_index = 0;
             for (var i = 0, j = target.length; i < j; i++)
                 makeArrayItem(_this, item_index++);
-            intimate(_this, {
+            implicit(_this, {
                 $_changes: undefined, $_length: target.length, $_itemSchema: _this.$_itemSchema
             });
             Object.defineProperty(_this, "length", {
@@ -1044,7 +1075,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return true;
         };
         ObservableArray = __decorate([
-            intimate()
+            implicit()
         ], ObservableArray);
         return ObservableArray;
     }(Observable));
@@ -1108,7 +1139,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             ;
             if (index !== "")
                 paths.push(index);
-            intimate(this, {
+            implicit(this, {
                 "$type": DataTypes.Value,
                 "$index": index,
                 "$paths": paths,
@@ -1217,7 +1248,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var ObservableSchema_1;
         ObservableSchema.schemaToken = "$__ONLY_USED_BY_SCHEMA__";
         ObservableSchema = ObservableSchema_1 = __decorate([
-            intimate()
+            implicit()
         ], ObservableSchema);
         return ObservableSchema;
     }());
@@ -1354,23 +1385,37 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 _Component[k] = componentCtor[k];
             inherits(_Component, componentCtor);
             var metaDesc = { enumerable: false, configurable: false, get: function () { return componentCtor.prototype.$meta; } };
-            Object.defineProperty(_Component, "$meta", metaDesc);
+            //Object.defineProperty(_Component,"$meta",metaDesc);
             Object.defineProperty(_Component.prototype, "$meta", metaDesc);
-            Object.defineProperty(componentCtor, "$meta", metaDesc);
-            meta.tag = tag;
+            //Object.defineProperty(componentCtor.prototype,"$meta",metaDesc);
             meta.ctor = componentCtor;
             meta.wrapper = _Component;
-            meta.explicitMode = ComponentType;
-            componentInfos[tag] = meta;
+            if (typeof ComponentType === "boolean")
+                meta.explicitMode = ComponentType;
+            if (tag) {
+                meta.tag = tag;
+                componentInfos[tag] = meta;
+            }
             return _Component;
         };
+        var t = typeof tag;
+        if (t === "function" || t === "boolean") {
+            ComponentType = tag;
+            tag = "";
+        }
         if (ComponentType !== undefined && ComponentType !== true && ComponentType !== false) {
-            return makeComponent(ComponentType);
+            var wrapped = makeComponent(ComponentType);
+            return attachManualAPI(wrapped);
         }
         else
             return makeComponent;
     }
     exports.component = component;
+    function attachManualAPI(componentType) {
+        implicit(componentType, "create", function () { return new componentType(); });
+        implicit(componentType, "render", function (container) { return new componentType().render(container); });
+        return componentType;
+    }
     function createComponent(componentInfo, context) {
         //let componentInfo = componentInfos[tag];
         if (!componentInfo)
@@ -1421,6 +1466,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         for (var name_2 in meta.templates) {
             initTemplate(firstComponent, meta.templates[name_2]);
+        }
+        if (!meta.templates["render"] && firstComponent.render) {
+            initTemplate(firstComponent, { name: "render" });
         }
         if (!meta.ctor.prototype.dispose) {
             Disposable.call(meta.ctor.prototype);
@@ -1489,7 +1537,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         component[name] = value;
         return component[name];
     }
-    //<table rows={rows} take={10} skip={start} ><col name="name" type='text' label='名称' onchange={abc}/></table>
     function initTemplate(firstComponent, tplInfo) {
         var rawMethod = firstComponent[tplInfo.name];
         if (rawMethod.$orign) {
@@ -1504,7 +1551,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var result;
             observableMode(ObservableModes.Schema, function () {
                 var vnode = rawMethod.call(component, container);
-                if (exports.Host.isElement(vnode)) {
+                if (exports.DomUtility.isElement(vnode)) {
                     tplInfo.render = rawMethod;
                     result = vnode;
                 }
@@ -1578,8 +1625,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         VirtualNode.create = function (tag, attrs) {
             var vnode;
-            if (tag && tag.$meta) {
-                vnode = new VirtualComponentNode(tag, attrs);
+            if (tag && tag.prototype) {
+                vnode = new VirtualComponentNode(tag.prototype.$meta, attrs);
             }
             else {
                 var componentInfo = componentInfos[tag];
@@ -1611,16 +1658,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var elem;
             if (this.content instanceof ObservableSchema) {
                 var ob = this.content.getFromRoot(component);
-                elem = exports.Host.createText(ob.get());
+                elem = exports.DomUtility.createText(ob.get());
                 ob.subscribe(function (e) {
                     elem.nodeValue = e.value;
                 });
             }
             else {
-                elem = exports.Host.createText(this.content);
+                elem = exports.DomUtility.createText(this.content);
             }
             if (container)
-                exports.Host.appendChild(container, elem);
+                exports.DomUtility.appendChild(container, elem);
             return elem;
         };
         return VirtualTextNode;
@@ -1635,17 +1682,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return _this;
         }
         VirtualElementNode.prototype.render = function (component, container) {
-            var elem = exports.Host.createElement(this.tag);
+            var elem = exports.DomUtility.createElement(this.tag);
             var ignoreChildren = false;
             if (container)
-                exports.Host.appendChild(container, elem);
+                exports.DomUtility.appendChild(container, elem);
             var anchorElem = elem;
             for (var attrName in this.attrs) {
                 var attrValue = this.attrs[attrName];
                 var match = attrName.match(evtnameRegx);
                 if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
                     var evtName = match[1];
-                    exports.Host.attach(elem, evtName, makeAction(component, attrValue));
+                    exports.DomUtility.attach(elem, evtName, makeAction(component, attrValue));
                     continue;
                 }
                 var binder = exports.attrBinders[attrName];
@@ -1656,9 +1703,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     else
                         (function (name, attrValue) {
                             var ob = attrValue.getFromRoot(component);
-                            exports.Host.setAttribute(elem, name, ob.get(ObservableModes.Raw));
+                            exports.DomUtility.setAttribute(elem, name, ob.get(ObservableModes.Raw));
                             ob.subscribe(function (e) {
-                                exports.Host.setAttribute(elem, name, e.value);
+                                exports.DomUtility.setAttribute(elem, name, e.value);
                             });
                         })(attrName, attrValue);
                 }
@@ -1666,7 +1713,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     if (binder)
                         bindResult = binder.call(component, elem, attrValue, component, this);
                     else
-                        exports.Host.setAttribute(elem, attrName, attrValue);
+                        exports.DomUtility.setAttribute(elem, attrName, attrValue);
                 }
                 if (bindResult === RenderDirectives.IgnoreChildren)
                     ignoreChildren = true;
@@ -1688,13 +1735,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         function VirtualComponentNode(tag, attrs) {
             var _this = _super.call(this) || this;
             _this.attrs = attrs;
-            if (tag && tag.$meta) {
-                _this.meta = tag.$meta;
+            var t = typeof tag;
+            if (t === "function") {
+                _this.meta = tag.prototype.$meta;
                 _this.tag = _this.meta.tag;
             }
-            else {
+            else if (t === "object") {
+                _this.meta = tag;
+            }
+            else if (t === "string") {
                 _this.tag = tag;
                 _this.meta = componentInfos[_this.tag];
+            }
+            else {
+                throw new Error("Invalid arguments");
             }
             return _this;
         }
@@ -1710,7 +1764,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var tpl = subMeta.templates[n];
                 var elems = subComponent[tpl.name].call(subComponent, container);
                 if (elems) {
-                    if (exports.Host.isElement(elems)) {
+                    if (exports.DomUtility.isElement(elems)) {
                         elems.$_YA_COMPONENT = subComponent;
                         subNodes.push(elems);
                     }
@@ -1863,47 +1917,47 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
         if (bindValue instanceof ObservableSchema) {
             var ob = bindValue.getFromRoot(component);
-            var placeholder_1 = exports.Host.createPlaceholder();
+            var placeholder_1 = exports.DomUtility.createPlaceholder();
             var isElementInContainer_1 = ob.get();
             if (!isElementInContainer_1) {
-                var p = exports.Host.getParent(elem);
+                var p = exports.DomUtility.getParent(elem);
                 if (p) {
-                    exports.Host.insertBefore(placeholder_1, elem);
-                    exports.Host.removeChild(p, elem);
+                    exports.DomUtility.insertBefore(placeholder_1, elem);
+                    exports.DomUtility.remove(elem);
                 }
                 else
-                    exports.Host.hide(elem);
+                    exports.DomUtility.hide(elem);
             }
             ob.subscribe(function (e) {
                 if (e.value) {
                     if (!isElementInContainer_1) {
-                        var p = exports.Host.getParent(placeholder_1);
+                        var p = exports.DomUtility.getParent(placeholder_1);
                         if (p) {
-                            exports.Host.insertBefore(elem, placeholder_1);
-                            exports.Host.removeChild(p, placeholder_1);
+                            exports.DomUtility.insertBefore(elem, placeholder_1);
+                            exports.DomUtility.remove(placeholder_1);
                             isElementInContainer_1 = true;
                         }
                     }
                 }
                 else {
                     if (isElementInContainer_1) {
-                        var p = exports.Host.getParent(elem);
+                        var p = exports.DomUtility.getParent(elem);
                         if (p) {
-                            exports.Host.insertBefore(placeholder_1, elem);
-                            exports.Host.removeChild(p, elem);
+                            exports.DomUtility.insertBefore(placeholder_1, elem);
+                            exports.DomUtility.remove(elem);
                             isElementInContainer_1 = false;
                         }
                         else
-                            exports.Host.hide(elem);
+                            exports.DomUtility.hide(elem);
                     }
                 }
             });
         }
         else {
             if (!bindValue) {
-                var p = exports.Host.getParent(elem);
+                var p = exports.DomUtility.getParent(elem);
                 if (p)
-                    exports.Host.removeChild(p, elem);
+                    exports.DomUtility.remove(elem);
             }
         }
     };
@@ -1975,80 +2029,160 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return value;
     };
-    exports.Host = {};
-    exports.Host.isElement = function (elem, includeText) {
+    exports.DomUtility = {};
+    exports.DomUtility.isElement = function (elem, includeText) {
         if (!elem)
             return false;
         if (!elem.insertBefore || !elem.ownerDocument)
             return false;
         return includeText ? true : elem.nodeType === 1;
     };
-    exports.Host.createElement = function (tag, container) {
-        var tagName, attrs;
-        if (typeof tag === "object") {
-            tagName = tag.tagName;
-            attrs = tag;
-        }
-        else
-            tagName = tag;
-        var elem = document.createElement(tag);
-        if (container)
-            exports.Host.appendChild(container, elem);
-        if (attrs)
-            for (var n in attrs) {
-                if (n === "content")
-                    exports.Host.setContent(elem, attrs[n]);
-                else if (n !== "tagName")
-                    exports.Host.setAttribute(elem, n, attrs[n]);
+    exports.DomUtility.createElement = function (tag, attrs) {
+        var t = typeof (tag);
+        if (t === "string") {
+            var elem = exports.DomUtility.document.createElement(tag);
+            if (exports.DomUtility.isElement(attrs))
+                exports.DomUtility.appendChild(attrs, elem);
+            else if (typeof attrs === "object") {
+                for (var n in attrs)
+                    exports.DomUtility.setAttribute(elem, n, attrs[n]);
+                for (var i = 2, j = arguments.length; i < j; i++) {
+                    var child = arguments[i];
+                    if (typeof child === "string")
+                        exports.DomUtility.appendChild(elem, exports.DomUtility.createText(child));
+                    else
+                        exports.DomUtility.appendChild(elem, child);
+                }
             }
-        return elem;
+            return elem;
+        }
+        if (t === "object") {
+            var vnode = tag;
+            var node = vnode.tag ? exports.DomUtility.document.createElement(vnode.tag) : exports.DomUtility.createText(vnode.content);
+            if (attrs)
+                exports.DomUtility.appendChild(attrs, node);
+            var _attrs = vnode.attrs || {};
+            if (vnode.className)
+                _attrs["className"] = vnode.className;
+            if (vnode.name)
+                _attrs["name"] = vnode.name;
+            if (vnode.value)
+                _attrs["value"] = vnode.value;
+            if (vnode.id)
+                _attrs["id"] = vnode.id;
+            if (vnode.type)
+                _attrs["type"] = vnode.type;
+            if (vnode.title)
+                _attrs["title"] = vnode.title;
+            if (vnode.placeholder)
+                _attrs["placeholder"] = vnode.placeholder;
+            for (var n in _attrs) {
+                exports.DomUtility.setAttribute(node, n, vnode.attrs[n]);
+            }
+            if (vnode.children) {
+                for (var i in vnode.children) {
+                    var child = vnode.children[i];
+                    if (typeof child === "string")
+                        exports.DomUtility.createText(child, node);
+                    else
+                        exports.DomUtility.createElement(child, node);
+                }
+            }
+            return node;
+        }
     };
-    exports.Host.createText = function (txt) {
-        return document.createTextNode(txt);
+    exports.DomUtility.createText = function (txt, parent) {
+        var node = exports.DomUtility.document.createTextNode(txt);
+        if (parent)
+            exports.DomUtility.appendChild(parent, node);
+        return node;
     };
-    exports.Host.createPlaceholder = function () {
+    exports.DomUtility.createPlaceholder = function () {
         var rs = document.createElement("span");
         rs.className = "YA-PLACEHOLDER";
         rs.style.display = "none";
         return rs;
     };
-    exports.Host.setContent = function (elem, content) {
-        elem.innerHTML = content;
+    exports.DomUtility.setContent = function (elem, content) {
+        if (elem.nodeType === 1)
+            elem.innerHTML = content;
+        else
+            elem.nodeValue = content;
+        return exports.DomUtility;
     };
-    exports.Host.setAttribute = function (elem, name, value) {
+    exports.DomUtility.getContent = function (elem) {
+        return elem.nodeType === 1 ? elem.innerHTML : elem.nodeValue;
+    };
+    exports.DomUtility.setAttribute = function (elem, name, value) {
         elem.setAttribute(name, value);
+        return exports.DomUtility;
     };
-    exports.Host.appendChild = function (container, child) {
+    exports.DomUtility.getAttribute = function (elem, name) {
+        return elem.getAttribute(name);
+    };
+    exports.DomUtility.removeAttribute = function (elem, name) {
+        elem.removeAttribute(name);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.setProperty = function (elem, name, value) {
+        elem[name] = value;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getProperty = function (elem, name) {
+        return elem[name];
+    };
+    exports.DomUtility.appendChild = function (container, child) {
         container.appendChild(child);
+        return exports.DomUtility;
     };
-    exports.Host.insertBefore = function (inserted, before) {
-        if (before.parentNode)
-            before.parentNode.insertBefore(inserted, before);
+    exports.DomUtility.insertBefore = function (insert, rel) {
+        if (rel.parentNode)
+            rel.parentNode.insertBefore(insert, rel);
+        return exports.DomUtility;
     };
-    exports.Host.insertAfter = function (inserted, after) {
-        if (after.parentNode)
-            after.parentNode.insertAfter(inserted, after);
+    exports.DomUtility.insertAfter = function (insert, rel) {
+        if (rel.parentNode)
+            rel.parentNode.insertAfter(insert, rel);
+        return exports.DomUtility;
     };
-    exports.Host.getParent = function (elem) { return elem.parentNode; };
-    exports.Host.removeChild = function (container, child) { return container.removeChild(child); };
-    exports.Host.removeAllChildrens = function (elem) {
+    exports.DomUtility.getParent = function (elem) { return elem.parentNode; };
+    exports.DomUtility.remove = function (node) {
+        if (node.parentNode)
+            node.parentNode.removeChild(node);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.removeAllChildrens = function (elem) {
         elem.innerHTML = elem.nodeValue = "";
+        return exports.DomUtility;
     };
-    exports.Host.show = function (elem, immeditately) {
+    exports.DomUtility.getChildren = function (elem) { return elem.childNodes; };
+    exports.DomUtility.show = function (elem, immeditately) {
         elem.style.display = "";
+        return exports.DomUtility;
     };
-    exports.Host.hide = function (elem, immeditately) {
+    exports.DomUtility.hide = function (elem, immeditately) {
         elem.style.display = "none";
+        return exports.DomUtility;
     };
-    exports.Host.attach = function (elem, evtname, handler) {
+    exports.DomUtility.attach = function (elem, evtname, handler) {
         if (elem.addEventListener)
             elem.addEventListener(evtname, handler, false);
         else if (elem.attachEvent)
             elem.attachEvent('on' + evtname, handler);
         else
             elem['on' + evtname] = handler;
+        return exports.DomUtility;
     };
-    exports.Host.isActive = function (elem) {
+    exports.DomUtility.detech = function (elem, evtname, handler) {
+        if (elem.removeEventListener)
+            elem.removeEventListener(evtname, handler, false);
+        else if (elem.detechEvent)
+            elem.detechEvent('on' + evtname, handler);
+        else
+            elem['on' + evtname] = null;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.isActive = function (elem) {
         var doc = elem.ownerDocument;
         while (elem) {
             elem = elem.parentNode;
@@ -2060,37 +2194,85 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return true;
     };
     if (typeof document !== "undefined")
-        exports.Host.document = document;
+        exports.DomUtility.document = document;
     if (typeof window !== "undefined")
-        exports.Host.window = window;
-    //======================================================================
-    function clone(src, deep) {
-        if (!src)
-            return src;
-        var srcT = Object.prototype.toString.call(src);
-        if (srcT === "[object String]" || srcT === "[object Number]" || srcT === "[object Boolean]")
-            return src;
-        var rs;
-        if (srcT === "[object Function]") {
-            var raw_1 = src;
-            if (src.$clone_raw)
-                raw_1 = src.$clone_raw;
-            var rs_1 = function () { return raw_1.apply(arguments); };
-            Object.defineProperty(rs_1, "$clone_raw", { enumerable: false, writable: false, configurable: false, value: raw_1 });
+        exports.DomUtility.global = exports.DomUtility.window = window;
+    try {
+        var element_wrapper_1 = exports.DomUtility.wrapper = exports.DomUtility.createElement("div");
+        if (element_wrapper_1.currentStyle) {
+            exports.DomUtility.getStyle = function (node, name) { return node.currentStyle[name]; };
         }
-        else if (srcT === "[object Object]")
-            rs = {};
-        else if (srcT === "[object Array]")
-            rs = [];
-        if (deep)
-            for (var n in src)
-                rs[n] = clone(src[n], true);
-        else
-            for (var n in src)
-                rs[n] = src[n];
-        return rs;
+        else {
+            exports.DomUtility.getStyle = function (node, name) { return getComputedStyle(node, false)[name]; };
+        }
+        exports.DomUtility.setStyle = function (node, name, value) {
+            var convertor = exports.styleConvertors[name];
+            node.style[name] = convertor ? convertor(value) : value;
+            return exports.DomUtility;
+        };
+        exports.DomUtility.parse = function (domString) {
+            element_wrapper_1.innerHTML = domString;
+            return element_wrapper_1.childNodes;
+        };
     }
-    exports.clone = clone;
+    catch (ex) { }
+    var emptyStringRegx = /\s+/g;
+    function findClassAt(clsnames, cls) {
+        var at = clsnames.indexOf(cls);
+        var len = cls.length;
+        while (at >= 0) {
+            if (at > 0) {
+                var prev = clsnames[at - 1];
+                if (!emptyStringRegx.test(prev)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            if ((at + len) !== clsnames.length) {
+                var next = clsnames[at + length];
+                if (!emptyStringRegx.test(next)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            return at;
+        }
+        return at;
+    }
+    exports.DomUtility.hasClass = function (node, cls) {
+        return findClassAt(node.className, cls) >= 0;
+    };
+    exports.DomUtility.addClass = function (node, cls) {
+        if (findClassAt(node.className, cls) >= 0)
+            return exports.DomUtility;
+        node.className += " " + cls;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.removeClass = function (node, cls) {
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, cls);
+        if (at <= 0)
+            return exports.DomUtility;
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + cls.length);
+        node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+    };
+    exports.DomUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
+        if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
+            return _this.addClass(new_cls);
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, old_cls);
+        if (at <= 0) {
+            if (alwaysAdd)
+                node.className = clsnames + " " + new_cls;
+            return exports.DomUtility;
+        }
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + old_cls.length);
+        node.className = prev + new_cls + next;
+        return exports.DomUtility;
+    };
+    //======================================================================
     function THIS(obj, name) {
         var method = name;
         var rpc = false;
@@ -2124,8 +2306,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders,
         VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: EXP,
-        Host: exports.Host, styleConvertors: exports.styleConvertors,
-        intimate: intimate, clone: clone, Promise: Promise
+        Host: exports.DomUtility, styleConvertors: exports.styleConvertors,
+        intimate: implicit, clone: clone, Promise: Promise
     };
     if (typeof window !== 'undefined')
         window.YA = YA;

@@ -11,7 +11,7 @@
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA = require("../YA.core");
     var YA_dom_1 = require("YA.dom");
-    var Host = YA.Host;
+    var Host = YA.DomUtility;
     var Directions;
     (function (Directions) {
         Directions[Directions["Vertical"] = 0] = "Vertical";

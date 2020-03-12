@@ -29,7 +29,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA = require("YA.core");
-    var Host = YA.Host;
+    var Host = YA.DomUtility;
     var Dom = /** @class */ (function () {
         function Dom(element) {
             var _this = this;
@@ -616,7 +616,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return this;
     });
     Dom.element("append", null, function (target, opEl) { return target.appendChild(opEl); });
-    var element_wrapper = YA.Host.document.createElement("div");
+    var element_wrapper = YA.DomUtility.document.createElement("div");
     var attach;
     var detech;
     if (element_wrapper.addEventListener) {

@@ -6,7 +6,21 @@ doct.output = outputToElement;
 @doct("YA.component")
 export class componentTest {
     constructor(cdoc:ClassDoct){
-        cdoc.description = `UI控件`;
+        cdoc.description = `控件`;
+        cdoc.usage("基本用法-js原生",(assert_statement:TAssertStatement,container:YA.IDomNode)=>{
+            let comp = YA.component(function(){
+                this.model = {title:"YA.component的基本用法"};
+                this.render = (container?:any)=>{
+                    return <div onclick={this.changeTitle}>点击这里会弹出一个输入框,输入的文本将显示在这里:[{this.model.title}].</div>;
+                }
+                this.changeTitle = ()=>{
+                    let newTitle = window.prompt("请输入新的标题:",this.model.title);
+                    this.model.title = newTitle;
+                }
+            });
+            comp.render(container);
+
+        });
         cdoc.usage("基本用法",(assert_statement:TAssertStatement,container:any)=>{
             @YA.component("My")
             class MyComponent{
@@ -52,8 +66,11 @@ export class componentTest {
             });
             
         });
+    }
 
-        cdoc.usage("模板函数中的if",(assert_statement:TAssertStatement,container:any)=>{
+    @doct()
+    IF(mdoc:MemberDoct){
+        mdoc.usage("模板函数中的if",(assert_statement:TAssertStatement,container:any)=>{
             @YA.component("My")
             class MyComponent{
                 @YA.reactive()
@@ -76,8 +93,10 @@ export class componentTest {
             myComponent.render(container);
         });
 
-        
-        cdoc.usage("模板函数中的for",(assert_statement:TAssertStatement,container:any)=>{
+    }
+    @doct()
+    For(mdoc:MemberDoct){
+        mdoc.usage("模板函数中的for",(assert_statement:TAssertStatement,container:any)=>{
             @YA.component("My")
             class MyComponent{
                 @YA.reactive()

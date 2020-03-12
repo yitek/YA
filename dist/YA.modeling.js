@@ -566,6 +566,7 @@ var __extends = (this && this.__extends) || (function () {
                             return;
                         if (--waitingCount === 0 && !_this.__errorInfo) {
                             _this.load("complete");
+                            _this.__initInherit();
                         }
                     });
                     if (base === this) {
@@ -601,15 +602,19 @@ var __extends = (this && this.__extends) || (function () {
                 if (field.fieldType) {
                     waitingCount++;
                     field.fieldType.load(function (fieldModel) {
-                        if (--waitingCount === 0 && !_this.__errorInfo)
+                        if (--waitingCount === 0 && !_this.__errorInfo) {
                             _this.load("complete");
+                            _this.__initInherit();
+                        }
                     });
                     if (field.expandable)
                         this.expendableFields[field.name] = field;
                 }
             }
-            if (--waitingCount === 0 && !this.__errorInfo)
+            if (--waitingCount === 0 && !this.__errorInfo) {
                 this.load("complete");
+                this.__initInherit();
+            }
             return this;
         };
         Model.prototype.__initInherit = function () {
@@ -671,6 +676,12 @@ var __extends = (this && this.__extends) || (function () {
         };
         Model.prototype.__initBases = function () {
             var _this = this;
+            //首先把Id找到
+            for (var n in this.fields) {
+                var field = this.fields[n];
+                if (field.primary)
+                    this.primary = field;
+            }
             var waitingCount = 1;
             if (this.bases) {
                 var index_1 = 0;
@@ -695,6 +706,9 @@ var __extends = (this && this.__extends) || (function () {
         Model.prototype.__expandBase = function (baseModel) {
             for (var n in baseModel.fields) {
                 var baseField = baseModel.fields[n];
+                //因为后面的是混入类，其成员优先级较低，已经存在的就不会覆盖了
+                if (this.fields[n])
+                    continue;
                 var meField = new Field(this, null);
                 for (var pn in baseField)
                     meField[pn] = baseField[pn];
@@ -717,6 +731,11 @@ var __extends = (this && this.__extends) || (function () {
                     console.warn("已经有定义过" + name_2 + ",原先的定义");
                 viewOpt.name = name_2;
                 this.views[name_2] = new View(this, viewOpt);
+            }
+            if (!this.primary) {
+                var primaryKey = this.defination.primary;
+                if (primaryKey)
+                    this.primary = this.fields[primaryKey];
             }
             this.ready("complete");
         };
@@ -762,6 +781,7 @@ var __extends = (this && this.__extends) || (function () {
     var Renderer = /** @class */ (function () {
         function Renderer(view) {
             this.view = view;
+            this.model = view.model;
             this.elementInfos = {};
         }
         Renderer.prototype.render = function (container) {
@@ -769,30 +789,30 @@ var __extends = (this && this.__extends) || (function () {
         Renderer.prototype._renderForm = function (initData, permissions, container) {
             var form;
             if (this.view.type === ViewTypes.edit) {
-                form = Host.createElement("form", container);
-                Host.setAttribute(form, "method", "post");
+                form = DomUtility.createElement("form", container);
+                DomUtility.setAttribute(form, "method", "post");
             }
             else {
-                form = Host.createElement("div", container);
+                form = DomUtility.createElement("div", container);
             }
             if (this.view.groups) {
                 for (var n in this.view.groups) {
                     var group = this.view.groups[n];
                     var fieldsetElem = void 0;
                     if (n) {
-                        fieldsetElem = Host.createElement({
-                            tagName: "fieldset",
+                        fieldsetElem = DomUtility.createElement({
+                            tag: "fieldset",
                             className: "group " + n
                         }, form);
-                        var legend = Host.createElement("legend", fieldsetElem);
-                        Host.createElement({
-                            tagName: "span",
+                        var legend = DomUtility.createElement("legend", fieldsetElem);
+                        DomUtility.createElement({
+                            tag: "span",
                             className: "group-caption",
                             content: group.caption
                         }, legend);
                     }
-                    var contentElem = Host.createElement({
-                        tagName: "div",
+                    var contentElem = DomUtility.createElement({
+                        tag: "div",
                         className: "group-content"
                     }, fieldsetElem || form);
                     this._renderMembers(MemberViewPositions.fieldset, group.members, initData, permissions, contentElem);
@@ -803,41 +823,66 @@ var __extends = (this && this.__extends) || (function () {
             }
         };
         Renderer.prototype._renderTable = function (initData, permissions, container) {
-            var tb = Host.createElement({
-                tagName: "table",
+            var tb = DomUtility.createElement({
+                tag: "table",
                 className: ""
             }, container);
-            var thead = Host.createElement("thead", tb);
-            var thRow = Host.createElement("tr", thead);
+            var thead = DomUtility.createElement("thead", tb);
+            var thRow = DomUtility.createElement("tr", thead);
             var colCount = 0;
             if (this.view.checkable) {
-                var chkTh = Host.createElement("th", thRow);
+                var chkTh = DomUtility.createElement("th", thRow);
                 colCount++;
-                var ckBox = Host.createElement({
-                    tagName: "input",
+                var ckBox = DomUtility.createElement({
+                    tag: "input",
                     type: "checkbox"
                 }, chkTh);
             }
             var memberCount = 0;
+            var members = {};
             for (var n in this.view.listMembers) {
                 if (permissions && permissions[n] === "disable")
                     continue;
-                if (this._createMemberElement(MemberViewPositions.tableHeader, this.view.listMembers[n], this.defaultInputViewType, null, thRow)) {
-                    colCount++;
-                    memberCount++;
-                }
+                var member = members[n] = this.view.listMembers[n];
+                this._createMemberElement(MemberViewPositions.tableHeader, member, this.defaultInputViewType, null, thRow);
+                colCount++;
+                memberCount++;
             }
             if (this.view.bodyActions) {
-                Host.createElement({
-                    tagName: "th",
+                DomUtility.createElement({
+                    tag: "th",
                     content: "操作"
                 }, thRow);
             }
             var rows = this.view.rowsPath.getValue(initData);
-            var tbody = Host.createElement("tbody", tb);
+            var tbody = DomUtility.createElement("tbody", tb);
             if (!rows || !rows.length) {
-                var row = Host.createElement("tr", tbody);
-                Host.setAttribute(row, "colspan", colCount);
+                var row = DomUtility.createElement("tr", tbody);
+                var td = DomUtility.createElement({ tag: "td", "className": "nodata" }, row);
+                DomUtility.setAttribute(td, "colspan", colCount);
+                DomUtility.setContent(td, "没有数据");
+            }
+            else {
+                for (var i in rows) {
+                    var row = DomUtility.createElement("tr", tbody);
+                    if (this.view.checkable) {
+                        var chkTd = DomUtility.createElement("td", row);
+                        DomUtility.createElement({
+                            tag: "input",
+                            value: row[this.model.primary.name],
+                            type: "checkbox"
+                        }, chkTd);
+                    }
+                    var rowData = rows[i];
+                    for (var n in members) {
+                        var td = DomUtility.createElement("td", row);
+                        var member = members[n];
+                        if (member.readonly === false) {
+                            "";
+                            this._createMemberElement(MemberViewPositions.cell, member, InputViewTypes.editable, rowData, thRow);
+                        }
+                    }
+                }
             }
         };
         Renderer.prototype._renderMembers = function (pos, members, initData, permissions, container) {
@@ -855,39 +900,39 @@ var __extends = (this && this.__extends) || (function () {
         Renderer.prototype._createMemberElement = function (pos, member, memberViewType, initValue, container) {
             var field = member.field;
             if (pos === MemberViewPositions.tableHeader) {
-                var th = Host.createElement("th", container);
-                var label_1 = Host.createElement({
-                    tagName: "label",
+                var th = DomUtility.createElement("th", container);
+                var label_1 = DomUtility.createElement({
+                    tag: "label",
                     className: "field-label text " + field.name,
                     content: field.displayName
                 }, th);
                 return { fieldElement: th };
             }
             if (pos === MemberViewPositions.cell) {
-                var div_1 = Host.createElement({
-                    tagName: "div",
+                var div_1 = DomUtility.createElement({
+                    tag: "div",
                     className: "field-data " + field.type + " " + field.name
                 }, container);
                 var elemInfo_1 = createFieldInput(member, memberViewType, initValue, div_1);
                 elemInfo_1.fieldElement = div_1;
                 return elemInfo_1;
             }
-            var div = Host.createElement({
-                tagName: "div",
+            var div = DomUtility.createElement({
+                tag: "div",
                 className: "field " + field.type + " " + field.name
             }, container);
-            var label = Host.createElement("label", div);
-            Host.setAttribute(label, "className", "field-label");
+            var label = DomUtility.createElement("label", div);
+            DomUtility.setAttribute(label, "className", "field-label");
             if (pos === MemberViewPositions.fieldset && field.required) {
-                var required = Host.createElement({ tagName: "ins", className: "field-label-required", content: "*" }, label);
+                var required = DomUtility.createElement({ tag: "ins", className: "field-label-required", content: "*" }, label);
             }
-            var caption = Host.createElement({
-                tagName: "span",
+            var caption = DomUtility.createElement({
+                tag: "span",
                 className: "field-label-text",
                 content: field.displayName
             }, label);
             if (pos === MemberViewPositions.fieldset && field.description) {
-                Host.setAttribute(caption, "title", field.description);
+                DomUtility.setAttribute(caption, "title", field.description);
             }
             var elemInfo = createFieldInput(member, memberViewType, initValue, div);
             elemInfo.fieldElement = div;
@@ -898,7 +943,7 @@ var __extends = (this && this.__extends) || (function () {
         return Renderer;
     }());
     exports.Renderer = Renderer;
-    var Host = YA.Host;
+    var DomUtility = YA.DomUtility;
     var componentFactories = {};
     function textFactory(member, initValue, memberViewType, container) {
     }
@@ -916,7 +961,7 @@ var __extends = (this && this.__extends) || (function () {
             var content = initValue;
             if (content === undefined || content === null)
                 content = "";
-            var inputElem_1 = Host.createText(content);
+            var inputElem_1 = DomUtility.createText(content);
             if (container)
                 container.appendChild(inputElem_1);
             info = {

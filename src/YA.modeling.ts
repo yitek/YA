@@ -980,7 +980,7 @@ export interface IModel{
     bases:string[]|Model[];
     fields:IField[]|{[name:string]:IField};
     views:IView[] | {[name:string]:IView};
-    
+    primary:IField|string;
 }
 
 
@@ -994,7 +994,7 @@ export class Model extends YA.Promise implements IModel{
     defFields:{[name:string]:Field};
     expendableFields:{[name:string]:Field};
     defination:any;
-
+    primary:IField;
     references:{[typename:string]:Model};
 
     __loadCallbacks:any[];
@@ -1061,6 +1061,7 @@ export class Model extends YA.Promise implements IModel{
                     if(this.__errorInfo) return;
                     if(--waitingCount===0 && !this.__errorInfo) {
                         this.load("complete");
+                        this.__initInherit();
                     }
                 });
                 if(base===this) {this.__errorInfo = new Error("循环继承"); throw this.__errorInfo;}
@@ -1086,12 +1087,18 @@ export class Model extends YA.Promise implements IModel{
             if(field.fieldType){
                 waitingCount++;
                 (field.fieldType as Model).load((fieldModel:Model)=>{
-                    if(--waitingCount===0 && !this.__errorInfo) this.load("complete");
+                    if(--waitingCount===0 && !this.__errorInfo){
+                        this.load("complete");
+                        this.__initInherit();
+                    } 
                 });
                 if(field.expandable) this.expendableFields[field.name] = field;
             }
         }
-        if(--waitingCount===0 && !this.__errorInfo) this.load("complete");
+        if(--waitingCount===0 && !this.__errorInfo) {
+            this.load("complete");
+            this.__initInherit();
+        }
         return this;
     }
 
@@ -1141,6 +1148,11 @@ export class Model extends YA.Promise implements IModel{
 
     
     private __initBases(){
+        //首先把Id找到
+        for(let n in this.fields) {
+            let field:Field = this.fields[n];
+            if(field.primary)this.primary = field;
+        }
         let waitingCount=1;
         if(this.bases){
             let index = 0;
@@ -1159,6 +1171,8 @@ export class Model extends YA.Promise implements IModel{
     private __expandBase(baseModel:Model){
         for(let n in baseModel.fields){
             let baseField = baseModel.fields[n];
+            //因为后面的是混入类，其成员优先级较低，已经存在的就不会覆盖了
+            if(this.fields[n]) continue;
             let meField = new Field(this,null);
             for(let pn in baseField) meField[pn]=baseField[pn];
             meField.model = this;
@@ -1178,6 +1192,10 @@ export class Model extends YA.Promise implements IModel{
             if(this.views[name]) console.warn("已经有定义过"+name+",原先的定义");
             viewOpt.name = name;
             this.views[name] =  new View(this,viewOpt);
+        }
+        if(!this.primary){
+            let primaryKey = this.defination.primary;
+            if(primaryKey) this.primary = this.fields[primaryKey];
         }
         this.ready("complete");
     }
@@ -1234,11 +1252,13 @@ export enum InputViewTypes{
     
 }
 export class Renderer{
+    model:Model;
     data:{[name:string]:any};
    
     defaultInputViewType:InputViewTypes;
     elementInfos:{[name:string]:IFieldElementInfo};
     constructor(public view:View){
+        this.model = view.model;
         this.elementInfos ={};
     }
 
@@ -1249,11 +1269,11 @@ export class Renderer{
     protected _renderForm(initData:any,permissions:{[name:string]:string},container?:any){
         let form;
         if(this.view.type ===ViewTypes.edit){
-            form = Host.createElement("form",container);
-            Host.setAttribute(form,"method","post");
+            form = DomUtility.createElement("form",container);
+            DomUtility.setAttribute(form,"method","post");
             
         }else {
-            form = Host.createElement("div",container);
+            form = DomUtility.createElement("div",container);
             
         }
 
@@ -1262,19 +1282,19 @@ export class Renderer{
                 let group = this.view.groups[n];
                 let fieldsetElem;
                 if(n){
-                    fieldsetElem = Host.createElement({
-                        tagName:"fieldset",
+                    fieldsetElem = DomUtility.createElement({
+                        tag:"fieldset",
                         className:`group ${n}`
                     },form);
-                    let legend = Host.createElement("legend",fieldsetElem);
-                    Host.createElement({
-                        tagName:"span",
+                    let legend = DomUtility.createElement("legend",fieldsetElem);
+                    DomUtility.createElement({
+                        tag:"span",
                         className:"group-caption",
                         content:group.caption
                     },legend);
                 }
-                let contentElem = Host.createElement({
-                    tagName:"div",
+                let contentElem = DomUtility.createElement({
+                    tag:"div",
                     className:"group-content"
                 },fieldsetElem||form);
                 this._renderMembers(MemberViewPositions.fieldset,group.members as any,initData,permissions,contentElem);
@@ -1285,37 +1305,68 @@ export class Renderer{
     }
 
     protected _renderTable(initData:any,permissions:{[name:string]:string},container?:any){
-        let tb = Host.createElement({
-            tagName:"table",
+        let tb = DomUtility.createElement({
+            tag:"table",
             className:``
         },container);
-        let thead = Host.createElement("thead",tb);
-        let thRow = Host.createElement("tr",thead);
+        let thead = DomUtility.createElement("thead",tb);
+        let thRow = DomUtility.createElement("tr",thead);
         let colCount =0;
         
         if(this.view.checkable){
-            let chkTh = Host.createElement("th",thRow);colCount++;
-            let ckBox = Host.createElement({
-                tagName:"input",
+            let chkTh = DomUtility.createElement("th",thRow);colCount++;
+            let ckBox = DomUtility.createElement({
+                tag:"input",
                 type:"checkbox"
             },chkTh);
         }
         let memberCount = 0;
+        let members = {};
         for(let n in this.view.listMembers){
             if(permissions && permissions[n]==="disable") continue;
-            if(this._createMemberElement(MemberViewPositions.tableHeader,this.view.listMembers[n] as any,this.defaultInputViewType,null,thRow)){colCount++;memberCount++;}
+            let member = members[n] = this.view.listMembers[n];
+            this._createMemberElement(MemberViewPositions.tableHeader,member,this.defaultInputViewType,null,thRow);
+            colCount++;memberCount++;
         }
         if(this.view.bodyActions){
-            Host.createElement({
-                tagName:"th"
+            DomUtility.createElement({
+                tag:"th"
                 ,content:"操作"
             },thRow);
         }
         let rows = this.view.rowsPath.getValue(initData);
-        let tbody = Host.createElement("tbody",tb);
+        let tbody = DomUtility.createElement("tbody",tb);
         if(!rows || !rows.length){
-            let row = Host.createElement("tr",tbody);
-            Host.setAttribute(row,"colspan",colCount);
+            let row = DomUtility.createElement("tr",tbody);
+            let td = DomUtility.createElement({tag:"td","className":"nodata"},row);
+            DomUtility.setAttribute(td,"colspan",colCount as any as string);
+            DomUtility.setContent(td,"没有数据");
+        }else {
+            for(const i in rows){
+                let row = DomUtility.createElement("tr",tbody);
+                if(this.view.checkable){
+                    let chkTd = DomUtility.createElement("td",row);
+                    DomUtility.createElement({
+                        tag:"input",
+                        value:row[this.model.primary.name],
+                        type:"checkbox"
+                    },chkTd);
+                }
+                let rowData = rows[i];
+                for(const n in members){
+                    let td = DomUtility.createElement("td",row);
+                    let member:ViewMember = members[n];
+                    if(member.readonly===false){``
+                        this._createMemberElement(MemberViewPositions.cell
+                            ,member
+                            ,InputViewTypes.editable
+                            ,rowData
+                            ,thRow
+                        );
+                    }
+                    
+                }
+            }
         }
     }
 
@@ -1337,42 +1388,42 @@ export class Renderer{
     protected _createMemberElement( pos:MemberViewPositions,member:ViewMember,memberViewType:InputViewTypes,initValue:any,container:any):IFieldElementInfo{
         let field = member.field;
         if(pos===MemberViewPositions.tableHeader){
-            let th = Host.createElement("th",container);
-            let label = Host.createElement({
-                tagName:"label",
+            let th = DomUtility.createElement("th",container);
+            let label = DomUtility.createElement({
+                tag:"label",
                 className:`field-label text ${field.name}`,
                 content:field.displayName
             },th);
             return {fieldElement:th};
         }
         if(pos===MemberViewPositions.cell){
-            let div = Host.createElement({
-                tagName:"div",
+            let div = DomUtility.createElement({
+                tag:"div",
                 className:`field-data ${field.type} ${field.name}`
             },container);
             let elemInfo = createFieldInput(member,memberViewType,initValue,div);
             elemInfo.fieldElement = div;
             return elemInfo;
         }
-        let div = Host.createElement({
-            tagName:"div"
+        let div = DomUtility.createElement({
+            tag:"div"
             ,className : `field ${field.type} ${field.name}`
         },container);
         
             
-        let label = Host.createElement("label",div);
-        Host.setAttribute(label,"className",`field-label`);
+        let label = DomUtility.createElement("label",div);
+        DomUtility.setAttribute(label,"className",`field-label`);
         if(pos===MemberViewPositions.fieldset && field.required){
-            let required = Host.createElement({tagName:"ins",className:"field-label-required",content:"*"},label);
+            let required = DomUtility.createElement({tag:"ins",className:"field-label-required",content:"*"},label);
         }
         
-        let caption = Host.createElement({
-            tagName:"span",
+        let caption = DomUtility.createElement({
+            tag:"span",
             className:"field-label-text",
             content:field.displayName
         },label);
         if(pos===MemberViewPositions.fieldset && field.description){
-            Host.setAttribute(caption,"title",field.description);
+            DomUtility.setAttribute(caption,"title",field.description);
         }
 
         let elemInfo = createFieldInput(member,memberViewType,initValue,div);
@@ -1384,7 +1435,7 @@ export class Renderer{
         
     }
 }
-let Host = YA.Host;
+let DomUtility = YA.DomUtility;
 export type TComponentFactory = (member:ViewMember,initValue:any,memberViewType:InputViewTypes,container:any)=>any;
 let componentFactories :{[typename:string]:TComponentFactory}= {};
 function textFactory(member:ViewMember,initValue:any,memberViewType:InputViewTypes,container:any){
@@ -1403,7 +1454,7 @@ function createFieldInput(member:ViewMember,inputViewType:InputViewTypes,initVal
     if(info===undefined){
         let content = initValue;
         if(content===undefined ||content ===null) content = "";
-        let inputElem = Host.createText(content);
+        let inputElem = DomUtility.createText(content);
         if(container) container.appendChild(inputElem);
         info = {
             inputElement:inputElem,

@@ -1,4 +1,4 @@
-export declare function intimate(strong?: boolean | any, members?: any): (target: any, propName?: string) => void;
+export declare function implicit(strong?: boolean | any, members?: any, value?: any): (target: any, propName?: string) => void;
 export declare function is_string(obj: any): boolean;
 export declare function is_bool(obj: any): boolean;
 export declare function is_number(obj: any): boolean;
@@ -38,6 +38,7 @@ export declare class DPath {
     static setValue(data: any, tpath: string, value: any): void;
     static replace(template: string, data?: any): string;
 }
+export declare function clone(src: any, deep?: boolean): any;
 export declare type TAsyncStatement = (resolve: (result: any) => any, reject: (err: any) => any) => any;
 export interface IThenable {
     then(fulfillCallback: (result: any) => any, rejectCallback?: (result: any) => any): IThenable;
@@ -414,7 +415,9 @@ export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
 };
 export declare type TComponentType = TComponentCtor & {
-    $meta: IComponentInfo;
+    prototype: {
+        $meta: IComponentInfo;
+    };
 };
 export interface IDisposeInfo {
     activeTime?: Date;
@@ -428,10 +431,27 @@ export interface IInternalComponent extends IComponent {
         [name: string]: Observable<any>;
     };
 }
-export declare function component(tag: string, ComponentType?: {
+export declare function component(tag: string | {
     new (...args: any[]): IComponent;
-} | boolean): any;
-export declare class VirtualNode {
+} | boolean | Function, ComponentType?: {
+    new (...args: any[]): IComponent;
+} | boolean | Function): any;
+export interface IVirtualNode {
+    tag?: string;
+    id?: string;
+    className?: string;
+    name?: string;
+    value?: string;
+    type?: string;
+    title?: string;
+    placeholder?: string;
+    attrs?: {
+        [name: string]: any;
+    };
+    content?: any;
+    children?: IVirtualNode[];
+}
+export declare class VirtualNode implements IVirtualNode {
     tag?: string;
     attrs?: {
         [name: string]: any;
@@ -467,7 +487,7 @@ export declare class VirtualComponentNode extends VirtualNode {
     };
     children?: VirtualNode[];
     meta: IComponentInfo;
-    constructor(tag: string | TComponentType, attrs: {
+    constructor(tag: string | TComponentType | IComponentInfo, attrs: {
         [name: string]: any;
     });
     render(component: IComponent, container?: any): any;
@@ -489,29 +509,55 @@ export declare let attrBinders: {
     [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
 };
 export declare let styleConvertors: any;
-export interface IHost {
-    isElement(elem: any, includeText?: boolean): boolean;
-    isActive(elem: any): boolean;
-    createElement(tag: any, container?: any): any;
-    createText(text: string): any;
-    createPlaceholder(): any;
-    setAttribute(elem: any, name: string, value: any): any;
-    getAttribute(elem: any, name: string): any;
-    appendChild(parent: any, child: any): any;
-    insertBefore(inserted: any, before: any): any;
-    insertAfter(inserted: any, after: any): any;
-    removeChild(container: any, child: any): any;
-    getParent(elem: any): any;
-    hide(elem: any, immeditately?: boolean): any;
-    show(elem: any, immeditately?: boolean): any;
-    removeAllChildrens(parent: any): any;
-    setContent(elem: any, content: string): any;
-    attach(elem: any, evtname: string, handler: Function): any;
-    document: any;
-    window: any;
+export interface IDomNode {
+    nodeType: number;
+    nodeValue: any;
+    tagName: string;
+    className: string;
 }
-export declare let Host: IHost;
-export declare function clone(src: any, deep?: boolean): any;
+export interface IDomDocument {
+    createElement(tag: string): IDomNode;
+    createTextNode(text: string): IDomNode;
+}
+export interface IDomUtility {
+    isElement(obj: any, includeText?: boolean): boolean;
+    isActive(obj: any): boolean;
+    createElement(tag: IVirtualNode | string, attrs?: {
+        [name: string]: string;
+    } | IDomNode, ...children: any[]): IDomNode;
+    createText(text: string, parent?: IDomNode): IDomNode;
+    createPlaceholder(): IDomNode;
+    setContent(node: IDomNode, content: string): IDomUtility;
+    getContent(node: IDomNode): string;
+    setAttribute(node: IDomNode, name: string, value: string): IDomUtility;
+    getAttribute(node: IDomNode, name: string): string;
+    removeAttribute(node: IDomNode, name: string): IDomUtility;
+    setProperty(node: IDomNode, name: string, value: any): IDomUtility;
+    getProperty(node: IDomNode, name: string): any;
+    appendChild(parent: IDomNode, child: IDomNode): IDomUtility;
+    insertBefore(insert: IDomNode, rel: IDomNode): IDomUtility;
+    insertAfter(insert: IDomNode, rel: IDomNode): IDomUtility;
+    remove(node: IDomNode): IDomUtility;
+    getParent(node: IDomNode): IDomNode;
+    hide(node: any, immeditately?: boolean): IDomUtility;
+    show(node: any, immeditately?: boolean): IDomUtility;
+    removeAllChildrens(node: IDomNode): IDomUtility;
+    getChildren(node: IDomNode): IDomNode[];
+    getStyle(node: IDomNode, name: string): string;
+    setStyle(node: IDomNode, name: string, value: string): IDomUtility;
+    hasClass(node: IDomNode, cls: string): boolean;
+    addClass(node: IDomNode, cls: string): IDomUtility;
+    removeClass(node: IDomNode, cls: string): IDomUtility;
+    replaceClass(node: IDomNode, oldCls: string, newCls: string, alwaysAdd?: boolean): IDomUtility;
+    attach(elem: IDomNode, evtname: string, handler: Function): any;
+    detech(elem: IDomNode, evtname: string, handler: Function): any;
+    parse(domString: string): IDomNode[];
+    document: IDomDocument;
+    global: any;
+    window: any;
+    wrapper: IDomNode;
+}
+export declare let DomUtility: IDomUtility;
 export declare function THIS(obj: any, name: string | Function): () => any;
 export declare function queryString(str: string): {};
 declare let YA: {
@@ -539,9 +585,9 @@ declare let YA: {
     virtualNode: typeof VirtualNode.create;
     NOT: typeof NOT;
     EXP: typeof EXP;
-    Host: IHost;
+    Host: IDomUtility;
     styleConvertors: any;
-    intimate: typeof intimate;
+    intimate: typeof implicit;
     clone: typeof clone;
     Promise: typeof Promise;
 };

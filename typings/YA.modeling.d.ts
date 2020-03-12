@@ -610,6 +610,7 @@ export interface IModel {
     views: IView[] | {
         [name: string]: IView;
     };
+    primary: IField | string;
 }
 export declare class Model extends YA.Promise implements IModel {
     fullname: string;
@@ -628,6 +629,7 @@ export declare class Model extends YA.Promise implements IModel {
         [name: string]: Field;
     };
     defination: any;
+    primary: IField;
     references: {
         [typename: string]: Model;
     };
@@ -675,6 +677,7 @@ export declare enum InputViewTypes {
 }
 export declare class Renderer {
     view: View;
+    model: Model;
     data: {
         [name: string]: any;
     };
