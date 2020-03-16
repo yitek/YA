@@ -430,7 +430,7 @@ export interface ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof IObservable
      */
-    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>;
+    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposable,disposible?:IDisposable):ISubject<TEvtArgs>;
     
     /**
      * 取消主题订阅
@@ -509,12 +509,12 @@ export class Subject<TEvtArgs> implements ISubject<TEvtArgs>{
      * @returns {ISubject<TEvtArgs>} 可监听对象
      * @memberof Observable
      */
-    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposiable,disposible?:IDisposiable):ISubject<TEvtArgs>{
+    subscribe(topic:string|{(evt:TEvtArgs):any},listener?:{(evt:TEvtArgs):any}|IDisposable,disposible?:IDisposable):ISubject<TEvtArgs>{
         if(listener===undefined) {
             listener = topic as {(evt:TEvtArgs):any};
             topic="";
         }else if(typeof topic==="function"){
-            disposible = listener as IDisposiable;
+            disposible = listener as IDisposable;
             listener = topic as {(evt:TEvtArgs):any};
             topic="";
         }
@@ -639,45 +639,68 @@ export function new_cid(){
 }
 //===============================================================================
 
-export interface IDisposiable{
-    dispose(onRelease?:(sender:any,args?:any)=>any);
+export interface IDisposable{
+    dispose(onRelease?:any | {(arg:any,sender:IDisposable):any});
+    deteching(onDeteching?:{(sender:IDisposable):boolean}):IDisposable|boolean;
     $isDisposed:boolean;
 }
 
 
 
-export class Disposable{
+export class Disposable implements IDisposable{
     $isDisposed:boolean;
-    private $__onReleases__:Function[];
-    constructor(target:any){
+    private $__disposings__:Function[];
+    private $__detechings__:Function[];
+    constructor(target?:any){
         target || (target=this);
         
         
         Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
-        Object.defineProperty(target,"$__onReleases__",{enumerable:false,configurable:false,writable:true,value:undefined});
-        
-        Object.defineProperty(target,"dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:(obj:any)=>any):IDisposiable{
-            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
-            if(onRelease===undefined){
-                let onReleases = this.$_onReleases;
-                try{
-                    for(const release of onReleases){
-                        release.call(this,this);
-                    }
-                }finally{
-                    Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
-                }
+        Object.defineProperty(target,"$__disposings__",{enumerable:false,configurable:false,writable:true,value:undefined});
+        Object.defineProperty(target,"$__detechings__",{enumerable:false,configurable:false,writable:true,value:undefined});
+        Object.defineProperty(target,"deteching",{enumerable:false,configurable:false,writable:true,value:function(onDeteching?:{(sender:IDisposable):boolean}|any):IDisposable|boolean{
+            if(this.$isDisposed) throw new Error("该资源已经被释放");
+            if(onDeteching!==undefined){
+                let onDetechings = this.$__detechings__;
+                if(!onDetechings) Object.defineProperty(this,"$__ondetechings__",{enumerable:false,configurable:false,writable:false,value:onDetechings=[]});
+                onDetechings.push(onDeteching);
             }else {
-                let onReleases = this.$_onReleases;
-                if(!onReleases) Object.defineProperty(this,"$_onrelases",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
+                let onDetechings = this.$__detechings__;
+                for(const i in onDetechings){
+                    if(onDetechings[i].call(this,this)===false)return false;
+                }
+                return true;
+            }
+            
+            return this;
+        }});
+        Object.defineProperty(target,"dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:any):IDisposable{
+            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
+            if(typeof onRelease==="function"){
+                let onReleases = this.$__disposings__;
+                if(!onReleases) Object.defineProperty(this,"$__disposings__",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
                 onReleases.push(onRelease);
+                return this;
+            }
+            Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
+            let onReleases = this.$__disposings__;
+            try{
+                for(const release of onReleases){
+                    release.call(this,onRelease,this);
+                }
+            }finally{
+                
             }
             return this;
         }});
         return target;
         
     }
-    dispose(onRealse:(obj:any,args?:any)=>any):IDisposiable{
+    dispose(onRealse:any|{(arg:any,sender?:IDisposable):any}):IDisposable{
+        return this;
+    }
+
+    deteching(onDeteching?:(sender:IDisposable)=>boolean):Disposable|boolean{
         return this;
     }
 }
@@ -1467,9 +1490,13 @@ export interface IComponentInfo {
     explicitMode?:boolean;
 }
 
-export interface IComponent extends IDisposiable{
+export interface IComponent extends IDisposable{
     $meta:IComponentInfo;
-    [propname:string]:any; 
+    
+    render(container?:IDomNode):IDomNode|IDomNode[];
+    $__elements__:IDomNode | IDomNode[];
+    $__placeholder__:IDomNode;
+
 }
 export type TComponentCtor = {new (...args:any[]):IComponent};
 export type TComponentType = TComponentCtor & {prototype:{$meta:IComponentInfo}};
@@ -1705,12 +1732,119 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
 function makeAction(component:IComponent,method){
     return function () {
         let rs= method.apply(component,arguments);
-        for(const n in component.$reactives){
-            component.$reactives[n].update();
+        for(const n in component.$meta.reactives){
+            component[n].update();
         }
         return rs;
     }
 }
+
+///组件的垃圾释放机制
+
+export class ComponentGarbage{
+    static singleon:ComponentGarbage;
+    private _toBeChecks:IComponent[];
+    private _tick;
+    constructor(){
+        if(ComponentGarbage.singleon!==undefined){
+            throw new Error("ComponentGarbage只能单例运行");
+        }
+        ComponentGarbage.singleon = this;
+        this._toBeChecks =[];
+        let clear = ()=>{
+            clearGarbage(this._toBeChecks,ComponentGarbage.periodicClearCount) ;
+            this._tick = setTimeout(clear, ComponentGarbage.interval);           
+        };
+        this._tick = setTimeout(clear, ComponentGarbage.interval);   
+    }
+    /**
+     * 所有render过的组件都应该调用该函数
+     *
+     * @type {IComponent[]}
+     * @memberof ComponentGarbageDisposer
+     */
+    
+    attech(compoent:IComponent):ComponentGarbage{
+        //没有dispose函数的进到垃圾释放器里面来也没用，反而占内存
+        //已经释放掉的也不用进来了
+        if(compoent.dispose && !compoent.$isDisposed) this._toBeChecks.push(compoent);
+        return this;
+    }
+
+    /**
+     * 如果写了参数compoent,就是要手动把某个组件从垃圾回收中，要从垃圾释放器中移除掉
+     * 如果不写参数，表示执行释放任务
+     * @param {IComponent} component
+     * @returns {ComponentAutoDisposer}
+     * @memberof ComponentGarbageDisposer
+     */
+    detech(component?:IComponent):ComponentGarbage{
+        for(let i =0,j=this._toBeChecks.length;i<j;i++){
+            let existed:IComponent = this._toBeChecks.shift();
+            // 如果相等或则已经dispose掉了，就不再进入队列了
+            if(existed===component || existed.$isDisposed) continue;
+            this._toBeChecks.push(existed);
+        }
+        return this;
+    }
+
+    /**
+     * 手动释放垃圾
+     *
+     * @returns {ComponentAutoDisposer}
+     * @memberof ComponentAutoDisposer
+     */
+    clear():ComponentGarbage{
+        clearGarbage(this._toBeChecks,this._toBeChecks.length);
+        return this;
+    }
+
+    static interval:number = 1000*30;
+    static periodicClearCount = 200;
+}
+
+ComponentGarbage.singleon = new ComponentGarbage();
+
+function clearGarbage(components:IComponent[],count:number):number{
+    
+    for(let i =0,j=Math.min(count,components.length);i<j;i++){
+        let existed:IComponent = components.shift();
+        // 如果相等或则已经dispose掉了，就不再进入队列了
+        if(existed.$isDisposed) {continue;}
+        //垃圾判定
+    
+        if(!checkGarbage(existed)){
+            components.push(existed);continue;
+        }
+        if(typeof existed.deteching==="function"&&existed.deteching()===false) {
+            components.push(existed);continue;
+        }
+        if(typeof existed.dispose ==="function"){
+            existed.dispose(false);
+        }
+        
+    }
+    return count;
+}
+
+function checkGarbage(comp:IComponent){
+    
+    if(!comp || !comp.$__elements__) return true;
+    if(DomUtility.isElement(comp.$__elements__,true)){
+        
+        if(DomUtility.is_inDocument(comp.$__elements__)) return false;
+        else if(comp.$__placeholder__ && DomUtility.is_inDocument(comp.$__placeholder__)) return false;
+        return true;
+    }else if((comp.$__elements__ as IDomNode[]).length){
+        for(let i =0,j=(comp.$__elements__ as IDomNode[]).length;i<j;i++){
+            if(DomUtility.is_inDocument(comp.$__elements__[i])) return false;
+            else if(comp.$__placeholder__ && DomUtility.is_inDocument(comp.$__placeholder__)) return false;
+        }
+        return true;
+    }
+    
+}
+
 
 
 //=========================================================================
@@ -2160,7 +2294,7 @@ export interface IDomDocument{
 }
 export interface IDomUtility{
     isElement(obj:any,includeText?:boolean):boolean;
-    isActive(obj:any):boolean;
+    is_inDocument(obj:any):boolean;
     createElement(tag:IVirtualNode|string,attrs?:{[name:string]:string}|IDomNode,...children:any[]):IDomNode;
     createText(text:string,parent?:IDomNode):IDomNode;
     createPlaceholder():IDomNode;
@@ -2333,7 +2467,7 @@ DomUtility.detech = (elem:any,evtname:string,handler:Function)=>{
     else elem['on'+evtname] = null;
     return DomUtility;
 }
-DomUtility.isActive = (elem:any):boolean=>{
+DomUtility.is_inDocument = (elem:any):boolean=>{
     let doc = (elem as HTMLElement).ownerDocument;
     while(elem){
         elem = elem.parentNode;
@@ -2455,7 +2589,7 @@ export function queryString(str:string){
 
 //=======================================================================
 let YA={
-    Subject, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
+    Subject,Disposable, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
     ,component,state: reactive,IN,OUT,PARAM,template,attrBinders
     ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,NOT,EXP
     ,Host: DomUtility,styleConvertors

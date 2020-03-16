@@ -602,33 +602,55 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         function Disposable(target) {
             target || (target = this);
             Object.defineProperty(target, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: false });
-            Object.defineProperty(target, "$__onReleases__", { enumerable: false, configurable: false, writable: true, value: undefined });
+            Object.defineProperty(target, "$__disposings__", { enumerable: false, configurable: false, writable: true, value: undefined });
+            Object.defineProperty(target, "$__detechings__", { enumerable: false, configurable: false, writable: true, value: undefined });
+            Object.defineProperty(target, "deteching", { enumerable: false, configurable: false, writable: true, value: function (onDeteching) {
+                    if (this.$isDisposed)
+                        throw new Error("该资源已经被释放");
+                    if (onDeteching !== undefined) {
+                        var onDetechings = this.$__detechings__;
+                        if (!onDetechings)
+                            Object.defineProperty(this, "$__ondetechings__", { enumerable: false, configurable: false, writable: false, value: onDetechings = [] });
+                        onDetechings.push(onDeteching);
+                    }
+                    else {
+                        var onDetechings = this.$__detechings__;
+                        for (var i in onDetechings) {
+                            if (onDetechings[i].call(this, this) === false)
+                                return false;
+                        }
+                        return true;
+                    }
+                    return this;
+                } });
             Object.defineProperty(target, "dispose", { enumerable: false, configurable: false, writable: true, value: function (onRelease) {
                     if (this.$isDisposed)
                         throw new Error("不能释放已经释放的资源");
-                    if (onRelease === undefined) {
-                        var onReleases = this.$_onReleases;
-                        try {
-                            for (var _i = 0, onReleases_1 = onReleases; _i < onReleases_1.length; _i++) {
-                                var release = onReleases_1[_i];
-                                release.call(this, this);
-                            }
-                        }
-                        finally {
-                            Object.defineProperty(this, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: true });
+                    if (typeof onRelease === "function") {
+                        var onReleases_2 = this.$__disposings__;
+                        if (!onReleases_2)
+                            Object.defineProperty(this, "$__disposings__", { enumerable: false, configurable: false, writable: false, value: onReleases_2 = [] });
+                        onReleases_2.push(onRelease);
+                        return this;
+                    }
+                    Object.defineProperty(this, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: true });
+                    var onReleases = this.$__disposings__;
+                    try {
+                        for (var _i = 0, onReleases_1 = onReleases; _i < onReleases_1.length; _i++) {
+                            var release = onReleases_1[_i];
+                            release.call(this, onRelease, this);
                         }
                     }
-                    else {
-                        var onReleases = this.$_onReleases;
-                        if (!onReleases)
-                            Object.defineProperty(this, "$_onrelases", { enumerable: false, configurable: false, writable: false, value: onReleases = [] });
-                        onReleases.push(onRelease);
+                    finally {
                     }
                     return this;
                 } });
             return target;
         }
         Disposable.prototype.dispose = function (onRealse) {
+            return this;
+        };
+        Disposable.prototype.deteching = function (onDeteching) {
             return this;
         };
         return Disposable;
@@ -1579,11 +1601,114 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function makeAction(component, method) {
         return function () {
             var rs = method.apply(component, arguments);
-            for (var n in component.$reactives) {
-                component.$reactives[n].update();
+            for (var n in component.$meta.reactives) {
+                component[n].update();
             }
             return rs;
         };
+    }
+    ///组件的垃圾释放机制
+    var ComponentGarbage = /** @class */ (function () {
+        function ComponentGarbage() {
+            var _this = this;
+            if (ComponentGarbage.singleon !== undefined) {
+                throw new Error("ComponentGarbage只能单例运行");
+            }
+            ComponentGarbage.singleon = this;
+            this._toBeChecks = [];
+            var clear = function () {
+                clearGarbage(_this._toBeChecks, ComponentGarbage.periodicClearCount);
+                _this._tick = setTimeout(clear, ComponentGarbage.interval);
+            };
+            this._tick = setTimeout(clear, ComponentGarbage.interval);
+        }
+        /**
+         * 所有render过的组件都应该调用该函数
+         *
+         * @type {IComponent[]}
+         * @memberof ComponentGarbageDisposer
+         */
+        ComponentGarbage.prototype.attech = function (compoent) {
+            //没有dispose函数的进到垃圾释放器里面来也没用，反而占内存
+            //已经释放掉的也不用进来了
+            if (compoent.dispose && !compoent.$isDisposed)
+                this._toBeChecks.push(compoent);
+            return this;
+        };
+        /**
+         * 如果写了参数compoent,就是要手动把某个组件从垃圾回收中，要从垃圾释放器中移除掉
+         * 如果不写参数，表示执行释放任务
+         * @param {IComponent} component
+         * @returns {ComponentAutoDisposer}
+         * @memberof ComponentGarbageDisposer
+         */
+        ComponentGarbage.prototype.detech = function (component) {
+            for (var i = 0, j = this._toBeChecks.length; i < j; i++) {
+                var existed = this._toBeChecks.shift();
+                // 如果相等或则已经dispose掉了，就不再进入队列了
+                if (existed === component || existed.$isDisposed)
+                    continue;
+                this._toBeChecks.push(existed);
+            }
+            return this;
+        };
+        /**
+         * 手动释放垃圾
+         *
+         * @returns {ComponentAutoDisposer}
+         * @memberof ComponentAutoDisposer
+         */
+        ComponentGarbage.prototype.clear = function () {
+            clearGarbage(this._toBeChecks, this._toBeChecks.length);
+            return this;
+        };
+        ComponentGarbage.interval = 1000 * 30;
+        ComponentGarbage.periodicClearCount = 200;
+        return ComponentGarbage;
+    }());
+    exports.ComponentGarbage = ComponentGarbage;
+    ComponentGarbage.singleon = new ComponentGarbage();
+    function clearGarbage(components, count) {
+        for (var i = 0, j = Math.min(count, components.length); i < j; i++) {
+            var existed = components.shift();
+            // 如果相等或则已经dispose掉了，就不再进入队列了
+            if (existed.$isDisposed) {
+                continue;
+            }
+            //垃圾判定
+            if (!checkGarbage(existed)) {
+                components.push(existed);
+                continue;
+            }
+            if (typeof existed.deteching === "function" && existed.deteching() === false) {
+                components.push(existed);
+                continue;
+            }
+            if (typeof existed.dispose === "function") {
+                existed.dispose(false);
+            }
+        }
+        return count;
+    }
+    function checkGarbage(comp) {
+        if (!comp || !comp.$__elements__)
+            return true;
+        if (exports.DomUtility.isElement(comp.$__elements__, true)) {
+            if (exports.DomUtility.is_inDocument(comp.$__elements__))
+                return false;
+            else if (comp.$__placeholder__ && exports.DomUtility.is_inDocument(comp.$__placeholder__))
+                return false;
+            return true;
+        }
+        else if (comp.$__elements__.length) {
+            for (var i = 0, j = comp.$__elements__.length; i < j; i++) {
+                if (exports.DomUtility.is_inDocument(comp.$__elements__[i]))
+                    return false;
+                else if (comp.$__placeholder__ && exports.DomUtility.is_inDocument(comp.$__placeholder__))
+                    return false;
+            }
+            return true;
+        }
     }
     //=========================================================================
     function addRelElements(ob, elems) {
@@ -2182,7 +2307,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             elem['on' + evtname] = null;
         return exports.DomUtility;
     };
-    exports.DomUtility.isActive = function (elem) {
+    exports.DomUtility.is_inDocument = function (elem) {
         var doc = elem.ownerDocument;
         while (elem) {
             elem = elem.parentNode;
@@ -2303,7 +2428,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.queryString = queryString;
     //=======================================================================
     var YA = {
-        Subject: Subject, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
+        Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders,
         VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: EXP,
         Host: exports.DomUtility, styleConvertors: exports.styleConvertors,

@@ -101,7 +101,7 @@ export interface ISubject<TEvtArgs> {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    } | IDisposiable, disposible?: IDisposiable): ISubject<TEvtArgs>;
+    } | IDisposable, disposible?: IDisposable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
      * notify操作时，被取消的监听器不会被调用
@@ -176,7 +176,7 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
         (evt: TEvtArgs): any;
     }, listener?: {
         (evt: TEvtArgs): any;
-    } | IDisposiable, disposible?: IDisposiable): ISubject<TEvtArgs>;
+    } | IDisposable, disposible?: IDisposable): ISubject<TEvtArgs>;
     /**
      * 取消主题订阅
      * notify操作时，被取消的监听器不会被调用
@@ -207,15 +207,24 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
 }
 export declare function eventable(subject: any, topic: string): any;
 export declare function new_cid(): number;
-export interface IDisposiable {
-    dispose(onRelease?: (sender: any, args?: any) => any): any;
+export interface IDisposable {
+    dispose(onRelease?: any | {
+        (arg: any, sender: IDisposable): any;
+    }): any;
+    deteching(onDeteching?: {
+        (sender: IDisposable): boolean;
+    }): IDisposable | boolean;
     $isDisposed: boolean;
 }
-export declare class Disposable {
+export declare class Disposable implements IDisposable {
     $isDisposed: boolean;
-    private $__onReleases__;
-    constructor(target: any);
-    dispose(onRealse: (obj: any, args?: any) => any): IDisposiable;
+    private $__disposings__;
+    private $__detechings__;
+    constructor(target?: any);
+    dispose(onRealse: any | {
+        (arg: any, sender?: IDisposable): any;
+    }): IDisposable;
+    deteching(onDeteching?: (sender: IDisposable) => boolean): Disposable | boolean;
 }
 export declare enum DataTypes {
     Value = 0,
@@ -407,9 +416,11 @@ export interface IComponentInfo {
     inited?: boolean;
     explicitMode?: boolean;
 }
-export interface IComponent extends IDisposiable {
+export interface IComponent extends IDisposable {
     $meta: IComponentInfo;
-    [propname: string]: any;
+    render(container?: IDomNode): IDomNode | IDomNode[];
+    $__elements__: IDomNode | IDomNode[];
+    $__placeholder__: IDomNode;
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
@@ -436,6 +447,36 @@ export declare function component(tag: string | {
 } | boolean | Function, ComponentType?: {
     new (...args: any[]): IComponent;
 } | boolean | Function): any;
+export declare class ComponentGarbage {
+    static singleon: ComponentGarbage;
+    private _toBeChecks;
+    private _tick;
+    constructor();
+    /**
+     * 所有render过的组件都应该调用该函数
+     *
+     * @type {IComponent[]}
+     * @memberof ComponentGarbageDisposer
+     */
+    attech(compoent: IComponent): ComponentGarbage;
+    /**
+     * 如果写了参数compoent,就是要手动把某个组件从垃圾回收中，要从垃圾释放器中移除掉
+     * 如果不写参数，表示执行释放任务
+     * @param {IComponent} component
+     * @returns {ComponentAutoDisposer}
+     * @memberof ComponentGarbageDisposer
+     */
+    detech(component?: IComponent): ComponentGarbage;
+    /**
+     * 手动释放垃圾
+     *
+     * @returns {ComponentAutoDisposer}
+     * @memberof ComponentAutoDisposer
+     */
+    clear(): ComponentGarbage;
+    static interval: number;
+    static periodicClearCount: number;
+}
 export interface IVirtualNode {
     tag?: string;
     id?: string;
@@ -521,7 +562,7 @@ export interface IDomDocument {
 }
 export interface IDomUtility {
     isElement(obj: any, includeText?: boolean): boolean;
-    isActive(obj: any): boolean;
+    is_inDocument(obj: any): boolean;
     createElement(tag: IVirtualNode | string, attrs?: {
         [name: string]: string;
     } | IDomNode, ...children: any[]): IDomNode;
@@ -562,6 +603,7 @@ export declare function THIS(obj: any, name: string | Function): () => any;
 export declare function queryString(str: string): {};
 declare let YA: {
     Subject: typeof Subject;
+    Disposable: typeof Disposable;
     ObservableModes: typeof ObservableModes;
     observableMode: typeof observableMode;
     proxyMode: typeof proxyMode;

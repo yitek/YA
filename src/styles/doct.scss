@@ -12,6 +12,68 @@ $title-front-color:#333;
     word-wrap: break-all;
     word-break: break-word;
 }
+
+fieldset.doct{
+    border:1px solid #ccc;
+    background-color:#eee;
+    color:#333;
+    
+    &>legend{
+        background-color:#666;
+        color:#eee;
+        padding:$spacing;
+        font-weight:bold;
+        font-size:$fontSize*1.5;
+    }
+    .instructions{
+        &>dt{
+            font-weight: bold;
+            padding:$spacing;
+            
+        }
+        &>dd{
+           
+            padding:$spacing;
+
+            line-height: $fontSize*1.5;
+        }
+       
+    }
+    dt.usages{
+        display:none;
+    }
+    dd.usages{
+        margin-top:$spacing;
+        padding-top:$spacing;
+        border-top:2px solid #999;
+    }
+    fieldset.usage{
+        margin-top:$spacing;
+        padding-top:$spacing;
+        
+        &>legend{
+            width:100%;
+            background-color: #bbb;
+            padding:$spacing;
+            font-weight: bold;
+        }
+        ul.codes{
+            padding:$spacing*2;
+            margin:$spacing;
+            background-color:#333;
+            color:#eee;
+            ol.asserts{
+                font-style:italic;
+                background-color :#666;
+                border:1px solid #999;
+                padding: $spacing;
+                margin:$spacing;
+                border-radius:  $spacing;
+            }
+        }
+    }
+
+}
 input,textarea,select,button{
     border:1px solid #ccc;
     border-radius: $spacing;
@@ -51,91 +113,3 @@ table{
 ul,ol,dl{
     list-style: none inside;
 }
-ul.subs{
-    li{
-        padding-left:$spacing;
-    }
-}
-div.demo{
-    background-color:#f9f9f9;
-    border:1px solid #eee;
-    border-radius: $spacing;
-    padding:$spacing*2;
-}
-ol.samples{
-    list-style:decimal outside;
-    &>li{
-        padding:$spacing*2;
-        background-color:#333;
-        color:#eee;
-        font-size:$fontSize;
-
-        pre{
-           
-            line-height: $fontSize*1.5;
-            overflow:auto;
-            word-break: break-all;
-            word-wrap:break-word;
-            width:100%;
-        }
-        ul.asserts{
-            border:2px dashed #ddd;
-            border-radius: $spacing;
-            margin:$spacing;
-            padding:$spacing;
-            background-color: #666;
-            color:#eee;
-            text-decoration: underline;
-            
-            font-size:$fontSize*0.9;
-            li.comment{
-                text-decoration: none;
-            }
-        }
-        
-    }
-}
-ol.usages{
-    list-style-type: decimal;
-    list-style-position: outside;
-    &>li{
-        margin-left:$spacing;
-    }
-}
-fieldset{
-    margin:$spacing;
-    legend{
-        font-size:$fontSize*1.2;
-        font-weight: bold;
-        background-color: $title-backend-color;
-        color: $title-front-color;
-        width:100%;
-        padding:$spacing;
-    }
-    dl.main{
-        dt{
-            font-weight: bold;
-        }
-        dd{
-            margin-bottom: $spacing*2;
-        }
-    }
-    dl.statistics{
-        font-size:$fontSize*0.8;
-        padding:$spacing;
-        margin: $spacing;
-        border:1px solid #ccc;
-        display: flex;
-        flex-flow: row wrap;
-        font-style:italic;
-        dt{
-            font-weight: bold;
-            margin-right:$spacing;
-        }
-        dd{
-            margin-right:$spacing*2;
-            
-        }
-        
-    }
-} 

@@ -1,0 +1,512 @@
+enum InfoTypes{
+    NS,
+    Class,
+    Method
+}
+
+
+export class AssertException extends Error{
+    outerMessage:string;
+    constructor(msg:string,outerMessage?:string){
+        super(msg);
+        this.outerMessage=outerMessage;
+    }
+    toString(){
+        if(this.outerMessage) return this.outerMessage;
+        return super.toString();
+    }
+}
+
+/**
+ * 可以直接对应testclass
+ *
+ * @class NameInfo
+ */
+export class NameInfo{
+    //名字空间自身的名字
+    name:string;
+    type:InfoTypes;
+    //全名
+    private _fullname:string;
+    
+    get fullname():string{
+        if(this._fullname===undefined){
+            if(this.container){
+                this._fullname = this.container.fullname + "."+this.name;
+            }else this._fullname = this.name;
+        }
+        return this._fullname;
+    }
+
+    descriptions:string[];
+    set description(content:string){
+        if(content = trim(content))
+            (this.descriptions||(this.descriptions=[])).push(content);
+    }
+    notices:string[];
+    set notice(content:string){
+        if(content = trim(content))
+            (this.notices||(this.notices=[])).push(content);
+    }
+    
+
+    container:NameInfo;
+    subs:{[name:string]:NameInfo};
+    
+    /**
+     *Creates an instance of Namespace.
+     * @param {string} name
+     * @param {NameInfo} parent
+     * @memberof Namespace
+     */
+    constructor(name:string,container:NameInfo){
+        this.name = name;
+        this.container= container; 
+        this.subs = {};
+        this.type = InfoTypes.NS;
+        if(container) container.subs[name] = this;
+    }
+
+    execute(output:any):IExecuteRecord{
+        let rs :IExecuteRecord= {name:this.name,type:InfoTypes[this.type],errorCount:0,usageCount:0, beginTime:new Date(),ellapse:0};
+        Doct.beginLog(rs,this,renderElement);
+        for(const n in this.subs){
+            if(!rs.subs) rs.subs={};
+            
+            let sub = this.subs[n];
+            let subRenderElement = null;
+            if(renderElement) {
+                subRenderElement = Doct.createElement(rs.type);
+                Doct.appendChild(renderElement,subRenderElement);
+            }
+            let subRs = sub.execute(subRenderElement);
+            rs.subs[n] = subRs;
+            rs.ellapse += rs.ellapse;
+            rs.errorCount += rs.errorCount;
+            rs.usageCount += rs.usageCount;
+        }
+        rs.endTime = new Date();
+        Doct.endLog(rs,this,param);
+        return rs;
+    }
+}
+export type TAssert = (expected:any,actual:any,message?:string)=>any;
+export type TAssertStatement = (assert:TAssert)=>any;
+export type TUsageStatement = (assert_statement:TAssertStatement,container?:any)=>any;
+export interface IUsageAssertInfo{
+    code:string;
+    asserts?:string[];
+}
+
+export class ClassInfo extends NameInfo{
+    ctor:{new(info?:ClassInfo):any};
+    constructor(ctor:{new(info?:ClassInfo):any},name:string,container:NameInfo){
+        super(name,container);
+        this.ctor = ctor;
+        ctor.prototype.$__dictClsInfo__ = this;
+        this.type = InfoTypes.Class;
+    }
+}
+
+//可以直接对应testMethod
+export class UsageInfo extends NameInfo{
+    exception:Error;
+    
+    codes:string[];
+    
+    /**
+     * 
+     *
+     * @type {TUsageStatement}
+     * @memberof UsageInfo
+     */
+    statement:TUsageStatement;
+
+    domContainer:any;
+    constructor(statement:TUsageStatement,name:string,container:NameInfo){
+        super(name,container);
+        this.statement= statement;
+        (statement as any).$__dictUsageInfo__ = this;
+        this.type = InfoTypes.Method;
+        this.codes=makeCodes(statement);
+    }
+
+    execute(param?:any):IExecuteRecord{
+        let executeRs:IExecuteRecord = {name:this.name,type:InfoTypes[this.type],errorCount:0,usageCount:1,beginTime:new Date()};
+        let end:Date;
+        let index:number = 0;
+        let assert_proc = (assert_statement:(assert:(expected,actual,message)=>any)=>any)=>{
+            end = executeRs.endTime = new Date();
+            executeRs.ellapse = executeRs.endTime.valueOf()-executeRs.beginTime.valueOf();
+            assert_statement(makeAssert(this,index++,executeRs));
+            
+        };
+        let domContainer = null;
+        try{
+            domContainer = document.createElement("div");
+            if(param) param.appendChild(domContainer);
+        }catch{}
+        executeRs.beginTime = new Date();
+        try{
+            if(Doct.debugging){
+                
+                this.statement.call(this,assert_proc,this.domContainer);
+            }else {
+                try{
+                    this.statement.call(this,assert_proc,this.domContainer);
+                }catch(ex){
+                    executeRs.errorCount++;
+                }
+            }
+        }finally{
+            if(end===undefined){
+                end = executeRs.endTime = new Date();
+                executeRs.ellapse = executeRs.endTime.valueOf() - executeRs.beginTime.valueOf();
+            }
+        }
+        return executeRs;
+    }
+}
+
+
+
+function makeCodes(func:Function):string[]{
+    let trimRegx = /(^\s+)|(\s+$)/g;
+    //assert是用function开头
+    let assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
+
+    let statement_proc = func.toString();
+    let assert_proc_name_match = statement_proc.match(assert_proc_name_regx);
+    let assert_proce_name = assert_proc_name_match[1];
+    if(!assert_proce_name) return  [statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1)];
+
+    let codes = [];
+    
+    let assert_proc_regx = new RegExp(`[;\\s]?${assert_proce_name.split(',')[0].replace(trimRegx,"")}\\s?\\(`);
+    statement_proc = statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1);
+    let stateBeginAt = 0;
+    //let codes = "";
+    let c = 0;
+    while(true){
+        if(c++===10){debugger;break;}
+        //let match = assert_proc_regx.exec(statement_proc);
+        let match = statement_proc.match(assert_proc_regx);
+        if(match){
+            let matchAt = match.index;
+            let stateCode = statement_proc.substring(stateBeginAt,matchAt).replace(trimRegx,"");
+            if(stateCode) codes.push(stateCode);
+            
+            let branceCount =1;
+            let isInStr;
+            for(let i =matchAt+match[0].length,j=statement_proc.length;i<j;i++){
+                let ch = statement_proc[i];
+                if(ch===")"){
+                    if(isInStr) continue;
+                    if(--branceCount==0){
+                        statement_proc = statement_proc.substring(i+1).replace(/^\s*;?/g,"");
+                        stateBeginAt=0;
+                        break;
+                    }
+                }else if(ch==="("){
+                    if(isInStr) continue;
+                    branceCount++;
+                }else if(ch==="'" || ch==='"'){
+                    if(ch===isInStr) isInStr=undefined;
+                    else if(!isInStr) isInStr = ch;
+                    else continue;
+                }
+            }
+            if(branceCount) throw new Error("无法解析的函数");
+        }else {
+            let stateCode = statement_proc.substring(stateBeginAt,statement_proc.length-1).replace(trimRegx,"");
+            if(stateCode)codes.push(stateCode);
+            break;
+        }
+    }
+
+    return codes;
+}
+
+
+function makeAssert(doc:UsageInfo,codeIndex:number,record:IExecuteRecord){
+    let code = doc.codes[codeIndex];
+    let assert= (expected:any,actual:any,msg:string,paths?:string[])=>{
+        if(!record.codeInfos) record.codeInfos = [];
+        let assertInfo = record.codeInfos[codeIndex] = {code:code,asserts:[]};
+        let asserts :string[] = assertInfo.asserts;
+        
+        if(!paths && msg) msg = msg.replace(/\{actual\}/g,JSON.stringify(actual)).replace(/\{expected\}/g,JSON.stringify(expected));
+        if(actual===expected) {
+            if(msg)asserts.push(msg);
+            return;
+        }
+        let t = typeof(expected);
+        
+        if(t==="object"){
+            paths||(paths=[]);
+            //let nullMsg = msg || "期望有值";
+            if(!actual) throw new AssertException(paths.join(".")+"不应为空.",msg);
+    
+            for(let n in expected){
+                paths.push(n);
+                let expectedValue = expected[n];
+                let actualValue = actual[n];
+                if(typeof expectedValue==="object"){
+                    assert(actualValue,expectedValue,msg,paths);
+                }else {
+                    if(actualValue!==expectedValue){
+                        throw new AssertException(`${paths?paths.join("."):""}期望值为${expectedValue},实际为${actualValue}`,msg);
+                    }
+                }
+                paths.pop();
+            }
+            if(msg && !paths.length){
+                asserts.push(msg);
+            }
+        }else if(actual!==expected){
+            throw new AssertException(`${paths?paths.join("."):""}期望值为${expected},实际为${actual}`,msg);
+        }else {
+            if( msg && !paths){
+                asserts.push(msg);
+            }
+        }
+    };
+    return assert;
+}
+
+
+
+
+function makeClassInfo(ctor:{new(cinfo:ClassInfo):any},name:string):ClassInfo{
+    let paths = name.split(".");
+    let ns = Doct.rootNS;
+    //最后一个是自己的名字
+    let clsname = trim(paths.pop());
+    if(!clsname) throw new Error(`错误的名字空间${name}`);
+    //前面的是名字空间
+    for(const i in paths){
+        let path = trim(paths[i]);
+        if(!path)  throw new Error(`错误的名字空间${name}`);
+        let existed = ns[path];
+        if(!existed)existed = ns[path] = new NameInfo(path,ns);
+        ns = existed;   
+    }
+    let clsInfo = new ClassInfo(ctor,name,ns);   
+    return clsInfo;
+}
+
+function makeUsageInfo(statement:TUsageStatement,clsInfo,name:string):UsageInfo{
+        if(typeof statement!=="function") throw new Error(`不正确的装饰器使用，只能用在method上`);
+        
+        if(!clsInfo)throw new Error("必须用dict装饰对象或类");
+        let usageInfo = new UsageInfo(statement,name,clsInfo);
+        return usageInfo;
+}
+
+export interface IExecuteRecord{
+    name:string;
+    type:string;
+
+    /**
+     * 测试开始时间
+     *
+     * @type {Date}
+     * @memberof IExecuteResult
+     */
+    beginTime:Date;
+
+    /**
+     * 测试结束时间
+     *
+     * @type {Date}
+     * @memberof IExecuteResult
+     */
+    endTime?:Date;
+    
+    /**
+     * 测试耗时
+     *
+     * @type {number}
+     * @memberof IExecuteResult
+     */
+    ellapse?:number;
+
+    errorDetail?:any;
+
+    errorCount:number;
+    usageCount:number;
+
+
+    /**
+     *
+     *
+     * @type {IUsageAssertInfo[]}
+     * @memberof IExecuteRecord
+     */
+    codeInfos?:IUsageAssertInfo[];
+
+    subs?:{[name:string]:IExecuteRecord};
+}
+
+
+
+
+function doct(name:string,description:string,notices?:string[]){
+    return function(target:any,propname?:string){
+        let info:NameInfo;
+        if(typeof target ==="function"){
+            info = makeClassInfo(target,name);
+        }else {
+            info = makeUsageInfo(target[propname],target.$__dictClassInfo__,name);
+        }
+        this.description = description;
+        if(notices){
+            if(notices.push) {
+                for(const i in notices){
+                    info.notice = notices[i];
+                }
+            }
+        }
+    }
+}
+export interface IDoct{
+    (name:string,description:string):any;
+    rootName:string;
+    rootNS:NameInfo;
+    
+    /**
+     * 是否处于调试模式，如果是，就不会捕捉错误
+     *
+     * @type {boolean}
+     * @memberof IDoct
+     */
+    debugging:boolean;
+
+    beginLog:(rs:IExecuteRecord,info:NameInfo,extra?:any)=>void;
+    endLog:(rs:IExecuteRecord,info:NameInfo,extra?:any)=>void;
+    createElement:(tag:string,cls?:string,parent?:any)=>any;
+    appendChild:(p,c)=>void;
+    setContent:(node:any,content:string)=>void;
+}
+
+let Doct :IDoct = doct as any as IDoct;
+Doct.rootName = "YA";
+Doct.rootNS = new NameInfo(Doct.rootName,null);
+Doct.debugging = true;
+Doct.beginLog = (rs:IExecuteRecord,info:NameInfo,extra?:any)=>{
+    console.info();
+}
+
+
+Doct.createElement = (tag:string,cls?:string,container?:any)=>{
+    let div = document.createElement(tag);
+    if(cls)div.className=cls;
+    if(container) container.appendChild(div);
+    return div;
+}
+Doct.appendChild = (p,c)=>p.appendChild(c);
+Doct.setContent = (node,cotnent)=>node.innerHTML = cotnent;
+export interface ILogger{
+    section(info:NameInfo,param:any,record:IExecuteRecord,statement:(subLogger:ILogger)=>any):ILogger;
+    info(message:string):ILogger;
+}
+
+export class ConsoleLogger{
+    section(info:NameInfo,param:any,record:IExecuteRecord,statement:(logger:ILogger)=>any){
+        console.group(info.name);
+        statement.call(this,this);
+        if(record.errorDetail) console.error(record.errorDetail);
+        if(info.type!==InfoTypes.Method){
+            let message = `错误=${record.errorCount},执行=${record.usageCount},耗时=${record.ellapse}`;
+            if(record.errorCount) {
+                console.warn(message);
+            }else console.log(message);
+        }
+        
+        console.groupEnd();
+        return this;
+    }
+    info(message:string){
+        console.info(message);
+        return this;
+    }
+}
+
+export class HtmlLogger{
+    container:HTMLElement;
+    //parent:HtmlLogger;
+    constructor(container:HTMLElement){
+        this.container = container;
+    }
+    section(info:NameInfo,param:any,record:IExecuteRecord,statement:(logger:ILogger)=>any){
+        
+        let fs = Doct.createElement("fieldset");
+
+        return this;
+    }
+    _renderNS(info:NameInfo,container:any,record:IExecuteRecord){
+        
+    }
+
+    /**
+     * 展示Usage信息的代码
+     *
+     * @param {UsageInfo} info 信息
+     * @param {*} container 
+     * @param {*} demo
+     * @param {IExecuteRecord} record
+     * @memberof HtmlLogger
+     */
+    _renderUsage(info:UsageInfo,container:any,demo:any,record:IExecuteRecord){
+        let tit = Doct.createElement("dt","usage-title",container);
+        Doct.setContent(tit,info.name);
+        let ctnt = Doct.createElement("dd","content",container);
+        if(info.descriptions.length){
+            let des = Doct.createElement("div","description",ctnt);
+            for(const i in info.descriptions){
+                let p = Doct.createElement("p","",des);
+                Doct.setContent(p,info.descriptions[i]);
+            }
+        }
+        if(info.notices.length){
+            let notice = Doct.createElement("ol","notice",ctnt);
+            for(const i in info.notices){
+                let p = Doct.createElement("li","",notice);
+                Doct.setContent(p,info.notices[i]);
+            }
+        }
+              
+        let sample= Doct.createElement("dl","sample",ctnt);
+        if(record.codeInfos){
+            let dt = Doct.createElement("dt","label",sample);
+            Doct.setContent(dt,"代码");
+            let dd = Doct.createElement("dd","codes",sample);
+            let codes = Doct.createElement("ul","codes",dd);
+            for(const i in record.codeInfos){
+                let assertInfo = record.codeInfos[i];
+                let item = Doct.createElement("li","code",codes);
+                let pre = Doct.createElement("pre","code",item);
+                let code = Doct.createElement("code","code",pre);
+                Doct.setContent(code,assertInfo.code);
+                if(assertInfo.asserts.length){
+                    let asserts = Doct.createElement("ol","asserts",item);
+                    for(const j in assertInfo.asserts){
+                        let assert = Doct.createElement("li","assert",asserts);
+                        Doct.setContent(assert,assertInfo.asserts[j]);
+                    }
+                }
+            }
+        }
+        if(demo){
+            let dt = Doct.createElement("dt","label",sample);Doct.setContent(dt,"示例");
+            let dd = Doct.createElement("dd","demo",sample);
+            Doct.appendChild(dd,demo);
+        }
+
+    }
+
+}
+function trim(text:any):string{
+    if(text===undefined||Text===null) return "";
+    text.toString().replace(/(^\s+)|(\s+$)/g,"");
+}
