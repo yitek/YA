@@ -599,53 +599,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.new_cid = new_cid;
     var Disposable = /** @class */ (function () {
-        function Disposable(target) {
-            target || (target = this);
-            Object.defineProperty(target, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: false });
-            Object.defineProperty(target, "$__disposings__", { enumerable: false, configurable: false, writable: true, value: undefined });
-            Object.defineProperty(target, "$__detechings__", { enumerable: false, configurable: false, writable: true, value: undefined });
-            Object.defineProperty(target, "deteching", { enumerable: false, configurable: false, writable: true, value: function (onDeteching) {
-                    if (this.$isDisposed)
-                        throw new Error("该资源已经被释放");
-                    if (onDeteching !== undefined) {
-                        var onDetechings = this.$__detechings__;
-                        if (!onDetechings)
-                            Object.defineProperty(this, "$__ondetechings__", { enumerable: false, configurable: false, writable: false, value: onDetechings = [] });
-                        onDetechings.push(onDeteching);
-                    }
-                    else {
-                        var onDetechings = this.$__detechings__;
-                        for (var i in onDetechings) {
-                            if (onDetechings[i].call(this, this) === false)
-                                return false;
-                        }
-                        return true;
-                    }
-                    return this;
-                } });
-            Object.defineProperty(target, "dispose", { enumerable: false, configurable: false, writable: true, value: function (onRelease) {
-                    if (this.$isDisposed)
-                        throw new Error("不能释放已经释放的资源");
-                    if (typeof onRelease === "function") {
-                        var onReleases_2 = this.$__disposings__;
-                        if (!onReleases_2)
-                            Object.defineProperty(this, "$__disposings__", { enumerable: false, configurable: false, writable: false, value: onReleases_2 = [] });
-                        onReleases_2.push(onRelease);
-                        return this;
-                    }
-                    Object.defineProperty(this, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: true });
-                    var onReleases = this.$__disposings__;
-                    try {
-                        for (var _i = 0, onReleases_1 = onReleases; _i < onReleases_1.length; _i++) {
-                            var release = onReleases_1[_i];
-                            release.call(this, onRelease, this);
-                        }
-                    }
-                    finally {
-                    }
-                    return this;
-                } });
-            return target;
+        function Disposable() {
+            disposable(this);
         }
         Disposable.prototype.dispose = function (onRealse) {
             return this;
@@ -656,6 +611,55 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Disposable;
     }());
     exports.Disposable = Disposable;
+    function disposable(target) {
+        target || (target = this);
+        Object.defineProperty(target, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: false });
+        Object.defineProperty(target, "$__disposings__", { enumerable: false, configurable: false, writable: true, value: undefined });
+        Object.defineProperty(target, "$__detechings__", { enumerable: false, configurable: false, writable: true, value: undefined });
+        Object.defineProperty(target, "deteching", { enumerable: false, configurable: false, writable: true, value: function (onDeteching) {
+                if (this.$isDisposed)
+                    throw new Error("该资源已经被释放");
+                if (onDeteching !== undefined) {
+                    var onDetechings = this.$__detechings__;
+                    if (!onDetechings)
+                        Object.defineProperty(this, "$__detechings__", { enumerable: false, configurable: false, writable: false, value: onDetechings = [] });
+                    onDetechings.push(onDeteching);
+                }
+                else {
+                    var onDetechings = this.$__detechings__;
+                    for (var i in onDetechings) {
+                        if (onDetechings[i].call(this, this) === false)
+                            return false;
+                    }
+                    return true;
+                }
+                return this;
+            } });
+        Object.defineProperty(target, "dispose", { enumerable: false, configurable: false, writable: true, value: function (onRelease) {
+                if (this.$isDisposed)
+                    throw new Error("不能释放已经释放的资源");
+                if (typeof onRelease === "function") {
+                    var onReleases_2 = this.$__disposings__;
+                    if (!onReleases_2)
+                        Object.defineProperty(this, "$__disposings__", { enumerable: false, configurable: false, writable: false, value: onReleases_2 = [] });
+                    onReleases_2.push(onRelease);
+                    return this;
+                }
+                Object.defineProperty(this, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: true });
+                var onReleases = this.$__disposings__;
+                try {
+                    for (var _i = 0, onReleases_1 = onReleases; _i < onReleases_1.length; _i++) {
+                        var release = onReleases_1[_i];
+                        release.call(this, onRelease, this);
+                    }
+                }
+                finally {
+                }
+                return this;
+            } });
+        return target;
+    }
+    exports.disposable = disposable;
     //defineMembers(Observable.prototype);
     //================================================================
     var DataTypes;
@@ -1601,9 +1605,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function makeAction(component, method) {
         return function () {
             var rs = method.apply(component, arguments);
-            for (var n in component.$meta.reactives) {
-                component[n].update();
-            }
+            var reactives = [];
+            proxyMode(function () {
+                for (var n in component.$meta.reactives) {
+                    reactives.push(component[n]);
+                }
+            });
+            for (var i in reactives)
+                reactives[i].update();
             return rs;
         };
     }

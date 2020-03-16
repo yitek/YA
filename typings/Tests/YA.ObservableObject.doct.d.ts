@@ -1,4 +1,5 @@
-import { ClassDoct } from '../YA.doct';
+import { TAssertStatement } from '../doct';
 export declare class ObservableObjectTest {
-    constructor(cdoc: ClassDoct);
+    base(assert_statement: TAssertStatement): void;
+    deep(assert_statement: TAssertStatement): void;
 }

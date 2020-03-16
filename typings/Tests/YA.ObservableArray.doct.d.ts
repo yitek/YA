@@ -1,5 +1,5 @@
-import { ClassDoct, MemberDoct } from '../YA.doct';
+import { TAssertStatement } from '../doct';
 export declare class ObservableArrayTest {
-    constructor(cdoc: ClassDoct);
-    objectArray(mdoc: MemberDoct): void;
+    base(assert_statement: TAssertStatement): void;
+    objectArray(assert_statement: TAssertStatement): void;
 }

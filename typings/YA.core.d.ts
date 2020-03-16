@@ -220,12 +220,13 @@ export declare class Disposable implements IDisposable {
     $isDisposed: boolean;
     private $__disposings__;
     private $__detechings__;
-    constructor(target?: any);
+    constructor();
     dispose(onRealse: any | {
         (arg: any, sender?: IDisposable): any;
     }): IDisposable;
     deteching(onDeteching?: (sender: IDisposable) => boolean): Disposable | boolean;
 }
+export declare function disposable(target: any): IDisposable;
 export declare enum DataTypes {
     Value = 0,
     Object = 1,

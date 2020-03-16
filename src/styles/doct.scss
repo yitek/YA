@@ -17,6 +17,8 @@ fieldset.doct{
     border:1px solid #ccc;
     background-color:#eee;
     color:#333;
+    margin:$spacing;
+    border-radius: $spacing;
     
     &>legend{
         background-color:#666;
@@ -24,52 +26,80 @@ fieldset.doct{
         padding:$spacing;
         font-weight:bold;
         font-size:$fontSize*1.5;
+        margin-left:$spacing*2;
     }
-    .instructions{
-        &>dt{
-            font-weight: bold;
-            padding:$spacing;
-            
-        }
-        &>dd{
-           
-            padding:$spacing;
-
+    &>dl.doct{
+        margin:$spacing*2;
+    }
+    dt{
+        font-weight:bold;
+        margin-top:$spacing;
+    }
+    dd{
+       padding:$spacing;
+      
+    }
+    dd.descriptions{
+        p{
             line-height: $fontSize*1.5;
+            text-indent:$fontSize*2;
         }
-       
     }
+    dd.demo{
+        border:3px dashed #aaa;
+        padding:$spacing*2;
+        border-radius: $spacing;
+        background-color: white;
+        color:black;
+    }
+
+    ol.notices{
+        margin:$spacing;
+        padding:$spacing*2;
+        border:1px solid black;
+        background-color:orange;
+        border-radius :$spacing;
+        color:black;
+    }
+    
     dt.usages{
         display:none;
     }
     dd.usages{
-        margin-top:$spacing;
-        padding-top:$spacing;
         border-top:2px solid #999;
     }
+
     fieldset.usage{
-        margin-top:$spacing;
-        padding-top:$spacing;
+        margin-top:$spacing*2;
+        
         
         &>legend{
             width:100%;
             background-color: #bbb;
-            padding:$spacing;
+            padding:$spacing*1.5 $spacing;
+            font-size:$fontSize*1.2;
             font-weight: bold;
         }
         ul.codes{
             padding:$spacing*2;
-            margin:$spacing;
+            margin:$spacing $spacing*2;
             background-color:#333;
             color:#eee;
-            ol.asserts{
+            div.comments{
                 font-style:italic;
                 background-color :#666;
                 border:1px solid #999;
                 padding: $spacing;
                 margin:$spacing;
                 border-radius:  $spacing;
+                ol.asserts{
+                    margin:$spacing;
+                }
             }
+            pre{
+                line-height:$fontSize*1.2;
+            }
+            
         }
     }
 
@@ -110,6 +140,6 @@ table{
     }
 }
 
-ul,ol,dl{
+ul,dl{
     list-style: none inside;
 }

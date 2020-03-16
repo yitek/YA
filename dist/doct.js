@@ -252,8 +252,12 @@ var __extends = (this && this.__extends) || (function () {
         var assert_proc = function (assert_statement) {
             end = record.endTime = new Date();
             record.ellapse = record.endTime.valueOf() - record.beginTime.valueOf();
-            assert_statement(makeAssert(methodInfo, index++, record));
+            assert_statement(makeAssert(methodInfo, index, record));
+            index++;
         };
+        for (var i in methodInfo.codes) {
+            record.executeInfos[i] = { code: methodInfo.codes[index], asserts: [] };
+        }
         var demoElement = exports.Doct.useDemo && exports.Doct.createDemoElement ? exports.Doct.createDemoElement(exports.Doct.useDemo === "immediate") : null;
         record.demoElement = demoElement;
         logger.beginMethod(record);
@@ -275,23 +279,21 @@ var __extends = (this && this.__extends) || (function () {
                 end = record.endTime = new Date();
                 record.ellapse = record.endTime.valueOf() - record.beginTime.valueOf();
             }
+            logger.endMethod(record);
             if (demoElement && exports.Doct.useDemo) {
                 exports.Doct.disposeDemoElement(demoElement);
                 if (!exports.Doct.hasDemo(demoElement))
                     record.demoElement = null;
             }
-            logger.endMethod(record);
         }
         return record;
     }
     function makeAssert(doc, codeIndex, record) {
         var code = doc.codes[codeIndex];
         var assert = function (expected, actual, msg, paths) {
-            if (!record.executeInfos)
-                record.executeInfos = [];
+            //if(!record.executeInfos) record.executeInfos = [];
             var assertInfo = record.executeInfos[codeIndex];
-            if (!assertInfo)
-                assertInfo = record.executeInfos[codeIndex] = { code: code, asserts: [] };
+            //if(!assertInfo) assertInfo = record.executeInfos[codeIndex]= {code:code,asserts:[]};
             var asserts = assertInfo.asserts;
             if (msg === undefined && typeof expected === "boolean" && typeof actual === "string") {
                 msg = actual;
@@ -356,7 +358,7 @@ var __extends = (this && this.__extends) || (function () {
             var dlist = makeBas(clsInfo, "doct", this.container);
             var dt = createElement("dt", "usages", dlist, "用法说明");
             var dd = createElement("dd", "usages", dlist);
-            this._usagesElement = createElement("ol", "usages", dd);
+            this._usagesElement = createElement("ul", "usages", dd);
             return this;
         };
         HtmlLogger.prototype.beginMethod = function (record) {
@@ -365,35 +367,34 @@ var __extends = (this && this.__extends) || (function () {
             return this;
         };
         HtmlLogger.prototype.endMethod = function (record) {
-            if (record.executeInfos.length == 0) {
-                this._usageElement = null;
-                return this;
-            }
-            var dt = createElement("dt", "codes", this._usageElement);
-            dt.innerHTML = "代码";
-            var dd = createElement("dd", "codes", this._usageElement);
-            var codes = createElement("ul", "codes", dd);
-            for (var i in record.executeInfos) {
-                var execuetInfo = record.executeInfos[i];
-                var codeli = createElement("li", "code", codes);
-                var cd = createElement("code", "code", codeli);
-                var pre = createElement("pre", "code", cd);
-                pre.innerHTML = execuetInfo.code;
-                if (execuetInfo.asserts.length) {
-                    var asserts = createElement("ol", "asserts", codeli);
-                    createElement("li", "comment", asserts, "/*");
-                    for (var j in execuetInfo.asserts) {
-                        var assertLi = createElement("li", "assert", asserts, execuetInfo.asserts[j]);
+            if (record.executeInfos.length > 0) {
+                var dt = createElement("dt", "codes", this._usageElement);
+                dt.innerHTML = "代码";
+                var dd = createElement("dd", "codes", this._usageElement);
+                var codes = createElement("ul", "codes", dd);
+                for (var i in record.executeInfos) {
+                    var execuetInfo = record.executeInfos[i];
+                    var codeli = createElement("li", "code", codes);
+                    var cd = createElement("code", "code", codeli);
+                    var pre = createElement("pre", "code", cd);
+                    pre.innerHTML = execuetInfo.code;
+                    if (execuetInfo.asserts.length) {
+                        var comment = createElement("div", "comments", codeli);
+                        createElement("ins", "comment", comment, "/*");
+                        var asserts = createElement("ol", "asserts", comment);
+                        for (var j in execuetInfo.asserts) {
+                            var assertLi = createElement("li", "assert", asserts, execuetInfo.asserts[j]);
+                        }
+                        createElement("ins", "comment", comment, "*/");
                     }
-                    createElement("li", "comment", asserts, "*/");
                 }
             }
             if (record.demoElement) {
-                var dt_1 = createElement("dt", "codes", this._usageElement);
-                dt_1.innerHTML = "示例";
-                var dd_1 = createElement("dd", "codes", this._usageElement);
-                dd_1.appendChild(record.demoElement);
-                record.demoElement.__doctCustomDispose__ = true;
+                var dt = createElement("dt", "demo", this._usageElement);
+                dt.innerHTML = "运行效果";
+                var dd = createElement("dd", "demo", this._usageElement);
+                dd.appendChild(record.demoElement);
+                record.demoElement.$__doctCustomDispose__ = true;
             }
             return this;
         };
@@ -425,7 +426,7 @@ var __extends = (this && this.__extends) || (function () {
             var dd = createElement("dd", "descriptions", dlist);
             for (var i in basInfo.descriptions) {
                 var content = basInfo.descriptions[i];
-                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "")))
+                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "").replace(/\n/g, "<br />")))
                     createElement("p", "", dd).innerHTML = content;
             }
         }
@@ -435,7 +436,7 @@ var __extends = (this && this.__extends) || (function () {
             var ol = createElement("ol", "notices", dd);
             for (var i in basInfo.notices) {
                 var content = basInfo.notices[i];
-                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "")))
+                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "").replace(/\n/g, "<br />")))
                     createElement("li", "", ol).innerHTML = content;
             }
         }

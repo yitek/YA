@@ -16,6 +16,10 @@ export class DisposableTest {
     
     @doct({
         title:"基本用法"
+        ,descriptions:[
+            "用dispose(callback)注册释放时的回调"
+            ,"用dispose(any)来释放资源"
+        ]
     })
     base(assert_statement:TAssertStatement,demoElement?:any){
         let disposable = new YA.Disposable();
@@ -46,5 +50,39 @@ export class DisposableTest {
         });
     }
 
-    
+    @doct({
+        title:"释放前检查"
+        ,descriptions:[
+            "用deteching(callback)注册释放前的的检查方法"
+            ,"用deteching()来做检查，只有所有的检查方法都不返回false，才会认为检查通过"
+        ]
+    })
+    deteching(assert_statement:TAssertStatement,demoElement?:any){
+        let disposable = new YA.Disposable();
+        let deteching1Sender,deteching1ReturnValue=false;
+        //注册一个释放前检查函数
+        disposable.deteching((sender)=>{deteching1Sender=sender;return deteching1ReturnValue;});
+        let deteching2Sender;
+        //注册另一个释放前检查函数
+        disposable.deteching((sender)=>{deteching2Sender=sender;return true;});
+
+        let check = disposable.deteching();
+        assert_statement((assert:TAssert)=>{
+            assert(deteching1Sender===disposable,"第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
+            assert(check===false,"deteching()的结果为false,因为有一个检查函数返回了false");
+            assert(deteching2Sender===undefined,"第二个回调函数不会运行 ,因为它前面的检查函数没通过检查:deteching2Sender===undefined");
+        });
+        //清空测试变量
+        deteching1Sender = deteching2Sender = undefined;
+        //改变第一个检查函数的返回值
+        deteching1ReturnValue =true;
+        //做检查
+        check = disposable.deteching();
+        assert_statement((assert:TAssert)=>{
+            assert(check===true,"deteching()的结果为true,因为所有的检查函数都没有返回false：check===true");
+            assert(deteching1Sender===disposable,"第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
+            
+            assert(deteching2Sender===disposable,"第二个回调函数也被调用:deteching2Sender===disposable");
+        });
+    }
 }

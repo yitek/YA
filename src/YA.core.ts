@@ -651,50 +651,8 @@ export class Disposable implements IDisposable{
     $isDisposed:boolean;
     private $__disposings__:Function[];
     private $__detechings__:Function[];
-    constructor(target?:any){
-        target || (target=this);
-        
-        
-        Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
-        Object.defineProperty(target,"$__disposings__",{enumerable:false,configurable:false,writable:true,value:undefined});
-        Object.defineProperty(target,"$__detechings__",{enumerable:false,configurable:false,writable:true,value:undefined});
-        Object.defineProperty(target,"deteching",{enumerable:false,configurable:false,writable:true,value:function(onDeteching?:{(sender:IDisposable):boolean}|any):IDisposable|boolean{
-            if(this.$isDisposed) throw new Error("该资源已经被释放");
-            if(onDeteching!==undefined){
-                let onDetechings = this.$__detechings__;
-                if(!onDetechings) Object.defineProperty(this,"$__ondetechings__",{enumerable:false,configurable:false,writable:false,value:onDetechings=[]});
-                onDetechings.push(onDeteching);
-            }else {
-                let onDetechings = this.$__detechings__;
-                for(const i in onDetechings){
-                    if(onDetechings[i].call(this,this)===false)return false;
-                }
-                return true;
-            }
-            
-            return this;
-        }});
-        Object.defineProperty(target,"dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:any):IDisposable{
-            if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
-            if(typeof onRelease==="function"){
-                let onReleases = this.$__disposings__;
-                if(!onReleases) Object.defineProperty(this,"$__disposings__",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
-                onReleases.push(onRelease);
-                return this;
-            }
-            Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
-            let onReleases = this.$__disposings__;
-            try{
-                for(const release of onReleases){
-                    release.call(this,onRelease,this);
-                }
-            }finally{
-                
-            }
-            return this;
-        }});
-        return target;
-        
+    constructor(){
+        disposable(this);
     }
     dispose(onRealse:any|{(arg:any,sender?:IDisposable):any}):IDisposable{
         return this;
@@ -703,6 +661,48 @@ export class Disposable implements IDisposable{
     deteching(onDeteching?:(sender:IDisposable)=>boolean):Disposable|boolean{
         return this;
     }
+}
+export function disposable(target:any):IDisposable{
+    target || (target=this);    
+    Object.defineProperty(target,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:false});
+    Object.defineProperty(target,"$__disposings__",{enumerable:false,configurable:false,writable:true,value:undefined});
+    Object.defineProperty(target,"$__detechings__",{enumerable:false,configurable:false,writable:true,value:undefined});
+    Object.defineProperty(target,"deteching",{enumerable:false,configurable:false,writable:true,value:function(onDeteching?:{(sender:IDisposable):boolean}|any):IDisposable|boolean{
+        if(this.$isDisposed) throw new Error("该资源已经被释放");
+        if(onDeteching!==undefined){
+            let onDetechings = this.$__detechings__;
+            if(!onDetechings) Object.defineProperty(this,"$__detechings__",{enumerable:false,configurable:false,writable:false,value:onDetechings=[]});
+            onDetechings.push(onDeteching);
+        }else {
+            let onDetechings = this.$__detechings__;
+            for(const i in onDetechings){
+                if(onDetechings[i].call(this,this)===false)return false;
+            }
+            return true;
+        }
+        
+        return this;
+    }});
+    Object.defineProperty(target,"dispose",{enumerable:false,configurable:false,writable:true,value:function(onRelease?:any):IDisposable{
+        if(this.$isDisposed) throw new Error("不能释放已经释放的资源");
+        if(typeof onRelease==="function"){
+            let onReleases = this.$__disposings__;
+            if(!onReleases) Object.defineProperty(this,"$__disposings__",{enumerable:false,configurable:false,writable:false,value:onReleases=[]});
+            onReleases.push(onRelease);
+            return this;
+        }
+        Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
+        let onReleases = this.$__disposings__;
+        try{
+            for(const release of onReleases){
+                release.call(this,onRelease,this);
+            }
+        }finally{
+            
+        }
+        return this;
+    }});
+    return target;
 }
 
 
@@ -1732,9 +1732,14 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
 function makeAction(component:IComponent,method){
     return function () {
         let rs= method.apply(component,arguments);
-        for(const n in component.$meta.reactives){
-            component[n].update();
-        }
+        let reactives = [];
+        proxyMode(()=>{
+            for(const n in component.$meta.reactives){
+                reactives.push(component[n]);
+            }
+        });
+        for(const i in reactives) reactives[i].update();
+        
         return rs;
     }
 }

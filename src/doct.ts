@@ -74,7 +74,7 @@ export function doct(info:IInfo,target?:any):any{//ClassInfo| {(target:any,name?
             }
             
         }
-    };
+    }; 
     //被当作装饰器使用
     if(target===undefined) return decorator;
     return decorator(target) as ClassInfo;
@@ -348,9 +348,14 @@ function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecu
     let assert_proc = (assert_statement:(assert:(expected,actual,message)=>any)=>any)=>{
         end = record.endTime = new Date();
         record.ellapse = record.endTime.valueOf()-record.beginTime.valueOf();
-        assert_statement(makeAssert(methodInfo,index++,record));
+        
+        assert_statement(makeAssert(methodInfo,index,record));
+        index++;
         
     };
+    for(const i in methodInfo.codes){
+        record.executeInfos[i] = {code:methodInfo.codes[index],asserts:[]};
+    }
     let demoElement =Doct.useDemo && Doct.createDemoElement? Doct.createDemoElement(Doct.useDemo==="immediate"):null;
     record.demoElement = demoElement;
     logger.beginMethod(record);
@@ -372,11 +377,12 @@ function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecu
             record.ellapse = record.endTime.valueOf()-record.beginTime.valueOf();
         }
 
+       
+        logger.endMethod(record);
         if(demoElement && Doct.useDemo){
             Doct.disposeDemoElement(demoElement);
             if(!Doct.hasDemo(demoElement)) record.demoElement = null;
         } 
-        logger.endMethod(record);
     }
     
             
@@ -386,9 +392,9 @@ function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecu
 function makeAssert(doc:MethodInfo,codeIndex:number,record:IExecuteRecord){
     let code = doc.codes[codeIndex];
     let assert= (expected:any,actual:any,msg:string,paths?:string[])=>{
-        if(!record.executeInfos) record.executeInfos = [];
+        //if(!record.executeInfos) record.executeInfos = [];
         let assertInfo = record.executeInfos[codeIndex] ;
-        if(!assertInfo) assertInfo = record.executeInfos[codeIndex]= {code:code,asserts:[]};
+        //if(!assertInfo) assertInfo = record.executeInfos[codeIndex]= {code:code,asserts:[]};
         let asserts :string[] = assertInfo.asserts;
         if(msg===undefined && typeof expected==="boolean" && typeof actual==="string"){
             msg = actual;
@@ -456,7 +462,7 @@ export class HtmlLogger implements ILogger{
         let dlist = makeBas(clsInfo,"doct",this.container);
         let dt = createElement("dt","usages",dlist,"用法说明");
         let dd = createElement("dd","usages",dlist);
-        this._usagesElement = createElement("ol","usages",dd);
+        this._usagesElement = createElement("ul","usages",dd);
         return this;
     }
     beginMethod(record:IExecuteRecord):ILogger{
@@ -466,34 +472,36 @@ export class HtmlLogger implements ILogger{
         return this;
     }
     endMethod(record:IExecuteRecord):ILogger{
-        if(record.executeInfos.length==0){
-            this._usageElement = null;return this;
-        }
-        let dt = createElement("dt","codes",this._usageElement);
-        dt.innerHTML = "代码";
-        let dd = createElement("dd","codes",this._usageElement);
-        let codes = createElement("ul","codes",dd);
-        for(const i in record.executeInfos){
-            let execuetInfo = record.executeInfos[i];
-            let codeli = createElement("li","code",codes);
-            let cd = createElement("code","code",codeli);
-            let pre= createElement("pre","code",cd); pre.innerHTML = execuetInfo.code;
-            if(execuetInfo.asserts.length){
-                let asserts = createElement("ol","asserts",codeli);
-                createElement("li","comment",asserts,"/*");
-                for(const j in execuetInfo.asserts){
-                    let assertLi = createElement("li","assert",asserts,execuetInfo.asserts[j]);
+        if(record.executeInfos.length>0){
+            let dt = createElement("dt","codes",this._usageElement);
+            dt.innerHTML = "代码";
+            let dd = createElement("dd","codes",this._usageElement);
+            let codes = createElement("ul","codes",dd);
+            for(const i in record.executeInfos){
+                let execuetInfo = record.executeInfos[i];
+                let codeli = createElement("li","code",codes);
+                let cd = createElement("code","code",codeli);
+                let pre= createElement("pre","code",cd); pre.innerHTML = execuetInfo.code;
+                if(execuetInfo.asserts.length){
+                    let comment = createElement("div","comments",codeli);
+                    createElement("ins","comment",comment,"/*");
+                    let asserts = createElement("ol","asserts",comment);
+                    
+                    for(const j in execuetInfo.asserts){
+                        let assertLi = createElement("li","assert",asserts,execuetInfo.asserts[j]);
+                    }
+                    createElement("ins","comment",comment,"*/");
                 }
-                createElement("li","comment",asserts,"*/");
             }
         }
+        
 
         if(record.demoElement){
-            let dt = createElement("dt","codes",this._usageElement);
-            dt.innerHTML = "示例";
-            let dd = createElement("dd","codes",this._usageElement);
+            let dt = createElement("dt","demo",this._usageElement);
+            dt.innerHTML = "运行效果";
+            let dd = createElement("dd","demo",this._usageElement);
             dd.appendChild(record.demoElement);
-            (record.demoElement as any).__doctCustomDispose__=true;
+            (record.demoElement as any).$__doctCustomDispose__=true;
         }
         return this;
     }
@@ -520,7 +528,7 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
         let dd = createElement("dd","descriptions",dlist);
         for(const i in basInfo.descriptions){
             let content = basInfo.descriptions[i];
-            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"")))
+            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"").replace(/\n/g,"<br />")))
                 createElement("p","",dd).innerHTML = content 
         }
     }
@@ -530,7 +538,7 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
         let ol = createElement("ol","notices",dd);
         for(const i in basInfo.notices){
             let content = basInfo.notices[i];
-            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"")))
+            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"").replace(/\n/g,"<br />")))
                 createElement("li","",ol).innerHTML = content ;
         }
     }

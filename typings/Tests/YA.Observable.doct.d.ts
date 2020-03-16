@@ -1,5 +1,6 @@
-import { ClassDoct, MemberDoct } from '../YA.doct';
+import { TAssertStatement } from '../doct';
 export declare class ObservableTest {
-    constructor(cdoc: ClassDoct);
-    ctor(mdoc: MemberDoct): void;
+    base(assert_statement: TAssertStatement): void;
+    noEnumerable(assert_statement: TAssertStatement): void;
+    ctors(assert_statement: TAssertStatement): void;
 }
