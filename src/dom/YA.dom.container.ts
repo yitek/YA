@@ -117,7 +117,7 @@ export class Resizeable{
         apos.x +=evt.clientX;apos.y +=evt.clientY;
         this._msPos = apos;
         this._msSize = this.target.size() as Size;
-        let doc:HTMLDocument = Host.document as any;
+        let doc:HTMLDocument = document as any;
         let msk = dom(`<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;'></div>`)
             .width(Math.max((doc as any).body.offsetWidth,(doc as any).documentElement.offsetWidth))
             .height(Math.max(doc.body.offsetHeight,(doc as any).documentElement.offsetHeight))
@@ -249,7 +249,7 @@ export class Anchor{
         });
     }
     capture(opts:IAnchorOpts){
-        if(this.adjust){ dom(Host.window).off("resize",this.adjust);}
+        if(this.adjust){ dom(window).off("resize",this.adjust);}
         this.adjust=()=>{
             let psz = this.target.parent().size();
 

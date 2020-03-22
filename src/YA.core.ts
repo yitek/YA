@@ -1,4 +1,5 @@
-import { Dom, IDom } from "./dom/YA.dom";
+import { Dom, IDom, dom } from "./dom/YA.dom";
+import { IView, Renderer } from "./YA.modeling";
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -729,6 +730,7 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $type:DataTypes;
     $extras?:any;
     $target?:TData;
+    $isset?:boolean;
     get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
     set(newValue:TData,updateImmediately?:boolean):IObservable<TData>;
     update():boolean;
@@ -797,6 +799,8 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 
     $extras?:any;
 
+    $isset?:boolean;
+
     $schema?:ObservableSchema<TData>;
 
     $_index?:number|string;
@@ -856,7 +860,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     
         
         implicit(this, {
-            $target:this.$target,$extras:this.$extras,$type:DataTypes.Value,$schema:this.$schema
+            $target:this.$target,$extras:this.$extras,$type:DataTypes.Value,$schema:this.$schema,$isset:false
             ,$_raw:this.$_raw,$_index:this.$_index,$_modifiedValue:undefined,$_owner:this.$_owner
         });
         if(this.$target instanceof Observable) 
@@ -873,6 +877,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     }
 
     set(newValue:TData,updateImmediately?:boolean):IObservable<TData>{
+        this.$isset=true;
         if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
         if(Observable.accessMode===ObservableModes.Raw) {this.$_raw.call(this,newValue);return this;}
         this.$_modifiedValue=newValue===undefined?Undefined:newValue;
@@ -972,6 +977,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     }
 
     set(newValue:TData,updateImmediately?:boolean):IObservableObject<TData>{
+        this.$isset = true;
         if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
         super.set(newValue||null);
         if(!newValue) return this;
@@ -1106,6 +1112,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     }
 
     set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
+        this.$isset = true;
         if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
         else {
             let newArr =[];
@@ -1355,6 +1362,691 @@ export class ObservableSchema<TData>{
 
 
 
+//////////////////////////////////////////////////////////////////////////////
+// DOM操作
+//////////////////////////////////////////////////////////////////////////////
+
+export interface IDomNode{
+    nodeType:number;
+    nodeValue:any;
+    tagName:string;
+    className:string;
+}
+export interface IDomDocument{
+    createElement(tag:string):IDomNode;
+    createTextNode(text:string):IDomNode;
+
+}
+export interface IDomUtility{
+    isElement(obj:any,includeText?:boolean):boolean;
+    is_inDocument(obj:any):boolean;
+    createElement(tag:string,attrs?:{[name:string]:string},parent?:IDomNode,content?:string):IDomNode;
+    createText(text:string,parent?:IDomNode):IDomNode;
+    createPlaceholder():IDomNode;
+    setContent(node:IDomNode,content:string):IDomUtility;
+    getContent(node:IDomNode):string;
+    setAttribute(node:IDomNode,name:string,value:string):IDomUtility;
+    getAttribute(node:IDomNode,name:string):string;
+    removeAttribute(node:IDomNode,name:string):IDomUtility;
+    setProperty(node:IDomNode,name:string,value:any):IDomUtility;
+    getProperty(node:IDomNode,name:string):any;
+    appendChild(parent:IDomNode,child:IDomNode):IDomUtility;
+    insertBefore(insert:IDomNode,rel:IDomNode):IDomUtility;
+    insertAfter(insert:IDomNode,rel:IDomNode):IDomUtility;
+    remove(node:IDomNode):IDomUtility;
+    getParent(node:IDomNode):IDomNode;
+    hide(node:any,immeditately?:boolean):IDomUtility;
+    show(node:any,immeditately?:boolean):IDomUtility;
+    removeAllChildrens(node:IDomNode):IDomUtility;
+    getChildren(node:IDomNode):IDomNode[];
+    getStyle(node:IDomNode,name:string):string;
+    setStyle(node:IDomNode,name:string,value:string):IDomUtility;
+    hasClass(node:IDomNode,cls:string):boolean;
+    addClass(node:IDomNode,cls:string):IDomUtility;
+    removeClass(node:IDomNode,cls:string):IDomUtility;
+    replaceClass(node:IDomNode,oldCls:string,newCls:string,alwaysAdd?:boolean):IDomUtility;
+
+    
+    attach(elem:IDomNode,evtname:string,handler:Function);
+    detech(elem:IDomNode,evtname:string,handler:Function);
+    parse(domString:string):IDomNode[];
+    
+    
+}
+export let DomUtility:IDomUtility={} as any;
+DomUtility.isElement=(elem,includeText?:boolean):boolean=>{
+    if(!elem) return false;
+    if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
+    return includeText?true:(elem as HTMLElement).nodeType === 1;
+};
+
+DomUtility.createElement=function(tag:string,attrs?:{[name:string]:string},parent?:IDomNode,content?:string):IDomNode{
+    let elem = document.createElement(tag);
+    if(attrs) for(const n in attrs) elem.setAttribute(n,attrs[n]);
+    if(parent) (parent as any).appendChild(elem);
+    if(content) elem.innerHTML = content;
+    return elem;
+    
+};
+
+DomUtility.createText=(txt:string,parent?:IDomNode):IDomNode=>{
+    let node= document.createTextNode(txt) as any as IDomNode;
+    if(parent) (parent as any).appendChild(node);
+    return node;
+};
+DomUtility.createPlaceholder=():IDomNode=>{
+    let rs = document.createElement("span");
+    rs.className="YA-PLACEHOLDER";
+    rs.style.display = "none";
+    return rs;
+};
+DomUtility.setContent=(elem:IDomNode,content:string):IDomUtility=>{
+    if(elem.nodeType===1)(elem as any).innerHTML = content;
+    else elem.nodeValue = content;
+    return DomUtility;
+}
+DomUtility.getContent=(elem:IDomNode):string=>{
+    return elem.nodeType===1?(elem as any).innerHTML:elem.nodeValue;
+};
+
+DomUtility.setAttribute=(elem:IDomNode,name:string,value:string):IDomUtility=>{
+    (elem as any)[name]=value;
+    return DomUtility;
+};
+DomUtility.getAttribute=(elem:IDomNode,name:string):string=>{
+    return (elem as any).getAttribute(name);
+};
+DomUtility.removeAttribute=(elem:IDomNode,name:string):IDomUtility=>{
+    (elem as any).removeAttribute(name);
+    return DomUtility;
+};
+
+DomUtility.setProperty=(elem:IDomNode,name:string,value:any):IDomUtility=>{
+    (elem as any)[name]=value;
+    return DomUtility;
+};
+DomUtility.getProperty=(elem:IDomNode,name:string):any=>{
+    return (elem as any)[name];
+};
+
+DomUtility.appendChild=(container:IDomNode,child:IDomNode):IDomUtility=>{
+    (container as any).appendChild(child);
+    return DomUtility;
+};
+
+DomUtility.insertBefore=(insert:IDomNode,rel:IDomNode):IDomUtility=>{
+    if((rel as any).parentNode)(rel as any).parentNode.insertBefore(insert,rel);
+    return DomUtility;
+};
+
+DomUtility.insertAfter=(insert:IDomNode,rel:any):IDomUtility=>{
+    if(rel.parentNode)rel.parentNode.insertAfter(insert,rel);
+    return DomUtility;
+};
+DomUtility.getParent=(elem:IDomNode)=>(elem as any).parentNode as IDomNode;
+DomUtility.remove = (node:IDomNode):IDomUtility=>{
+    if((node as any).parentNode) (node as any).parentNode.removeChild(node);
+    return DomUtility;
+}
+DomUtility.removeAllChildrens=(elem:IDomNode):IDomUtility=>{
+    (elem as any).innerHTML = elem.nodeValue="";
+    return DomUtility;
+};
+DomUtility.getChildren=(elem:IDomNode)=>(elem as any).childNodes;
+
+DomUtility.show = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+    (elem as any).style.display="";
+    return DomUtility;
+}
+DomUtility.hide = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+    (elem as any).style.display="none";
+    return DomUtility;
+};
+
+DomUtility.attach = (elem:any,evtname:string,handler:Function):IDomUtility=>{
+    if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
+    else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
+    else elem['on'+evtname] = handler;
+    return DomUtility;
+}
+DomUtility.detech = (elem:any,evtname:string,handler:Function)=>{
+    if(elem.removeEventListener) elem.removeEventListener(evtname,handler,false);
+    else if(elem.detechEvent) elem.detechEvent('on' + evtname,handler);
+    else elem['on'+evtname] = null;
+    return DomUtility;
+}
+DomUtility.is_inDocument = (elem:any):boolean=>{
+    let doc = (elem as HTMLElement).ownerDocument;
+    while(elem){
+        elem = elem.parentNode;
+        if(elem===doc || elem===doc.body) break;
+    }
+    if(!elem) return false;
+    return true;
+}
+
+
+
+try{
+    let element_wrapper:HTMLElement =  DomUtility.createElement("div") as any;
+
+    if((element_wrapper as any).currentStyle){
+        DomUtility.getStyle = (node,name)=> (node as any).currentStyle[name];
+    }else {
+        DomUtility.getStyle = (node,name)=>getComputedStyle(node as any,false as any)[name];
+    }
+    DomUtility.setStyle = (node:IDomNode,name:string,value:string):IDomUtility=>{
+        let convertor = styleConvertors[name];
+        (node as any).style[name] = convertor?convertor(value):value;
+        return DomUtility;
+    }
+    DomUtility.parse = (domString:string):IDomNode[]=>{
+        element_wrapper.innerHTML = domString;
+        return element_wrapper.childNodes as any;
+    }
+}catch(ex){}
+
+
+
+let emptyStringRegx = /\s+/g;
+function findClassAt(clsnames:string,cls:string):number{
+    let at = clsnames.indexOf(cls);
+    let len = cls.length;
+    while(at>=0){
+        if(at>0){
+            let prev = clsnames[at-1];
+            if(!emptyStringRegx.test(prev)){at = clsnames.indexOf(cls,at+len);continue;}
+        }
+        if((at+len)!==clsnames.length){
+            let next = clsnames[at+length];
+            if(!emptyStringRegx.test(next)){at = clsnames.indexOf(cls,at+len);continue;}
+        }
+        return at;
+    }
+    return at;
+}
+
+DomUtility.hasClass=(node:IDomNode,cls:string):boolean=>{
+    return findClassAt(node.className,cls)>=0;
+}
+DomUtility.addClass=(node:IDomNode,cls:string):IDomUtility =>{ //IDom{
+    if(findClassAt(node.className,cls)>=0) return DomUtility;
+    node.className+= " " + cls;
+    return DomUtility;
+}
+DomUtility.removeClass = (node:IDomNode,cls:string):IDomUtility => { //IDom{
+    let clsnames = node.className;
+    let at = findClassAt(clsnames,cls);
+    if(at<=0) return DomUtility;
+    let prev = clsnames.substring(0,at);
+    let next =clsnames.substr(at+cls.length);
+    node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
+}
+DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd?:boolean):IDomUtility => { //IDom{
+    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
+    let clsnames = node.className;
+    let at = findClassAt(clsnames,old_cls);
+    if(at<=0) {
+        if(alwaysAdd) node.className = clsnames + " " + new_cls;
+        return DomUtility;
+    }
+    let prev = clsnames.substring(0,at);
+    let next =clsnames.substr(at+old_cls.length);
+    node.className= prev +new_cls+ next;
+    
+    return DomUtility;
+}   
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// vnode操作/JSX 与绑定
+//
+export type TChildDescriptor = string | IDomNode | INodeDescriptor;
+export interface INodeDescriptor{
+    tag?:string|Function;
+    content?:any;
+    children?:TChildDescriptor[];
+    [attr:string]:any;
+}
+
+
+export interface IViewModel{
+    [name:string]:Observable<any>|ObservableSchema<any>;
+}
+
+/**
+ * TRender render函数
+ * functional jsx 跟object jsx的render函数参数顺序正好相反
+ * functional 是descriptor,container
+ * comp.render 的是container,descriptor
+ * 
+ * @param {IViewModel}} [viewModel] 视图模型实例，数据来源
+ * @param {IDomNode} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
+ * @param {INodeDescriptor} vnode 描述了属性与那些observable关联；当然也可以直接与值关联.这个参数主要是组件用于获取它的children信息
+ * @returns {(IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
+ */
+export type TRender = (descriptor:INodeDescriptor,viewModel:IViewModel,container?:IDomNode)=>IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[];
+
+
+export enum JSXModes{
+    vnode,
+    dnode
+}
+
+let _jsxMode = JSXModes.dnode;
+
+export function jsxMode(mode:JSXModes,statement:()=>any){
+    let old = _jsxMode;
+    try{
+        _jsxMode = mode;
+        return statement();
+    }finally{
+        _jsxMode = old;
+    }
+}
+
+
+
+function internalCreateElement(
+    tag:string|INodeDescriptor|Function,
+    attrs?:{[name:string]:any}|IViewModel|IDomNode,
+    parent?:any
+){
+    let t = typeof tag;
+    let descriptor:INodeDescriptor;
+    if(t==="string"){
+        //构建descriptor
+        descriptor = attrs as any||{};
+        descriptor.tag = tag as string;
+        let children :any[] = [];
+        for(let i = 2,j=arguments.length;i<j;i++){
+            children.push(arguments[i]);
+        }
+        descriptor.children = children;
+        //是否有注册的组件
+        let componentType = componentTypes[tag as string];
+        if(componentType){
+            descriptor.tag = componentType;
+            //如果要求返回vnode，就直接返回descriptor;
+            if(_jsxMode===JSXModes.vnode) {
+                return descriptor;
+            }
+            //如果直接调用createElement来生成控件，要求vnode里面不能延迟绑(descriptor里面不能有schema,因为它不知道viewmodel到底是那一个)。
+            let elems = createComponentElements(componentType,descriptor,null,null);
+            return elems;
+        }else {
+            if(_jsxMode===JSXModes.vnode) {
+                return descriptor;
+            }
+            return createDomElement(descriptor,null,null);
+        }
+        
+    }else if(t==="function"){
+        descriptor = attrs ||{};
+        descriptor.tag = tag as Function;
+        let children :any[] = [];
+        for(let i = 2,j=arguments.length;i<j;i++){
+            children.push(arguments[i]);
+        }
+        descriptor.children = children;
+        if(_jsxMode===JSXModes.vnode) return descriptor;
+        return createComponentElements(descriptor.tag as any,descriptor,null,null);
+    }else {
+        descriptor = tag as INodeDescriptor;
+        let elem :IDomNode;
+        let container:IDomNode;
+        let viewModel:IViewModel;
+        if(DomUtility.isElement(attrs)){
+            container = attrs as IDomNode;
+            viewModel = parent as IViewModel;
+        }else {
+            viewModel = attrs as IViewModel;
+            container = parent as IDomNode;
+        }
+        
+        //没有tag，就是文本
+        if(!descriptor.tag){
+            elem = DomUtility.createText(descriptor.content);
+            if(container) DomUtility.appendChild(container,elem);
+            return elem;
+        }else {
+            let t = typeof descriptor.tag;
+            if(t==="string"){
+                let componentType = componentTypes[descriptor.tag as string];
+                if(componentType){ 
+                    descriptor.tag = componentType;
+                    t = "function";
+                }else {
+                    elem = createDomElement(descriptor,viewModel);
+                    if(container) DomUtility.appendChild(container,elem);
+                    return elem;
+                }
+            }
+            if(t==="function"){
+                let elems = createComponentElements(descriptor.tag as any,descriptor,viewModel,container);
+                if(container) {
+                    if(DomUtility.isElement(elems)) DomUtility.appendChild(container,elems as any);
+                    else {
+                        for(const elem of elems as any[]) DomUtility.appendChild(container,elem);
+                    }
+                }
+                return elems;
+            } 
+            throw new Error("参数错误");
+        }
+    }
+}
+
+
+export let createElement:(
+    tag:string | Function | INodeDescriptor
+    ,attrs?:{[name:string]:any}|IViewModel|IDomNode
+    ,vmOrCtnrOrFirstChild?:IViewModel|IDomNode|any
+    ,...otherChildren:any[]
+)=>IDomNode|IDomNode[] = internalCreateElement as any;
+
+
+function createDomElement(descriptor:INodeDescriptor,viewModel:IViewModel,parent?:IDomNode):IDomNode{
+    let elem = DomUtility.createElement(descriptor.tag as string);
+    if(parent) DomUtility.appendChild(parent,elem);
+    let ignoreChildren:boolean = false;
+    //let anchorElem = elem;
+    for(let attrName in descriptor){
+        //不处理有特殊含义的属性
+        if(attrName==="tag" || attrName==="children" || attrName ==="content") continue;
+        
+        let attrValue= descriptor[attrName];
+        if(attrName==="class") attrName = "className";
+        if(bindDomAttr(elem,attrName,attrValue,viewModel)===RenderDirectives.IgnoreChildren) ignoreChildren=true;
+    }
+    if(ignoreChildren) return elem;
+    if(descriptor.content){
+        DomUtility.setContent(elem,descriptor.content);
+    }
+    let children = descriptor.children;
+    if(!children || children.length===0) return elem;
+    for(const i in descriptor.children){
+        let child = descriptor.children[i];
+        if(typeof child==="string") {
+            DomUtility.appendChild(elem,DomUtility.createText(child));
+        }else if(DomUtility.isElement(child,true)){
+            DomUtility.appendChild(elem,child as IDomNode);
+        } else {
+            createElement(child as INodeDescriptor,viewModel,elem);
+        }
+    }
+    return elem;
+}
+//把属性绑定到element上
+export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,viewModel?:IViewModel){
+    let match = attrName.match(evtnameRegx);
+    if(match && element[attrName]!==undefined && typeof attrValue==="function"){
+        let evtName = match[1];
+        if(viewModel)DomUtility.attach(element,evtName,makeAction(viewModel,attrValue));
+        else DomUtility.attach(element,evtName,attrValue);
+        return;
+    }
+    let binder:Function = attrBinders[attrName];
+    let bindResult:any;
+    if(attrValue instanceof ObservableSchema){
+        let ob:IObservable<any> = attrValue.getFromRoot(component);
+        if(binder) bindResult= binder.call(component,element,ob,component);
+        else {
+            DomUtility.setAttribute(element,name,ob.get(ObservableModes.Raw));
+            ob.subscribe((e)=>{
+                DomUtility.setAttribute(element,name,e.value);
+            });
+        };
+    }else if(attrValue && attrValue.lamda && typeof attrValue.lamda==="function"){
+        if(binder){
+            bindComputedExpression(attrValue,viewModel,(val)=>binder.call(component,element,val));
+        }else {
+            bindComputedExpression(attrValue,viewModel,(val)=>DomUtility.setAttribute(element,attrName,val));
+        }
+        
+    } else{
+        if(binder) bindResult= binder.call(component,element,attrValue,viewModel,this);
+        else DomUtility.setAttribute(element,attrName,attrValue);
+    }
+    return bindResult;
+}
+
+function createComponentElements(componentType:TComponentType,descriptor:INodeDescriptor,viewModel:IViewModel,container?:IDomNode):IDomNode[]|IDomNode{
+    //如果有构造好的render
+    if((componentType as any).$__render__){
+        //直接调用__render__并返回结果
+        return (componentType as any).$__render__.call(descriptor,viewModel,container);
+    }
+    //获取到vnode，attr-value得到的应该是schema
+    let compInstance :any;
+    let xmode = _jsxMode;
+    let omode = Observable.accessMode;
+    try{
+        _jsxMode = JSXModes.vnode;
+        Observable.accessMode = ObservableModes.Schema;
+        compInstance = new componentType(descriptor,container,viewModel);
+    }finally{
+        _jsxMode = xmode;
+        Observable.accessMode = omode;
+    }
+
+    let renderResult:any;
+    let renderFn:any = componentType;
+    // object-component
+    if(typeof compInstance.render==='function'){
+        //绑定属性
+        for(const propname in descriptor){
+            if(propname==="tag" || propname==="children") continue;
+            bindComponentAttr(viewModel,compInstance,propname,descriptor[propname]);
+        };
+        renderFn = compInstance.render;
+        //<comp1 a={vm.a}>
+        //  <comp2 b = {vm.b} />
+        //</comp1>
+        if(renderFn.$__render__) return renderFn.$__render__.call(compInstance,descriptor,viewModel,container);
+        try{
+            _jsxMode = JSXModes.vnode;
+            Observable.accessMode = ObservableModes.Schema;
+            renderResult = renderFn.call(compInstance,descriptor,viewModel,container);
+        }finally{
+            _jsxMode = xmode;
+            Observable.accessMode = omode;
+        }
+    }else {
+        renderResult = compInstance;
+        compInstance= undefined;
+    }
+
+    return handleRenderResult(renderResult,compInstance,renderFn,viewModel,descriptor,container);
+}
+
+
+/**
+ * 
+ *
+ * @param {IViewModel} viewModel
+ * @param {IComponent} subComponent
+ * @param {string} subAttrName
+ * @param {*} bindValue
+ */
+function bindComponentAttr(viewModel:IViewModel,compInstance:IComponent,propName:string,propValue:any){
+    //找到组件的属性
+    let prop = compInstance[propName];
+    // TODO:找到组件名
+    let componentName = "Component";
+    //获取属性的类型
+    let propType :ReactiveTypes;
+    if(prop){
+
+    }
+    if(propType===ReactiveTypes.Internal || propType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${propName}是内部变量，不可以在外部赋值`);
+    
+    if(propType === ReactiveTypes.Out){
+        if(propValue instanceof ObservableSchema){
+            prop.subscribe(e=>{
+                //这里的级联update可能会有性能问题，要优化
+                propValue.getFromRoot(compInstance).set(e.value,true);
+            },viewModel as any);
+        }else{
+            throw new Error(`无法绑定[OUT]${componentName}}.${propName}属性，父组件赋予该属性的值不是Observable`);
+        }
+    } else if(propType===ReactiveTypes.In){
+        if(propValue instanceof ObservableSchema){
+            let bindOb:IObservable<any> = propValue.getFromRoot(viewModel);
+            bindOb.subscribe((e)=>{
+                //这里的级联update可能会有性能问题，要优化
+                prop.set(e.value,true);
+            },);
+            prop.$_raw(prop.$target = clone(bindOb.get(ObservableModes.Raw),true));
+        }else{
+            prop.$_raw(prop.$target = propValue);
+            console.warn(`未能绑定[IN]${componentName}.${propName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    } else if(propType===ReactiveTypes.Parameter){
+        if(propValue instanceof ObservableSchema){
+            //这里的级联update可能会有性能问题，要优化
+            let bindOb :IObservable<any>= propValue.getFromRoot(viewModel);
+            bindOb.subscribe((e)=>prop.set(e.value,true),compInstance);
+            prop.$_raw(prop.$target = bindOb.get(ObservableModes.Raw));
+            prop.subscribe((e)=>propValue.getFromRoot(viewModel).set(e.value,true),viewModel as any);
+        }else{
+            prop.$_raw(prop.$target = propValue);
+            console.warn(`未能绑定[REF]${componentName}.${propName}属性,父组件赋予该属性的值不是Observable`);
+        }
+    }else{
+        let value =propValue instanceof ObservableSchema?propValue.getFromRoot(viewModel).get():(propValue instanceof Observable?propValue.get():propValue);
+        value = clone(value,true);
+        if(prop instanceof Observable) prop.$_raw(value);
+        else compInstance[propName] = value;
+    }
+}
+
+function handleRenderResult(renderResult:any,instance:any,renderFn:any,viewModel:IViewModel,descriptor:INodeDescriptor,container:IDomNode){
+    
+    let isArray = is_array(renderResult);
+    
+    let resultIsElement = false;
+    
+    if(isArray){
+        for(const val of renderResult){
+            resultIsElement = DomUtility.isElement(renderResult,true);
+            break;
+        }
+        isArray = true;
+    }else {
+        resultIsElement = DomUtility.isElement(renderResult,true);
+    }
+    if(resultIsElement){
+        //返回了dom-node
+        Object.defineProperty(renderFn,"$__render__",{enumerable:false,writable:false,configurable:false,value:renderFn});
+        if(container){
+            if(isArray) for(const elem of renderResult) DomUtility.appendChild(container,elem);
+            else DomUtility.appendChild(container,renderResult);
+        }
+        return renderResult;
+    }else {
+        let finalRenderFn:TRender ;
+        let renderNode = renderResult;
+        if(isArray){
+            finalRenderFn = function(descriptor:INodeDescriptor,viewModel?:IViewModel,container?:IDomNode):IDomNode[]{
+                let result :IDomNode[] =[];
+                for(const vnode of renderNode){
+                    let elem = createElement(vnode,viewModel,container) as IDomNode;
+                    //if(container) DomUtility.appendChild(container,elem);
+                    result.push(elem);
+                }
+                return result;
+            }
+        }else {
+            finalRenderFn = function(descriptor:INodeDescriptor,viewModel?:IViewModel,container?:IDomNode):IDomNode{
+                let elem= createElement(renderNode,viewModel,container) as IDomNode;
+                //if(container) DomUtility.appendChild(container,elem);
+                return elem;
+            }
+        }
+        Object.defineProperty(renderFn,"$__render__",{enumerable:false,writable:false,configurable:false,value:finalRenderFn});
+        Object.defineProperty(finalRenderFn,"$__render__",{enumerable:false,writable:false,configurable:false,value:finalRenderFn});
+        
+        if(instance){
+            
+            instance["render"] = finalRenderFn;
+            if(instance["$meta"]){
+                (instance.$meta as IComponentInfo).wrapper.prototype.render = finalRenderFn;
+            }
+            
+        }
+        return renderResult = finalRenderFn.call(instance,descriptor,viewModel,container);
+    }
+    
+}
+
+export interface IComputedExpression{
+    lamda:Function;
+    parameters:any[];
+}
+
+function getComputedValue(expr:IComputedExpression,viewModel:IViewModel){
+    let args = [];
+    for(let dep of expr.parameters){
+        let ob:Observable<any>;
+        if(dep instanceof ObservableSchema){
+            ob = dep.getFromRoot(viewModel);
+        }else if(dep instanceof Observable) ob = dep;
+
+        if(ob) args.push(ob.get(ObservableModes.Value));
+        else args.push(dep);
+    }
+    return expr.lamda.apply(viewModel,args);
+}
+
+function bindComputedExpression(expr:IComputedExpression,viewModel:IViewModel,setter:(val)=>any){
+    for(let dep of expr.parameters){
+        let ob:Observable<any>;
+        if(dep instanceof ObservableSchema){
+            ob = dep.getFromRoot(viewModel);
+        }else if(dep instanceof Observable) ob = dep;
+
+        if(ob) ob.subscribe(e=>{
+            setter(getComputedValue(expr,viewModel));
+        });
+    }
+}
+
+
+
+
+function makeExpr(){
+    let expr:IComputedExpression = {lamda:arguments[arguments.length-1],parameters:[]};
+    for(let i=0,j=arguments.length-2;i<j;i++) expr.parameters.push(arguments[i]);
+    return expr;
+}
+
+export let EXP:(...args:any[])=>IComputedExpression = makeExpr as any;
+export function NOT(param:any) {
+    let expr:IComputedExpression ={lamda:(val)=>!param,parameters:[]};
+    expr.parameters.push(param);
+    return expr;   
+}
+
+let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
+
+
+function makeAction(component:any,method){
+    return function () {
+        let rs= method.apply(component,arguments);
+        let reactives = [];
+        proxyMode(()=>{
+            for(const n in component.$meta.reactives){
+                reactives.push(component[n]);
+            }
+        });
+        for(const i in reactives) reactives[i].update();
+        
+        return rs;
+    }
+}
+
+
 
 //=======================================================================
 
@@ -1493,13 +2185,13 @@ export interface IComponentInfo {
 export interface IComponent extends IDisposable{
     $meta:IComponentInfo;
     
-    render(container?:IDomNode):IDomNode|IDomNode[];
+    render(container?:IDomNode,descriptor?:INodeDescriptor):IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[];
     $__elements__:IDomNode | IDomNode[];
     $__placeholder__:IDomNode;
 
 }
 export type TComponentCtor = {new (...args:any[]):IComponent};
-export type TComponentType = TComponentCtor & {prototype:{$meta:IComponentInfo}};
+export type TComponentType = TComponentCtor & {$meta:IComponentInfo,prototype:{$meta:IComponentInfo}};
 export interface IDisposeInfo{
     activeTime?:Date;
     inactiveTime?:Date;
@@ -1522,18 +2214,28 @@ function metaInfo(target:any,name?:string,dft?:any){
 
 
 
-let componentInfos : {[tag:string]:IComponentInfo}={};
+export let componentTypes : {[tag:string]:TComponentType}={};
 
 function inherits(extendCls, basCls) {
     function __() { this.constructor=extendCls;}
     extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
 }
 
+
+/**
+ * 它有2种用法，
+ *
+ * @export
+ * @param {(string|{new(...args:any[]):IComponent}|boolean|Function)} tag
+ * @param {({new(...args:any[]):IComponent}|boolean|Function)} [ComponentType]
+ * @returns {*}
+ */
 export function component(tag:string|{new(...args:any[]):IComponent}|boolean|Function,ComponentType?:{new(...args:any[]):IComponent}|boolean|Function):any{
     let makeComponent = function (componentCtor:TComponentCtor):TComponentType {
         let meta = metaInfo(componentCtor.prototype) as IComponentInfo;
         let _Component = function () {
             let ret = componentCtor.apply(this,arguments);
+            //如果类型信息没有初始化，就在第一次运行时做初始化
             if(!this.$meta.inited){
                 initComponent(this);
             }
@@ -1542,9 +2244,8 @@ export function component(tag:string|{new(...args:any[]):IComponent}|boolean|Fun
         for(let k in componentCtor) _Component[k] = componentCtor[k];
         inherits(_Component,componentCtor);
         let metaDesc = {enumerable:false,configurable:false,get:()=>componentCtor.prototype.$meta};
-        //Object.defineProperty(_Component,"$meta",metaDesc);
+        Object.defineProperty(_Component,"$meta",metaDesc);
         Object.defineProperty(_Component.prototype,"$meta",metaDesc);
-       
         //Object.defineProperty(componentCtor.prototype,"$meta",metaDesc);
         
         
@@ -1553,7 +2254,7 @@ export function component(tag:string|{new(...args:any[]):IComponent}|boolean|Fun
         if(typeof ComponentType==="boolean")meta.explicitMode = ComponentType as boolean;
         if(tag){
             meta.tag = tag as string;
-            componentInfos[tag as string]= meta;
+            componentTypes[tag as string]= meta.wrapper;
         }
         return _Component as any as TComponentType;
     }
@@ -1729,21 +2430,6 @@ function initTemplate(firstComponent:IInternalComponent,tplInfo:ITemplateInfo){
 }
 
 
-function makeAction(component:IComponent,method){
-    return function () {
-        let rs= method.apply(component,arguments);
-        let reactives = [];
-        proxyMode(()=>{
-            for(const n in component.$meta.reactives){
-                reactives.push(component[n]);
-            }
-        });
-        for(const i in reactives) reactives[i].update();
-        
-        return rs;
-    }
-}
-
 ///组件的垃圾释放机制
 
 export class ComponentGarbage{
@@ -1884,20 +2570,8 @@ function getRelElements(ob:Observable<any>,includeSubs?:boolean|any[]){
     return rs;
     
 }
-export interface IVirtualNode{
-    tag?:string;
-    id?:string;
-    className?:string;
-    name?:string;
-    value?:string;
-    type?:string;
-    title?:string;
-    placeholder?:string;
-    attrs?:{[name:string]:any};
-    content?:any;
-    children?:IVirtualNode[];
-}
-export class VirtualNode implements IVirtualNode{
+
+export class VirtualNode implements INodeDescriptor{
     tag?:string;
     attrs?:{[name:string]:any};
     content?:any;
@@ -1916,7 +2590,7 @@ export class VirtualNode implements IVirtualNode{
         if(tag && (tag as TComponentType).prototype ){
             vnode = new VirtualComponentNode((tag as TComponentType).prototype.$meta ,attrs);
         }else {
-            let componentInfo = componentInfos[tag as string];
+            let componentInfo = componentTypes[tag as string];
             if(componentInfo)vnode = new VirtualComponentNode(tag as string,attrs);
             else vnode = new VirtualElementNode(tag as string,attrs);
         }
@@ -1929,7 +2603,7 @@ export class VirtualNode implements IVirtualNode{
         return vnode;
     }
 }
-export let virtualNode = VirtualNode.create;
+export let virtualNode:(tag:string|TComponentType,attrs:{[attrName:string]:any},...args:any[])=>INodeDescriptor = VirtualNode.create as any;
 
 export class VirtualTextNode extends VirtualNode{
     
@@ -2022,7 +2696,8 @@ export class VirtualComponentNode extends VirtualNode{
 
         }else if(t==="string"){
             this.tag = tag as string;
-            this.meta = componentInfos[this.tag];
+            this.meta = componentTypes[this.tag]?.$meta;
+            if(!this.meta) throw new Error("似乎不是component");
         } else {
             throw new Error("Invalid arguments");
         }
@@ -2031,7 +2706,7 @@ export class VirtualComponentNode extends VirtualNode{
     render(component:IComponent,container?:any):any{
         let subComponent = createComponent(this.meta);
         for(const subAttrName in this.attrs){
-            bindComponentAttr(component,subComponent,subAttrName,this.attrs[subAttrName]);
+            bindComponentAttr( component as any,subComponent,subAttrName,this.attrs[subAttrName]);
         };
         let subMeta = subComponent.$meta as IComponentInfo;
         let subNodes = [];
@@ -2058,63 +2733,6 @@ export class VirtualComponentNode extends VirtualNode{
     }
 }
 
-function bindComponentAttr(component:IComponent,subComponent:IComponent,subAttrName:string,bindValue:any){
-    let subMeta = subComponent.$meta as IComponentInfo;
-
-    let stateInfo = subMeta.reactives[subAttrName];
-    let subStateType = stateInfo?stateInfo.type:undefined;
-    if(subStateType===ReactiveTypes.Internal || subStateType===ReactiveTypes.Iterator) throw new Error(`${this.tag}.${subAttrName}是内部变量，不可以在外部赋值`);
-    
-    let subAttr:Observable<any> = subComponent[subAttrName];
-
-    if(subStateType === ReactiveTypes.Out){
-        if(bindValue instanceof ObservableSchema){
-            subAttr.subscribe(e=>{
-                //这里的级联update可能会有性能问题，要优化
-                bindValue.getFromRoot(component).set(e.value,true);
-            },component);
-        }else{
-            throw new Error(`无法绑定[OUT]${subMeta.tag}.${subAttrName}属性，父组件赋予该属性的值不是Observable`);
-        }
-    } else if(subStateType===ReactiveTypes.In){
-        if(bindValue instanceof ObservableSchema){
-            let bindOb:IObservable<any> = bindValue.getFromRoot(component);
-            bindOb.subscribe((e)=>{
-                //这里的级联update可能会有性能问题，要优化
-                subAttr.set(e.value,true);
-            },subComponent);
-            subAttr.$_raw(subAttr.$target = clone(bindOb.get(ObservableModes.Raw),true));
-        }else{
-            subAttr.$_raw(subAttr.$target = bindValue);
-            console.warn(`未能绑定[IN]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
-        }
-    } else if(subStateType===ReactiveTypes.Parameter){
-        if(bindValue instanceof ObservableSchema){
-            //这里的级联update可能会有性能问题，要优化
-            let bindOb :IObservable<any>= bindValue.getFromRoot(component);
-            bindOb.subscribe((e)=>subAttr.set(e.value,true),subComponent);
-            subAttr.$_raw(subAttr.$target = bindOb.get(ObservableModes.Raw));
-            subAttr.subscribe((e)=>bindValue.getFromRoot(component).set(e.value,true),component);
-        }else{
-            subAttr.$_raw(subAttr.$target = bindValue);
-            console.warn(`未能绑定[REF]${subMeta.tag}.${subAttrName}属性,父组件赋予该属性的值不是Observable`);
-        }
-    }else{
-        let value =bindValue instanceof ObservableSchema?bindValue.getFromRoot(component).get():bindValue;
-        value = clone(value,true);
-        if(subAttr instanceof Observable) subAttr.$_raw(value);
-        else subComponent[subAttrName] = value;
-    }
-}
-
-export function NOT(params:any) {
-    return;
-}
-export function EXP(...args:any[]) {
-    return;
-}
-
-let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
 
 export enum RenderDirectives{
     Default,
@@ -2281,279 +2899,28 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
 }
 
 
-
-//////////////////////////////////////////////////////////////////////////////
-// DOM操作
-//////////////////////////////////////////////////////////////////////////////
-
-export interface IDomNode{
-    nodeType:number;
-    nodeValue:any;
-    tagName:string;
-    className:string;
-}
-export interface IDomDocument{
-    createElement(tag:string):IDomNode;
-    createTextNode(text:string):IDomNode;
-
-}
-export interface IDomUtility{
-    isElement(obj:any,includeText?:boolean):boolean;
-    is_inDocument(obj:any):boolean;
-    createElement(tag:IVirtualNode|string,attrs?:{[name:string]:string}|IDomNode,...children:any[]):IDomNode;
-    createText(text:string,parent?:IDomNode):IDomNode;
-    createPlaceholder():IDomNode;
-    setContent(node:IDomNode,content:string):IDomUtility;
-    getContent(node:IDomNode):string;
-    setAttribute(node:IDomNode,name:string,value:string):IDomUtility;
-    getAttribute(node:IDomNode,name:string):string;
-    removeAttribute(node:IDomNode,name:string):IDomUtility;
-    setProperty(node:IDomNode,name:string,value:any):IDomUtility;
-    getProperty(node:IDomNode,name:string):any;
-    appendChild(parent:IDomNode,child:IDomNode):IDomUtility;
-    insertBefore(insert:IDomNode,rel:IDomNode):IDomUtility;
-    insertAfter(insert:IDomNode,rel:IDomNode):IDomUtility;
-    remove(node:IDomNode):IDomUtility;
-    getParent(node:IDomNode):IDomNode;
-    hide(node:any,immeditately?:boolean):IDomUtility;
-    show(node:any,immeditately?:boolean):IDomUtility;
-    removeAllChildrens(node:IDomNode):IDomUtility;
-    getChildren(node:IDomNode):IDomNode[];
-    getStyle(node:IDomNode,name:string):string;
-    setStyle(node:IDomNode,name:string,value:string):IDomUtility;
-    hasClass(node:IDomNode,cls:string):boolean;
-    addClass(node:IDomNode,cls:string):IDomUtility;
-    removeClass(node:IDomNode,cls:string):IDomUtility;
-    replaceClass(node:IDomNode,oldCls:string,newCls:string,alwaysAdd?:boolean):IDomUtility;
-
+export interface IInputCompoent{
     
-    attach(elem:IDomNode,evtname:string,handler:Function);
-    detech(elem:IDomNode,evtname:string,handler:Function);
-    parse(domString:string):IDomNode[];
-    document:IDomDocument;
-    global:any;
-    window:any;
-    wrapper:IDomNode;
-    
+    /**
+     * 有个bind属性，可以做双向绑定
+     *
+     * @type {*}
+     * @memberof IInputCompoent
+     */
+    bind:any;
+
+    /**
+     * 有一个readonly属性
+     *
+     * @type {boolean}
+     * @memberof IInputCompoent
+     */
+    readonly?:boolean;
+
+    //数据变化时的事件
+    onchange?:Function;
+
 }
-export let DomUtility:IDomUtility={} as any;
-DomUtility.isElement=(elem,includeText?:boolean):boolean=>{
-    if(!elem) return false;
-    if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
-    return includeText?true:(elem as HTMLElement).nodeType === 1;
-};
-
-DomUtility.createElement=function(tag:IVirtualNode|string,attrs?:{[name:string]:string}|IDomNode):any{
-    let t= typeof(tag);
-    if(t==="string"){
-        let elem = DomUtility.document.createElement(tag as string);
-        if(DomUtility.isElement(attrs)) DomUtility.appendChild(attrs as any,elem);
-        else if(typeof attrs==="object"){
-            for(let n in attrs) DomUtility.setAttribute(elem,n,attrs[n]);
-            for(let i=2,j=arguments.length;i<j;i++){
-                let child = arguments[i];
-                if(typeof child==="string") DomUtility.appendChild(elem,DomUtility.createText(child));
-                else DomUtility.appendChild(elem,child);
-            }
-        }
-        return elem;
-    }
-    if(t==="object"){
-        let vnode  = tag as IVirtualNode;
-        let node = vnode.tag?DomUtility.document.createElement(vnode.tag):DomUtility.createText(vnode.content);
-        if(attrs) DomUtility.appendChild(attrs as IDomNode,node);
-        let _attrs = vnode.attrs ||{}; 
-        if(vnode.className)_attrs["className"] = vnode.className;
-        if(vnode.name) _attrs["name"] = vnode.name;
-        if(vnode.value) _attrs["value"] = vnode.value;
-        if(vnode.id) _attrs["id"] = vnode.id;
-        if(vnode.type) _attrs["type"] = vnode.type;
-        if(vnode.title) _attrs["title"] = vnode.title;
-        if(vnode.placeholder) _attrs["placeholder"] = vnode.placeholder;
-        for(let n in _attrs){
-            DomUtility.setAttribute(node,n,vnode.attrs[n]);
-        }
-        if(vnode.children){
-            for(const i in vnode.children){
-                let child = vnode.children[i];
-                if(typeof child==="string")DomUtility.createText(child,node);
-                else DomUtility.createElement(child,node);
-            }
-            
-        }
-        return node;
-    }
-    
-};
-
-DomUtility.createText=(txt:string,parent?:IDomNode):IDomNode=>{
-    let node= DomUtility.document.createTextNode(txt);
-    if(parent) DomUtility.appendChild(parent,node);
-    return node;
-};
-DomUtility.createPlaceholder=():IDomNode=>{
-    let rs = document.createElement("span");
-    rs.className="YA-PLACEHOLDER";
-    rs.style.display = "none";
-    return rs;
-};
-DomUtility.setContent=(elem:IDomNode,content:string):IDomUtility=>{
-    if(elem.nodeType===1)(elem as any).innerHTML = content;
-    else elem.nodeValue = content;
-    return DomUtility;
-}
-DomUtility.getContent=(elem:IDomNode):string=>{
-    return elem.nodeType===1?(elem as any).innerHTML:elem.nodeValue;
-};
-
-DomUtility.setAttribute=(elem:IDomNode,name:string,value:string):IDomUtility=>{
-    (elem as any).setAttribute(name,value);
-    return DomUtility;
-};
-DomUtility.getAttribute=(elem:IDomNode,name:string):string=>{
-    return (elem as any).getAttribute(name);
-};
-DomUtility.removeAttribute=(elem:IDomNode,name:string):IDomUtility=>{
-    (elem as any).removeAttribute(name);
-    return DomUtility;
-};
-
-DomUtility.setProperty=(elem:IDomNode,name:string,value:any):IDomUtility=>{
-    (elem as any)[name]=value;
-    return DomUtility;
-};
-DomUtility.getProperty=(elem:IDomNode,name:string):any=>{
-    return (elem as any)[name];
-};
-
-DomUtility.appendChild=(container:IDomNode,child:IDomNode):IDomUtility=>{
-    (container as any).appendChild(child);
-    return DomUtility;
-};
-
-DomUtility.insertBefore=(insert:IDomNode,rel:IDomNode):IDomUtility=>{
-    if((rel as any).parentNode)(rel as any).parentNode.insertBefore(insert,rel);
-    return DomUtility;
-};
-
-DomUtility.insertAfter=(insert:IDomNode,rel:any):IDomUtility=>{
-    if(rel.parentNode)rel.parentNode.insertAfter(insert,rel);
-    return DomUtility;
-};
-DomUtility.getParent=(elem:IDomNode)=>(elem as any).parentNode as IDomNode;
-DomUtility.remove = (node:IDomNode):IDomUtility=>{
-    if((node as any).parentNode) (node as any).parentNode.removeChild(node);
-    return DomUtility;
-}
-DomUtility.removeAllChildrens=(elem:IDomNode):IDomUtility=>{
-    (elem as any).innerHTML = elem.nodeValue="";
-    return DomUtility;
-};
-DomUtility.getChildren=(elem:IDomNode)=>(elem as any).childNodes;
-
-DomUtility.show = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
-    (elem as any).style.display="";
-    return DomUtility;
-}
-DomUtility.hide = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
-    (elem as any).style.display="none";
-    return DomUtility;
-};
-
-DomUtility.attach = (elem:any,evtname:string,handler:Function):IDomUtility=>{
-    if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
-    else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
-    else elem['on'+evtname] = handler;
-    return DomUtility;
-}
-DomUtility.detech = (elem:any,evtname:string,handler:Function)=>{
-    if(elem.removeEventListener) elem.removeEventListener(evtname,handler,false);
-    else if(elem.detechEvent) elem.detechEvent('on' + evtname,handler);
-    else elem['on'+evtname] = null;
-    return DomUtility;
-}
-DomUtility.is_inDocument = (elem:any):boolean=>{
-    let doc = (elem as HTMLElement).ownerDocument;
-    while(elem){
-        elem = elem.parentNode;
-        if(elem===doc || elem===doc.body) break;
-    }
-    if(!elem) return false;
-    return true;
-}
-
-if(typeof document!=="undefined") DomUtility.document = document as any as IDomDocument;
-if(typeof window!=="undefined") DomUtility.global =  DomUtility.window = window;
-
-try{
-    let element_wrapper:HTMLElement = DomUtility.wrapper = DomUtility.createElement("div") as any;
-
-    if((element_wrapper as any).currentStyle){
-        DomUtility.getStyle = (node,name)=> (node as any).currentStyle[name];
-    }else {
-        DomUtility.getStyle = (node,name)=>getComputedStyle(node as any,false as any)[name];
-    }
-    DomUtility.setStyle = (node:IDomNode,name:string,value:string):IDomUtility=>{
-        let convertor = styleConvertors[name];
-        (node as any).style[name] = convertor?convertor(value):value;
-        return DomUtility;
-    }
-    DomUtility.parse = (domString:string):IDomNode[]=>{
-        element_wrapper.innerHTML = domString;
-        return element_wrapper.childNodes as any;
-    }
-}catch(ex){}
-
-
-
-let emptyStringRegx = /\s+/g;
-function findClassAt(clsnames:string,cls:string):number{
-    let at = clsnames.indexOf(cls);
-    let len = cls.length;
-    while(at>=0){
-        if(at>0){
-            let prev = clsnames[at-1];
-            if(!emptyStringRegx.test(prev)){at = clsnames.indexOf(cls,at+len);continue;}
-        }
-        if((at+len)!==clsnames.length){
-            let next = clsnames[at+length];
-            if(!emptyStringRegx.test(next)){at = clsnames.indexOf(cls,at+len);continue;}
-        }
-        return at;
-    }
-    return at;
-}
-
-DomUtility.hasClass=(node:IDomNode,cls:string):boolean=>{
-    return findClassAt(node.className,cls)>=0;
-}
-DomUtility.addClass=(node:IDomNode,cls:string):IDomUtility =>{ //IDom{
-    if(findClassAt(node.className,cls)>=0) return DomUtility;
-    node.className+= " " + cls;
-    return DomUtility;
-}
-DomUtility.removeClass = (node:IDomNode,cls:string):IDomUtility => { //IDom{
-    let clsnames = node.className;
-    let at = findClassAt(clsnames,cls);
-    if(at<=0) return DomUtility;
-    let prev = clsnames.substring(0,at);
-    let next =clsnames.substr(at+cls.length);
-    node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
-}
-DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd?:boolean):IDomUtility => { //IDom{
-    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
-    let clsnames = node.className;
-    let at = findClassAt(clsnames,old_cls);
-    if(at<=0) {
-        if(alwaysAdd) node.className = clsnames + " " + new_cls;
-        return DomUtility;
-    }
-    let prev = clsnames.substring(0,at);
-    let next =clsnames.substr(at+old_cls.length);
-    node.className= prev +new_cls+ next;
-    
-    return DomUtility;
-}   
 
 
 //======================================================================
@@ -2592,12 +2959,15 @@ export function queryString(str:string){
 }
 
 
+
+
 //=======================================================================
 let YA={
     Subject,Disposable, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
-    ,component,state: reactive,IN,OUT,PARAM,template,attrBinders
+    ,createElement
+    ,component,state: reactive,IN,OUT,PARAM,template,attrBinders,componentInfos: componentTypes
     ,VirtualNode,VirtualTextNode,VirtualElementNode,VirtualComponentNode,virtualNode,NOT,EXP
-    ,Host: DomUtility,styleConvertors
+    ,DomUtility: DomUtility,styleConvertors
     ,intimate: implicit,clone,Promise
     
 };

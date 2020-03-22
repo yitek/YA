@@ -7,7 +7,7 @@ export interface IInfo {
      */
     name?: string;
     title?: string;
-    descriptions?: string | string[];
+    descriptions?: string | any[];
     notices?: string | string[];
 }
 export declare type TAssert = (expected: any, actual: any, message?: string) => any;

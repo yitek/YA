@@ -243,6 +243,7 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
     $extras?: any;
     $target?: TData;
+    $isset?: boolean;
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     update(): boolean;
@@ -279,6 +280,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $type: DataTypes;
     $target: TData;
     $extras?: any;
+    $isset?: boolean;
     $schema?: ObservableSchema<TData>;
     $_index?: number | string;
     $_modifiedValue: TData;
@@ -358,6 +360,88 @@ export declare class ObservableSchema<TData> {
     initObject(ob: Observable<TData>): void;
     static schemaToken: string;
 }
+export interface IDomNode {
+    nodeType: number;
+    nodeValue: any;
+    tagName: string;
+    className: string;
+}
+export interface IDomDocument {
+    createElement(tag: string): IDomNode;
+    createTextNode(text: string): IDomNode;
+}
+export interface IDomUtility {
+    isElement(obj: any, includeText?: boolean): boolean;
+    is_inDocument(obj: any): boolean;
+    createElement(tag: string, attrs?: {
+        [name: string]: string;
+    }, parent?: IDomNode, content?: string): IDomNode;
+    createText(text: string, parent?: IDomNode): IDomNode;
+    createPlaceholder(): IDomNode;
+    setContent(node: IDomNode, content: string): IDomUtility;
+    getContent(node: IDomNode): string;
+    setAttribute(node: IDomNode, name: string, value: string): IDomUtility;
+    getAttribute(node: IDomNode, name: string): string;
+    removeAttribute(node: IDomNode, name: string): IDomUtility;
+    setProperty(node: IDomNode, name: string, value: any): IDomUtility;
+    getProperty(node: IDomNode, name: string): any;
+    appendChild(parent: IDomNode, child: IDomNode): IDomUtility;
+    insertBefore(insert: IDomNode, rel: IDomNode): IDomUtility;
+    insertAfter(insert: IDomNode, rel: IDomNode): IDomUtility;
+    remove(node: IDomNode): IDomUtility;
+    getParent(node: IDomNode): IDomNode;
+    hide(node: any, immeditately?: boolean): IDomUtility;
+    show(node: any, immeditately?: boolean): IDomUtility;
+    removeAllChildrens(node: IDomNode): IDomUtility;
+    getChildren(node: IDomNode): IDomNode[];
+    getStyle(node: IDomNode, name: string): string;
+    setStyle(node: IDomNode, name: string, value: string): IDomUtility;
+    hasClass(node: IDomNode, cls: string): boolean;
+    addClass(node: IDomNode, cls: string): IDomUtility;
+    removeClass(node: IDomNode, cls: string): IDomUtility;
+    replaceClass(node: IDomNode, oldCls: string, newCls: string, alwaysAdd?: boolean): IDomUtility;
+    attach(elem: IDomNode, evtname: string, handler: Function): any;
+    detech(elem: IDomNode, evtname: string, handler: Function): any;
+    parse(domString: string): IDomNode[];
+}
+export declare let DomUtility: IDomUtility;
+export declare type TChildDescriptor = string | IDomNode | INodeDescriptor;
+export interface INodeDescriptor {
+    tag?: string | Function;
+    content?: any;
+    children?: TChildDescriptor[];
+    [attr: string]: any;
+}
+export interface IViewModel {
+    [name: string]: Observable<any> | ObservableSchema<any>;
+}
+/**
+ * TRender render函数
+ * functional jsx 跟object jsx的render函数参数顺序正好相反
+ * functional 是descriptor,container
+ * comp.render 的是container,descriptor
+ *
+ * @param {IViewModel}} [viewModel] 视图模型实例，数据来源
+ * @param {IDomNode} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
+ * @param {INodeDescriptor} vnode 描述了属性与那些observable关联；当然也可以直接与值关联.这个参数主要是组件用于获取它的children信息
+ * @returns {(IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
+ */
+export declare type TRender = (descriptor: INodeDescriptor, viewModel: IViewModel, container?: IDomNode) => IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
+export declare enum JSXModes {
+    vnode = 0,
+    dnode = 1
+}
+export declare function jsxMode(mode: JSXModes, statement: () => any): any;
+export declare let createElement: (tag: string | Function | INodeDescriptor, attrs?: {
+    [name: string]: any;
+} | IViewModel | IDomNode, vmOrCtnrOrFirstChild?: IViewModel | IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
+export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, viewModel?: IViewModel): any;
+export interface IComputedExpression {
+    lamda: Function;
+    parameters: any[];
+}
+export declare let EXP: (...args: any[]) => IComputedExpression;
+export declare function NOT(param: any): IComputedExpression;
 export declare enum ReactiveTypes {
     None = 0,
     Internal = -1,
@@ -419,7 +503,7 @@ export interface IComponentInfo {
 }
 export interface IComponent extends IDisposable {
     $meta: IComponentInfo;
-    render(container?: IDomNode): IDomNode | IDomNode[];
+    render(container?: IDomNode, descriptor?: INodeDescriptor): IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
     $__elements__: IDomNode | IDomNode[];
     $__placeholder__: IDomNode;
 }
@@ -427,6 +511,7 @@ export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
 };
 export declare type TComponentType = TComponentCtor & {
+    $meta: IComponentInfo;
     prototype: {
         $meta: IComponentInfo;
     };
@@ -443,6 +528,17 @@ export interface IInternalComponent extends IComponent {
         [name: string]: Observable<any>;
     };
 }
+export declare let componentTypes: {
+    [tag: string]: TComponentType;
+};
+/**
+ * 它有2种用法，
+ *
+ * @export
+ * @param {(string|{new(...args:any[]):IComponent}|boolean|Function)} tag
+ * @param {({new(...args:any[]):IComponent}|boolean|Function)} [ComponentType]
+ * @returns {*}
+ */
 export declare function component(tag: string | {
     new (...args: any[]): IComponent;
 } | boolean | Function, ComponentType?: {
@@ -478,22 +574,7 @@ export declare class ComponentGarbage {
     static interval: number;
     static periodicClearCount: number;
 }
-export interface IVirtualNode {
-    tag?: string;
-    id?: string;
-    className?: string;
-    name?: string;
-    value?: string;
-    type?: string;
-    title?: string;
-    placeholder?: string;
-    attrs?: {
-        [name: string]: any;
-    };
-    content?: any;
-    children?: IVirtualNode[];
-}
-export declare class VirtualNode implements IVirtualNode {
+export declare class VirtualNode implements INodeDescriptor {
     tag?: string;
     attrs?: {
         [name: string]: any;
@@ -506,7 +587,9 @@ export declare class VirtualNode implements IVirtualNode {
         [attrName: string]: any;
     }): VirtualNode;
 }
-export declare let virtualNode: typeof VirtualNode.create;
+export declare let virtualNode: (tag: string | TComponentType, attrs: {
+    [attrName: string]: any;
+}, ...args: any[]) => INodeDescriptor;
 export declare class VirtualTextNode extends VirtualNode {
     content: any;
     constructor(content: any);
@@ -534,8 +617,6 @@ export declare class VirtualComponentNode extends VirtualNode {
     });
     render(component: IComponent, container?: any): any;
 }
-export declare function NOT(params: any): void;
-export declare function EXP(...args: any[]): void;
 export declare enum RenderDirectives {
     Default = 0,
     IgnoreChildren = 1,
@@ -551,55 +632,23 @@ export declare let attrBinders: {
     [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
 };
 export declare let styleConvertors: any;
-export interface IDomNode {
-    nodeType: number;
-    nodeValue: any;
-    tagName: string;
-    className: string;
+export interface IInputCompoent {
+    /**
+     * 有个bind属性，可以做双向绑定
+     *
+     * @type {*}
+     * @memberof IInputCompoent
+     */
+    bind: any;
+    /**
+     * 有一个readonly属性
+     *
+     * @type {boolean}
+     * @memberof IInputCompoent
+     */
+    readonly?: boolean;
+    onchange?: Function;
 }
-export interface IDomDocument {
-    createElement(tag: string): IDomNode;
-    createTextNode(text: string): IDomNode;
-}
-export interface IDomUtility {
-    isElement(obj: any, includeText?: boolean): boolean;
-    is_inDocument(obj: any): boolean;
-    createElement(tag: IVirtualNode | string, attrs?: {
-        [name: string]: string;
-    } | IDomNode, ...children: any[]): IDomNode;
-    createText(text: string, parent?: IDomNode): IDomNode;
-    createPlaceholder(): IDomNode;
-    setContent(node: IDomNode, content: string): IDomUtility;
-    getContent(node: IDomNode): string;
-    setAttribute(node: IDomNode, name: string, value: string): IDomUtility;
-    getAttribute(node: IDomNode, name: string): string;
-    removeAttribute(node: IDomNode, name: string): IDomUtility;
-    setProperty(node: IDomNode, name: string, value: any): IDomUtility;
-    getProperty(node: IDomNode, name: string): any;
-    appendChild(parent: IDomNode, child: IDomNode): IDomUtility;
-    insertBefore(insert: IDomNode, rel: IDomNode): IDomUtility;
-    insertAfter(insert: IDomNode, rel: IDomNode): IDomUtility;
-    remove(node: IDomNode): IDomUtility;
-    getParent(node: IDomNode): IDomNode;
-    hide(node: any, immeditately?: boolean): IDomUtility;
-    show(node: any, immeditately?: boolean): IDomUtility;
-    removeAllChildrens(node: IDomNode): IDomUtility;
-    getChildren(node: IDomNode): IDomNode[];
-    getStyle(node: IDomNode, name: string): string;
-    setStyle(node: IDomNode, name: string, value: string): IDomUtility;
-    hasClass(node: IDomNode, cls: string): boolean;
-    addClass(node: IDomNode, cls: string): IDomUtility;
-    removeClass(node: IDomNode, cls: string): IDomUtility;
-    replaceClass(node: IDomNode, oldCls: string, newCls: string, alwaysAdd?: boolean): IDomUtility;
-    attach(elem: IDomNode, evtname: string, handler: Function): any;
-    detech(elem: IDomNode, evtname: string, handler: Function): any;
-    parse(domString: string): IDomNode[];
-    document: IDomDocument;
-    global: any;
-    window: any;
-    wrapper: IDomNode;
-}
-export declare let DomUtility: IDomUtility;
 export declare function THIS(obj: any, name: string | Function): () => any;
 export declare function queryString(str: string): {};
 declare let YA: {
@@ -612,6 +661,9 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
+    createElement: (tag: string | Function | INodeDescriptor, attrs?: IDomNode | IViewModel | {
+        [name: string]: any;
+    }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IDomNode | IDomNode[];
     component: typeof component;
     state: typeof reactive;
     IN: typeof IN;
@@ -621,14 +673,19 @@ declare let YA: {
     attrBinders: {
         [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
     };
+    componentInfos: {
+        [tag: string]: TComponentType;
+    };
     VirtualNode: typeof VirtualNode;
     VirtualTextNode: typeof VirtualTextNode;
     VirtualElementNode: typeof VirtualElementNode;
     VirtualComponentNode: typeof VirtualComponentNode;
-    virtualNode: typeof VirtualNode.create;
+    virtualNode: (tag: string | TComponentType, attrs: {
+        [attrName: string]: any;
+    }, ...args: any[]) => INodeDescriptor;
     NOT: typeof NOT;
-    EXP: typeof EXP;
-    Host: IDomUtility;
+    EXP: (...args: any[]) => IComputedExpression;
+    DomUtility: IDomUtility;
     styleConvertors: any;
     intimate: typeof implicit;
     clone: typeof clone;

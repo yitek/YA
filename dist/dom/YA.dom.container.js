@@ -103,7 +103,7 @@
             apos.y += evt.clientY;
             this._msPos = apos;
             this._msSize = this.target.size();
-            var doc = Host.document;
+            var doc = document;
             var msk = YA_dom_1.dom("<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;'></div>")
                 .width(Math.max(doc.body.offsetWidth, doc.documentElement.offsetWidth))
                 .height(Math.max(doc.body.offsetHeight, doc.documentElement.offsetHeight))
@@ -235,7 +235,7 @@
         Anchor.prototype.capture = function (opts) {
             var _this = this;
             if (this.adjust) {
-                YA_dom_1.dom(Host.window).off("resize", this.adjust);
+                YA_dom_1.dom(window).off("resize", this.adjust);
             }
             this.adjust = function () {
                 var psz = _this.target.parent().size();

@@ -150,3 +150,17 @@ table tr {
 ul, dl {
   list-style: none inside;
 }
+
+.blue-block {
+  background-color: blue;
+  color: white;
+  padding: 5px;
+  margin: 5px;
+}
+
+.red-block {
+  background-color: red;
+  color: white;
+  padding: 5px;
+  margin: 5px;
+}

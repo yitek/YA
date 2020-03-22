@@ -143,3 +143,16 @@ table{
 ul,dl{
     list-style: none inside;
 }
+
+.blue-block{
+    background-color:blue;
+    color:white;
+    padding:$spacing;
+    margin:$spacing;
+}
+.red-block{
+    background-color:red;
+    color:white;
+    padding:$spacing;
+    margin:$spacing;
+}

@@ -424,11 +424,7 @@ var __extends = (this && this.__extends) || (function () {
         if (basInfo.descriptions.length) {
             var dt = createElement("dt", "descriptions", dlist, "说明");
             var dd = createElement("dd", "descriptions", dlist);
-            for (var i in basInfo.descriptions) {
-                var content = basInfo.descriptions[i];
-                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "").replace(/\n/g, "<br />")))
-                    createElement("p", "", dd).innerHTML = content;
-            }
+            makeDescList(basInfo.descriptions, dd);
         }
         if (basInfo.notices.length) {
             var dt = createElement("dt", "notices", dlist, "注意");
@@ -441,6 +437,31 @@ var __extends = (this && this.__extends) || (function () {
             }
         }
         return dlist;
+    }
+    function makeDescList(arr, p) {
+        var ul;
+        for (var i in arr) {
+            var item = arr[i];
+            if (typeof item === "string") {
+                item = item.replace(/(^\s+)|(\s+$)/g, "");
+                if (!item)
+                    continue;
+                if (!ul)
+                    ul = createElement("ul", "description-list", p);
+                var li = createElement("li", "description-paragraph", ul);
+                li.innerHTML = "<p>" + item.replace(/\n/g, "</p><p>") + "</p>";
+            }
+            else {
+                var sub = makeDescList(item, null);
+                if (sub) {
+                    if (!ul)
+                        ul = createElement("ul", "description-list", p);
+                    var li = createElement("li", "description-paragraph", ul);
+                    li.appendChild(sub);
+                }
+            }
+        }
+        return ul;
     }
 });
 //# sourceMappingURL=doct.js.map

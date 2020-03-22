@@ -699,7 +699,7 @@ export interface IField extends IDataField,IViewMember{
      * @type {string}
      * @memberof IBasField
      */
-    tag?:string;
+    inputType?:string;
     /**
      * 字段的显示名
      *
@@ -716,7 +716,7 @@ export class Field extends DataField implements IField{
      * @type {string}
      * @memberof IBasField
      */
-    tag?:string;
+    inputType?:string;
     /**
      * 字段的显示名
      *
@@ -766,7 +766,7 @@ export class Field extends DataField implements IField{
     constructor(model:Model,opts:IField){
         super(model,opts);
         if(!opts) return;
-        this.tag = opts.tag|| this.type;
+        this.inputType = opts.inputType|| this.type;
         this.displayName = opts.displayName||this.name;
         ViewMember.init(this,opts);
     }
@@ -846,6 +846,15 @@ export interface IView {
      */
     caption?:string;
 
+
+    /**
+     * 用于构造页面用的className
+     * 
+     * @type {string}
+     * @memberof IView
+     */
+    className?:string;
+
     /**
      *  系统会自动规整成ViewTypes
      *
@@ -882,6 +891,8 @@ export class View implements IView{
      */
     caption?:string;
 
+    className:string;
+
     /**
      *  系统会自动规整成ViewTypes
      *
@@ -910,8 +921,14 @@ export class View implements IView{
     totalPath:YA.DPath;
     filterPath:YA.DPath;    
 
+    modelSchema:YA.ObservableSchema<any>;
+    filterSchema:YA.ObservableSchema<any>;
+    listSchema:YA.ObservableSchema<any>;
+
+
     constructor(public model:Model,public defination:IView){
         this.name = YA.trim(defination.name);
+        this.className = this.model.fullname.replace(/./g,"-")+ " " + this.name;
         this.caption = defination.caption || this.name;
         if(typeof this.type==="string") this.type= ViewTypes[defination.viewType];
         if(ViewTypes[this.type]===undefined) throw new Error("无法识别的ViewType,它必须是ViewTypes");
@@ -925,9 +942,9 @@ export class View implements IView{
         this.members = {};
         let isArr = YA.is_array(members);
         for(let i in members){
-            let memberOpt = members[i];
-            let member;
-            let membername;
+            let memberOpt:IViewMember = members[i];
+            let member:ViewMember;
+            let membername:string;
             if(typeof memberOpt ==="string"){
                 membername = YA.trim(memberOpt);
                 let field = model.fields[membername];
@@ -937,7 +954,7 @@ export class View implements IView{
             }else {
                 membername = YA.trim(isArr?memberOpt.name : i);
                 if(!membername) throw new Error("未能定义membername");
-                let field = model.fields[membername];
+                let field:Field = model.fields[membername];
                 if(!field) continue;
                 memberOpt.name = membername;
                 member = new ViewMember(memberOpt,field,this);
@@ -955,21 +972,93 @@ export class View implements IView{
         if(defination.headActions) this.headActions = initActions(defination.headActions as any) as IAction[];
         if(defination.bodyActions) this.bodyActions = initActions(defination.bodyActions as any) as IAction[];
         if(defination.footActions) this.footActions = initActions(defination.footActions as any) as IAction[];
-
-        if(defination.groups){
-            this.groups = {"":null};
-            let isArr = YA.is_array(defination.groups);
-            for(let n in this.groups){
-                let groupname = "";
-                let groupOpt = this.groups[n];
-                if(isArr) {
-                    groupname = n;
-                    
-                }else groupname = groupOpt.name;
-                groupname = YA.trim(groupname);
-                groupOpt.name = groupname;
-                this.groups[groupOpt.name] =new Group(this,groupOpt);
+        if(this.type===ViewTypes.detail || this.type===ViewTypes.edit){
+            if(defination.groups ){
+                this.groups = {"":null};
+                let isArr = YA.is_array(defination.groups);
+                for(let n in this.groups){
+                    let groupname = "";
+                    let groupOpt = this.groups[n];
+                    if(isArr) {
+                        groupname = n;
+                        
+                    }else groupname = groupOpt.name;
+                    groupname = YA.trim(groupname);
+                    groupOpt.name = groupname;
+                    this.groups[groupOpt.name] =new Group(this,groupOpt);
+                }
             }
+            this.modelSchema = this._initDetailSchema();
+        }else {
+            this.listSchema = this._initListSchema();
+            if(this.type ==ViewTypes.query) this.filterSchema = this._initFilterSchema();
+        }
+        
+    }
+    
+
+    private _initDetailSchema():YA.ObservableSchema<any>{
+        let schema = new YA.ObservableSchema({},"detail");
+        let stack = [this.model];
+        for(let n in this.members){
+            this._internalInitModelSchema(n,this.members[n].field,schema,stack);
+        }
+        return schema;
+    }
+
+    private _initFilterSchema():YA.ObservableSchema<any>{
+        let schema = new YA.ObservableSchema({},"filter");
+        let stack = [this.model];
+        for(let n in this.queryMembers){
+            let member = this.queryMembers[n];
+            if(member.queryable === FieldQueryMethods.range){
+                this._internalInitModelSchema(n+"_min",member.field,schema,stack);
+                this._internalInitModelSchema(n+"_max",member.field,schema,stack);
+            }
+            else this._internalInitModelSchema(n,member.field,schema,stack);
+        }
+        return schema;
+    }
+
+    private _initListSchema():YA.ObservableSchema<any>{
+        let schema = new YA.ObservableSchema([],"rows");
+        let itemSchema = schema.asArray();
+        let stack = [this.model];
+        for(let n in this.listMembers){
+            this._internalInitModelSchema(n,this.members[n].field,itemSchema,stack);
+        }
+        return schema;
+    }
+
+    private _internalInitModelSchema(name:string,field:Field,parentSchema:YA.ObservableSchema<any>,stack?:IModel[]){
+        //不是引用类型，就直接在parentSchema上添加一个成员就可以了。
+        if(!field.model){
+            parentSchema.defineProp(name);
+            return;
+        }
+        //成员是引用类型，就要看
+        //看是否已经在前面的类型使用过，要避免循环引用引起的无穷循环
+        //
+        let usedCount = 0;
+        for(const used of stack){
+            if(used===field.model) usedCount++;
+        }
+        //前面还没用过0,或者只用过一次 node.parent.parent
+        if(usedCount==0){
+            //把自己的类型加到堆栈中，以便在构造它的属性的schema时做检查
+            stack.push(field.model);
+            //得到当前这个属性的schema;
+            let subSchema = parentSchema.defineProp(name);
+            //变成对象
+            subSchema.asObject();
+            //循环下级字段/属性
+            let subFields = field.model.fields;
+            for(let n in subFields){
+                this._internalInitModelSchema(n,subFields[n],subSchema,stack);
+            }
+            stack.pop();
+        }else {
+            parentSchema.defineProp(field.name);
         }
     }
 }
@@ -1182,8 +1271,14 @@ export class Model extends YA.Promise implements IModel{
     }
     
     private __initViews(){
+        if(!this.primary){
+            let primaryKey = this.defination.primary;
+            if(primaryKey) this.primary = this.fields[primaryKey];
+        }
+
         let views = this.views as any;
         let isArray = YA.is_array(views);
+
         for(const i in views){
             let viewOpt = views[i];
             if(isArray && !viewOpt.name) throw new Error("字段必须要有名称");
@@ -1193,12 +1288,10 @@ export class Model extends YA.Promise implements IModel{
             viewOpt.name = name;
             this.views[name] =  new View(this,viewOpt);
         }
-        if(!this.primary){
-            let primaryKey = this.defination.primary;
-            if(primaryKey) this.primary = this.fields[primaryKey];
-        }
+        
         this.ready("complete");
     }
+    
 
     static models:{[fullname:string]:Model}
 
@@ -1265,39 +1358,35 @@ export class Renderer{
     render(container?:any):any{
 
     }
-    
-    protected _renderForm(initData:any,permissions:{[name:string]:string},container?:any){
-        let form;
-        if(this.view.type ===ViewTypes.edit){
-            form = DomUtility.createElement("form",container);
-            DomUtility.setAttribute(form,"method","post");
-            
-        }else {
-            form = DomUtility.createElement("div",container);
-            
-        }
+    /*
+    protected _renderForm(permissions:{[name:string]:string},container?:any){
+        let form:YA.IVirtualNode;
+        form =YA.virtualNode(
+            this.view.type == ViewTypes.edit?"form":"div"
+            ,{method:"post",className:"edit-form "+this.view.className}
+        );    
 
         if(this.view.groups){
             for(let n in this.view.groups){
                 let group = this.view.groups[n];
                 let fieldsetElem;
                 if(n){
-                    fieldsetElem = DomUtility.createElement({
-                        tag:"fieldset",
-                        className:`group ${n}`
-                    },form);
-                    let legend = DomUtility.createElement("legend",fieldsetElem);
-                    DomUtility.createElement({
-                        tag:"span",
-                        className:"group-caption",
-                        content:group.caption
-                    },legend);
+                    let groupContents :YA.IVirtualNode;
+                    form.children.push(fieldsetElem = YA.virtualNode(
+                        "fieldset"
+                        ,{className:`group ${n}`}
+                        ,YA.virtualNode(
+                            "legend",{}
+                            ,YA.virtualNode("span",{className:"Group-caption"},group.caption))
+                            ,groupContents=YA.virtualNode(
+                                "div"
+                                ,{className:"group-content"}
+                            )
+                        )
+                    );   
                 }
-                let contentElem = DomUtility.createElement({
-                    tag:"div",
-                    className:"group-content"
-                },fieldsetElem||form);
-                this._renderMembers(MemberViewPositions.fieldset,group.members as any,initData,permissions,contentElem);
+                
+                this._renderMembers(MemberViewPositions.fieldset,group.members as any,permissions,groupContents);
             }
         }else {
             this._renderMembers(MemberViewPositions.fieldset,this.view.members,initData,permissions,form);
@@ -1370,7 +1459,7 @@ export class Renderer{
         }
     }
 
-    protected _renderMembers( pos:MemberViewPositions,members:{[name:string]:ViewMember},initData:any,permissions:{[name:string]:string},container?:any){
+    protected _renderMembers( pos:MemberViewPositions,members:{[name:string]:ViewMember},permissions:{[name:string]:string},container?:YA.IVirtualNode){
         for(let n in members){
             let inputViewType :InputViewTypes;
             let perm = permissions?permissions[n]:"unknown";
@@ -1381,7 +1470,62 @@ export class Renderer{
             this.elementInfos[n] = elementInfo;
         }
     }
+    protected _renderMember(pos:MemberViewPositions,member:ViewMember,memberViewType:InputViewTypes){
+        let field = member.field;
+        if(pos===MemberViewPositions.tableHeader){
+            return {
+                tag:"th",children:[
+                    {tag:"label",calssName:`field-label text ${field.name}`,children:[{content:field.displayName}]}
+                ]
+            };
+        }
+        let inputComponentType:YA.TComponentType;
+        let inputTag = member.field.inputType;
+        if(inputTag) {
+            inputComponentType = YA.componentTypes[inputTag];
+        }
+        if(!inputComponentType) inputComponentType = YA.componentTypes[inputTag];
+        if(pos===MemberViewPositions.cell){
+            let div = {
+                tag:"div",
+                children:[
+                    {
+                        meta:inputComponentType.$meta
+                    }
+                ]
+            };
+            let elemInfo = createFieldInput(member,memberViewType,initValue,div);
+            elemInfo.fieldElement = div;
+            return elemInfo;
+        }
+        let div = DomUtility.createElement({
+            tag:"div"
+            ,className : `field ${field.type} ${field.name}`
+        },container);
+        
+            
+        let label = DomUtility.createElement("label",div);
+        DomUtility.setAttribute(label,"className",`field-label`);
+        if(pos===MemberViewPositions.fieldset && field.required){
+            let required = DomUtility.createElement({tag:"ins",className:"field-label-required",content:"*"},label);
+        }
+        
+        let caption = DomUtility.createElement({
+            tag:"span",
+            className:"field-label-text",
+            content:field.displayName
+        },label);
+        if(pos===MemberViewPositions.fieldset && field.description){
+            DomUtility.setAttribute(caption,"title",field.description);
+        }
 
+        let elemInfo = createFieldInput(member,memberViewType,initValue,div);
+        elemInfo.fieldElement = div;
+        if(field.rules){
+
+        }
+        return elemInfo;
+    }
 
     
 
@@ -1433,7 +1577,7 @@ export class Renderer{
         }
         return elemInfo;
         
-    }
+    }*/
 }
 let DomUtility = YA.DomUtility;
 export type TComponentFactory = (member:ViewMember,initValue:any,memberViewType:InputViewTypes,container:any)=>any;
@@ -1462,7 +1606,6 @@ function createFieldInput(member:ViewMember,inputViewType:InputViewTypes,initVal
             setElementValue:(val:any)=>inputElem.nodeValue = val===null||val===undefined?"":val.toString()
         };
     }
-    
     return info;
 }
 function getEnumText(enumItems:{[name:string]:IEnumItem},value:any){

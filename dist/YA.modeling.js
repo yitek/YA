@@ -369,7 +369,7 @@ var __extends = (this && this.__extends) || (function () {
             var _this = _super.call(this, model, opts) || this;
             if (!opts)
                 return _this;
-            _this.tag = opts.tag || _this.type;
+            _this.inputType = opts.inputType || _this.type;
             _this.displayName = opts.displayName || _this.name;
             ViewMember.init(_this, opts);
             return _this;
@@ -429,6 +429,7 @@ var __extends = (this && this.__extends) || (function () {
             this.model = model;
             this.defination = defination;
             this.name = YA.trim(defination.name);
+            this.className = this.model.fullname.replace(/./g, "-") + " " + this.name;
             this.caption = defination.caption || this.name;
             if (typeof this.type === "string")
                 this.type = ViewTypes[defination.viewType];
@@ -479,23 +480,96 @@ var __extends = (this && this.__extends) || (function () {
                 this.bodyActions = initActions(defination.bodyActions);
             if (defination.footActions)
                 this.footActions = initActions(defination.footActions);
-            if (defination.groups) {
-                this.groups = { "": null };
-                var isArr_1 = YA.is_array(defination.groups);
-                for (var n in this.groups) {
-                    var groupname = "";
-                    var groupOpt = this.groups[n];
-                    if (isArr_1) {
-                        groupname = n;
+            if (this.type === ViewTypes.detail || this.type === ViewTypes.edit) {
+                if (defination.groups) {
+                    this.groups = { "": null };
+                    var isArr_1 = YA.is_array(defination.groups);
+                    for (var n in this.groups) {
+                        var groupname = "";
+                        var groupOpt = this.groups[n];
+                        if (isArr_1) {
+                            groupname = n;
+                        }
+                        else
+                            groupname = groupOpt.name;
+                        groupname = YA.trim(groupname);
+                        groupOpt.name = groupname;
+                        this.groups[groupOpt.name] = new Group(this, groupOpt);
                     }
-                    else
-                        groupname = groupOpt.name;
-                    groupname = YA.trim(groupname);
-                    groupOpt.name = groupname;
-                    this.groups[groupOpt.name] = new Group(this, groupOpt);
                 }
+                this.modelSchema = this._initDetailSchema();
+            }
+            else {
+                this.listSchema = this._initListSchema();
+                if (this.type == ViewTypes.query)
+                    this.filterSchema = this._initFilterSchema();
             }
         }
+        View.prototype._initDetailSchema = function () {
+            var schema = new YA.ObservableSchema({}, "detail");
+            var stack = [this.model];
+            for (var n in this.members) {
+                this._internalInitModelSchema(n, this.members[n].field, schema, stack);
+            }
+            return schema;
+        };
+        View.prototype._initFilterSchema = function () {
+            var schema = new YA.ObservableSchema({}, "filter");
+            var stack = [this.model];
+            for (var n in this.queryMembers) {
+                var member = this.queryMembers[n];
+                if (member.queryable === FieldQueryMethods.range) {
+                    this._internalInitModelSchema(n + "_min", member.field, schema, stack);
+                    this._internalInitModelSchema(n + "_max", member.field, schema, stack);
+                }
+                else
+                    this._internalInitModelSchema(n, member.field, schema, stack);
+            }
+            return schema;
+        };
+        View.prototype._initListSchema = function () {
+            var schema = new YA.ObservableSchema([], "rows");
+            var itemSchema = schema.asArray();
+            var stack = [this.model];
+            for (var n in this.listMembers) {
+                this._internalInitModelSchema(n, this.members[n].field, itemSchema, stack);
+            }
+            return schema;
+        };
+        View.prototype._internalInitModelSchema = function (name, field, parentSchema, stack) {
+            //不是引用类型，就直接在parentSchema上添加一个成员就可以了。
+            if (!field.model) {
+                parentSchema.defineProp(name);
+                return;
+            }
+            //成员是引用类型，就要看
+            //看是否已经在前面的类型使用过，要避免循环引用引起的无穷循环
+            //
+            var usedCount = 0;
+            for (var _i = 0, stack_1 = stack; _i < stack_1.length; _i++) {
+                var used = stack_1[_i];
+                if (used === field.model)
+                    usedCount++;
+            }
+            //前面还没用过0,或者只用过一次 node.parent.parent
+            if (usedCount == 0) {
+                //把自己的类型加到堆栈中，以便在构造它的属性的schema时做检查
+                stack.push(field.model);
+                //得到当前这个属性的schema;
+                var subSchema = parentSchema.defineProp(name);
+                //变成对象
+                subSchema.asObject();
+                //循环下级字段/属性
+                var subFields = field.model.fields;
+                for (var n in subFields) {
+                    this._internalInitModelSchema(n, subFields[n], subSchema, stack);
+                }
+                stack.pop();
+            }
+            else {
+                parentSchema.defineProp(field.name);
+            }
+        };
         return View;
     }());
     exports.View = View;
@@ -718,6 +792,11 @@ var __extends = (this && this.__extends) || (function () {
             }
         };
         Model.prototype.__initViews = function () {
+            if (!this.primary) {
+                var primaryKey = this.defination.primary;
+                if (primaryKey)
+                    this.primary = this.fields[primaryKey];
+            }
             var views = this.views;
             var isArray = YA.is_array(views);
             for (var i in views) {
@@ -731,11 +810,6 @@ var __extends = (this && this.__extends) || (function () {
                     console.warn("已经有定义过" + name_2 + ",原先的定义");
                 viewOpt.name = name_2;
                 this.views[name_2] = new View(this, viewOpt);
-            }
-            if (!this.primary) {
-                var primaryKey = this.defination.primary;
-                if (primaryKey)
-                    this.primary = this.fields[primaryKey];
             }
             this.ready("complete");
         };
@@ -785,160 +859,6 @@ var __extends = (this && this.__extends) || (function () {
             this.elementInfos = {};
         }
         Renderer.prototype.render = function (container) {
-        };
-        Renderer.prototype._renderForm = function (initData, permissions, container) {
-            var form;
-            if (this.view.type === ViewTypes.edit) {
-                form = DomUtility.createElement("form", container);
-                DomUtility.setAttribute(form, "method", "post");
-            }
-            else {
-                form = DomUtility.createElement("div", container);
-            }
-            if (this.view.groups) {
-                for (var n in this.view.groups) {
-                    var group = this.view.groups[n];
-                    var fieldsetElem = void 0;
-                    if (n) {
-                        fieldsetElem = DomUtility.createElement({
-                            tag: "fieldset",
-                            className: "group " + n
-                        }, form);
-                        var legend = DomUtility.createElement("legend", fieldsetElem);
-                        DomUtility.createElement({
-                            tag: "span",
-                            className: "group-caption",
-                            content: group.caption
-                        }, legend);
-                    }
-                    var contentElem = DomUtility.createElement({
-                        tag: "div",
-                        className: "group-content"
-                    }, fieldsetElem || form);
-                    this._renderMembers(MemberViewPositions.fieldset, group.members, initData, permissions, contentElem);
-                }
-            }
-            else {
-                this._renderMembers(MemberViewPositions.fieldset, this.view.members, initData, permissions, form);
-            }
-        };
-        Renderer.prototype._renderTable = function (initData, permissions, container) {
-            var tb = DomUtility.createElement({
-                tag: "table",
-                className: ""
-            }, container);
-            var thead = DomUtility.createElement("thead", tb);
-            var thRow = DomUtility.createElement("tr", thead);
-            var colCount = 0;
-            if (this.view.checkable) {
-                var chkTh = DomUtility.createElement("th", thRow);
-                colCount++;
-                var ckBox = DomUtility.createElement({
-                    tag: "input",
-                    type: "checkbox"
-                }, chkTh);
-            }
-            var memberCount = 0;
-            var members = {};
-            for (var n in this.view.listMembers) {
-                if (permissions && permissions[n] === "disable")
-                    continue;
-                var member = members[n] = this.view.listMembers[n];
-                this._createMemberElement(MemberViewPositions.tableHeader, member, this.defaultInputViewType, null, thRow);
-                colCount++;
-                memberCount++;
-            }
-            if (this.view.bodyActions) {
-                DomUtility.createElement({
-                    tag: "th",
-                    content: "操作"
-                }, thRow);
-            }
-            var rows = this.view.rowsPath.getValue(initData);
-            var tbody = DomUtility.createElement("tbody", tb);
-            if (!rows || !rows.length) {
-                var row = DomUtility.createElement("tr", tbody);
-                var td = DomUtility.createElement({ tag: "td", "className": "nodata" }, row);
-                DomUtility.setAttribute(td, "colspan", colCount);
-                DomUtility.setContent(td, "没有数据");
-            }
-            else {
-                for (var i in rows) {
-                    var row = DomUtility.createElement("tr", tbody);
-                    if (this.view.checkable) {
-                        var chkTd = DomUtility.createElement("td", row);
-                        DomUtility.createElement({
-                            tag: "input",
-                            value: row[this.model.primary.name],
-                            type: "checkbox"
-                        }, chkTd);
-                    }
-                    var rowData = rows[i];
-                    for (var n in members) {
-                        var td = DomUtility.createElement("td", row);
-                        var member = members[n];
-                        if (member.readonly === false) {
-                            "";
-                            this._createMemberElement(MemberViewPositions.cell, member, InputViewTypes.editable, rowData, thRow);
-                        }
-                    }
-                }
-            }
-        };
-        Renderer.prototype._renderMembers = function (pos, members, initData, permissions, container) {
-            for (var n in members) {
-                var inputViewType = void 0;
-                var perm = permissions ? permissions[n] : "unknown";
-                inputViewType = InputViewTypes[perm];
-                if (!inputViewType)
-                    inputViewType = this.defaultInputViewType;
-                var member = members[n];
-                var elementInfo = this._createMemberElement(pos, member, inputViewType, initData ? initData[member.field.name] : undefined, container);
-                this.elementInfos[n] = elementInfo;
-            }
-        };
-        Renderer.prototype._createMemberElement = function (pos, member, memberViewType, initValue, container) {
-            var field = member.field;
-            if (pos === MemberViewPositions.tableHeader) {
-                var th = DomUtility.createElement("th", container);
-                var label_1 = DomUtility.createElement({
-                    tag: "label",
-                    className: "field-label text " + field.name,
-                    content: field.displayName
-                }, th);
-                return { fieldElement: th };
-            }
-            if (pos === MemberViewPositions.cell) {
-                var div_1 = DomUtility.createElement({
-                    tag: "div",
-                    className: "field-data " + field.type + " " + field.name
-                }, container);
-                var elemInfo_1 = createFieldInput(member, memberViewType, initValue, div_1);
-                elemInfo_1.fieldElement = div_1;
-                return elemInfo_1;
-            }
-            var div = DomUtility.createElement({
-                tag: "div",
-                className: "field " + field.type + " " + field.name
-            }, container);
-            var label = DomUtility.createElement("label", div);
-            DomUtility.setAttribute(label, "className", "field-label");
-            if (pos === MemberViewPositions.fieldset && field.required) {
-                var required = DomUtility.createElement({ tag: "ins", className: "field-label-required", content: "*" }, label);
-            }
-            var caption = DomUtility.createElement({
-                tag: "span",
-                className: "field-label-text",
-                content: field.displayName
-            }, label);
-            if (pos === MemberViewPositions.fieldset && field.description) {
-                DomUtility.setAttribute(caption, "title", field.description);
-            }
-            var elemInfo = createFieldInput(member, memberViewType, initValue, div);
-            elemInfo.fieldElement = div;
-            if (field.rules) {
-            }
-            return elemInfo;
         };
         return Renderer;
     }());

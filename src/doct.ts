@@ -9,7 +9,7 @@ export interface IInfo{
      */
     name?:string;
     title?:string;
-    descriptions?:string|string[];
+    descriptions?:string|any[];
     notices?:string|string[];
 }
 
@@ -526,11 +526,7 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
     if(basInfo.descriptions.length){
         let dt = createElement("dt","descriptions",dlist,"说明");
         let dd = createElement("dd","descriptions",dlist);
-        for(const i in basInfo.descriptions){
-            let content = basInfo.descriptions[i];
-            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"").replace(/\n/g,"<br />")))
-                createElement("p","",dd).innerHTML = content 
-        }
+        makeDescList(basInfo.descriptions,dd);
     }
     if(basInfo.notices.length){
         let dt = createElement("dt","notices",dlist,"注意");
@@ -543,4 +539,25 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
         }
     }
     return dlist;
+}
+function makeDescList(arr:any[],p:any){
+    let ul;
+    for(const i in arr){
+        let item = arr[i];
+        if(typeof item==="string"){
+            item = item.replace(/(^\s+)|(\s+$)/g,"");
+            if(!item) continue;
+            if(!ul) ul = createElement("ul","description-list",p);
+            let li = createElement("li","description-paragraph",ul);
+            li.innerHTML = "<p>" + item.replace(/\n/g,"</p><p>") + "</p>";
+        }else {
+            let sub = makeDescList(item,null);
+            if(sub){
+                if(!ul) ul = createElement("ul","description-list",p);
+                let li = createElement("li","description-paragraph",ul);
+                li.appendChild(sub);
+            }
+        }
+    }
+    return ul;
 }

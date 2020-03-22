@@ -419,7 +419,7 @@ export interface IField extends IDataField, IViewMember {
      * @type {string}
      * @memberof IBasField
      */
-    tag?: string;
+    inputType?: string;
     /**
      * 字段的显示名
      *
@@ -435,7 +435,7 @@ export declare class Field extends DataField implements IField {
      * @type {string}
      * @memberof IBasField
      */
-    tag?: string;
+    inputType?: string;
     /**
      * 字段的显示名
      *
@@ -535,6 +535,13 @@ export interface IView {
      */
     caption?: string;
     /**
+     * 用于构造页面用的className
+     *
+     * @type {string}
+     * @memberof IView
+     */
+    className?: string;
+    /**
      *  系统会自动规整成ViewTypes
      *
      * @type {string|ViewTypes}
@@ -568,6 +575,7 @@ export declare class View implements IView {
      * @memberof IModelPage
      */
     caption?: string;
+    className: string;
     /**
      *  系统会自动规整成ViewTypes
      *
@@ -599,7 +607,14 @@ export declare class View implements IView {
     descPath: YA.DPath;
     totalPath: YA.DPath;
     filterPath: YA.DPath;
+    modelSchema: YA.ObservableSchema<any>;
+    filterSchema: YA.ObservableSchema<any>;
+    listSchema: YA.ObservableSchema<any>;
     constructor(model: Model, defination: IView);
+    private _initDetailSchema;
+    private _initFilterSchema;
+    private _initListSchema;
+    private _internalInitModelSchema;
 }
 export interface IModel {
     fullname?: string;
@@ -687,18 +702,6 @@ export declare class Renderer {
     };
     constructor(view: View);
     render(container?: any): any;
-    protected _renderForm(initData: any, permissions: {
-        [name: string]: string;
-    }, container?: any): void;
-    protected _renderTable(initData: any, permissions: {
-        [name: string]: string;
-    }, container?: any): void;
-    protected _renderMembers(pos: MemberViewPositions, members: {
-        [name: string]: ViewMember;
-    }, initData: any, permissions: {
-        [name: string]: string;
-    }, container?: any): void;
-    protected _createMemberElement(pos: MemberViewPositions, member: ViewMember, memberViewType: InputViewTypes, initValue: any, container: any): IFieldElementInfo;
 }
 export declare type TComponentFactory = (member: ViewMember, initValue: any, memberViewType: InputViewTypes, container: any) => any;
 export declare class DetailPartial extends Renderer {

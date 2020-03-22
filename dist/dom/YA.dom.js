@@ -56,7 +56,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             };
             var handleStr = function (str) {
                 if (str[0] === "#") {
-                    var elem = Host.document.getElementById(str.substr(1));
+                    var elem = document.getElementById(str.substr(1));
                     if (elem) {
                         Object.defineProperty(_this, count, { enumerable: true, writable: false, configurable: false, value: elem });
                         //if(!(elem as any)[Dom.token]) 
@@ -616,7 +616,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return this;
     });
     Dom.element("append", null, function (target, opEl) { return target.appendChild(opEl); });
-    var element_wrapper = YA.DomUtility.document.createElement("div");
+    var element_wrapper = document.createElement("div");
     var attach;
     var detech;
     if (element_wrapper.addEventListener) {
@@ -727,7 +727,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             opts = YA.extend({}, this.opts, opts);
             if (this.adjust) {
-                dom(Host.window).off("resize", this.adjust);
+                dom(window).off("resize", this.adjust);
             }
             if (this.tick) {
                 clearInterval(this.tick);
@@ -751,12 +751,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this.bgDom.style("zIndex", ++zIndex);
             this.frontDom.style("zIndex", ++zIndex);
             this.tick = setInterval(this.adjust, 80);
-            dom(Host.window).on("resize", this.adjust);
+            dom(window).on("resize", this.adjust);
             return this;
         };
         Maskable.prototype.unmask = function () {
             if (this.adjust) {
-                dom(Host.window).off("resize", this.adjust);
+                dom(window).off("resize", this.adjust);
             }
             if (this.tick) {
                 clearInterval(this.tick);
@@ -881,7 +881,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this._targetPos = this.target.pos();
             this._msPos = new Pointer(x, y);
             this._positionValue = this.target.style("position");
-            var doc = Host.document;
+            var doc = document;
             var msk = dom("<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;opacity:0.1;user-select:none;margin:0;padding:0;' onselectstart=\"return false;\"></div>")
                 .width(Math.max(doc.body.offsetWidth, doc.documentElement.offsetWidth))
                 .height(Math.max(doc.body.offsetHeight, doc.documentElement.offsetHeight))
@@ -952,9 +952,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         MessageBox.prototype.open = function () {
             var _this = this;
-            var view = document.compatMode === "CSS1Compat" ? Host.document.documentElement : Host.document.body;
+            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
             this.box = dom("<div class=\"ya-messageBox " + (this.opts.css ? this.opts.css : "") + "\" style=\"position:fixed;top:0;left:0;widht:" + view.clientWidth + "px;height:" + view.clientHeight + "px;overflow:hidden;z-index:99999990;\">\n<div class=\"ya-messageBox-backend\" style=\"position:fixed;top:0;left:0;width:" + view.clientWidth + "px;height:" + view.clientHeight + "px;overflow:hidden;z-index:99999991;\"></div>\n<div class=\"ya-messageBox-front\" style=\"position:fixed;overflow:hidden;z-index:99999992;margin:0;padding:0;\">\n    <div class='ya-messageBox-head' style='position:relative;user-select:none;' onselectstart=\"return false;\"><a class=\"ya-messageBox-closer\" style=\"position:absolute;right:0;top:0;z-index:99999993;\">X</a><div class='ya-messageBox-title'>&nbsp;" + (this.opts.title || "消息") + "</div></div>\n    <div class=\"ya-messageBox-body\">" + this.opts.content + "</div>\n    <div class=\"ya-messageBox-foot\"></div>\n</div>\n</div>");
-            this.box.parent(Host.document.body);
+            this.box.parent(document.body);
             this.backend = this.box.first(true);
             this.front = this.box.last(true);
             this.head = this.front.first(true);
@@ -993,11 +993,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return this;
         };
         MessageBox.prototype._center = function () {
-            var view = document.compatMode === "CSS1Compat" ? Host.document.documentElement : Host.document.body;
+            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
             this.front.left((view.clientWidth - this.front.width()) / 2).top((view.clientHeight - this.front.height()) / 2);
         };
         MessageBox.prototype._adjacentBackend = function () {
-            var view = document.compatMode === "CSS1Compat" ? Host.document.documentElement : Host.document.body;
+            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
             var sz = dom(view).size();
             this.backend.size(sz);
         };

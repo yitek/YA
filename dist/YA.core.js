@@ -760,7 +760,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             }
             implicit(_this, {
-                $target: _this.$target, $extras: _this.$extras, $type: DataTypes.Value, $schema: _this.$schema,
+                $target: _this.$target, $extras: _this.$extras, $type: DataTypes.Value, $schema: _this.$schema, $isset: false,
                 $_raw: _this.$_raw, $_index: _this.$_index, $_modifiedValue: undefined, $_owner: _this.$_owner
             });
             if (_this.$target instanceof Observable_1)
@@ -780,6 +780,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return (this.$_modifiedValue === undefined) ? this.$target : (this.$_modifiedValue === Undefined ? undefined : this.$_modifiedValue);
         };
         Observable.prototype.set = function (newValue, updateImmediately) {
+            this.$isset = true;
             if (newValue && newValue instanceof Observable_1)
                 newValue = newValue.get(ObservableModes.Value);
             if (Observable_1.accessMode === ObservableModes.Raw) {
@@ -880,6 +881,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         ObservableObject.prototype.set = function (newValue, updateImmediately) {
             var _this = this;
+            this.$isset = true;
             if (newValue && newValue instanceof Observable)
                 newValue = newValue.get(ObservableModes.Value);
             _super.prototype.set.call(this, newValue || null);
@@ -1019,6 +1021,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return this;
         };
         ObservableArray.prototype.set = function (newValue, updateImmediately) {
+            this.$isset = true;
             if (newValue && newValue instanceof Observable)
                 newValue = newValue.get(ObservableModes.Value);
             else {
@@ -1279,6 +1282,635 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return ObservableSchema;
     }());
     exports.ObservableSchema = ObservableSchema;
+    exports.DomUtility = {};
+    exports.DomUtility.isElement = function (elem, includeText) {
+        if (!elem)
+            return false;
+        if (!elem.insertBefore || !elem.ownerDocument)
+            return false;
+        return includeText ? true : elem.nodeType === 1;
+    };
+    exports.DomUtility.createElement = function (tag, attrs, parent, content) {
+        var elem = document.createElement(tag);
+        if (attrs)
+            for (var n in attrs)
+                elem.setAttribute(n, attrs[n]);
+        if (parent)
+            parent.appendChild(elem);
+        if (content)
+            elem.innerHTML = content;
+        return elem;
+    };
+    exports.DomUtility.createText = function (txt, parent) {
+        var node = document.createTextNode(txt);
+        if (parent)
+            parent.appendChild(node);
+        return node;
+    };
+    exports.DomUtility.createPlaceholder = function () {
+        var rs = document.createElement("span");
+        rs.className = "YA-PLACEHOLDER";
+        rs.style.display = "none";
+        return rs;
+    };
+    exports.DomUtility.setContent = function (elem, content) {
+        if (elem.nodeType === 1)
+            elem.innerHTML = content;
+        else
+            elem.nodeValue = content;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getContent = function (elem) {
+        return elem.nodeType === 1 ? elem.innerHTML : elem.nodeValue;
+    };
+    exports.DomUtility.setAttribute = function (elem, name, value) {
+        elem[name] = value;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getAttribute = function (elem, name) {
+        return elem.getAttribute(name);
+    };
+    exports.DomUtility.removeAttribute = function (elem, name) {
+        elem.removeAttribute(name);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.setProperty = function (elem, name, value) {
+        elem[name] = value;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getProperty = function (elem, name) {
+        return elem[name];
+    };
+    exports.DomUtility.appendChild = function (container, child) {
+        container.appendChild(child);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.insertBefore = function (insert, rel) {
+        if (rel.parentNode)
+            rel.parentNode.insertBefore(insert, rel);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.insertAfter = function (insert, rel) {
+        if (rel.parentNode)
+            rel.parentNode.insertAfter(insert, rel);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getParent = function (elem) { return elem.parentNode; };
+    exports.DomUtility.remove = function (node) {
+        if (node.parentNode)
+            node.parentNode.removeChild(node);
+        return exports.DomUtility;
+    };
+    exports.DomUtility.removeAllChildrens = function (elem) {
+        elem.innerHTML = elem.nodeValue = "";
+        return exports.DomUtility;
+    };
+    exports.DomUtility.getChildren = function (elem) { return elem.childNodes; };
+    exports.DomUtility.show = function (elem, immeditately) {
+        elem.style.display = "";
+        return exports.DomUtility;
+    };
+    exports.DomUtility.hide = function (elem, immeditately) {
+        elem.style.display = "none";
+        return exports.DomUtility;
+    };
+    exports.DomUtility.attach = function (elem, evtname, handler) {
+        if (elem.addEventListener)
+            elem.addEventListener(evtname, handler, false);
+        else if (elem.attachEvent)
+            elem.attachEvent('on' + evtname, handler);
+        else
+            elem['on' + evtname] = handler;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.detech = function (elem, evtname, handler) {
+        if (elem.removeEventListener)
+            elem.removeEventListener(evtname, handler, false);
+        else if (elem.detechEvent)
+            elem.detechEvent('on' + evtname, handler);
+        else
+            elem['on' + evtname] = null;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.is_inDocument = function (elem) {
+        var doc = elem.ownerDocument;
+        while (elem) {
+            elem = elem.parentNode;
+            if (elem === doc || elem === doc.body)
+                break;
+        }
+        if (!elem)
+            return false;
+        return true;
+    };
+    try {
+        var element_wrapper_1 = exports.DomUtility.createElement("div");
+        if (element_wrapper_1.currentStyle) {
+            exports.DomUtility.getStyle = function (node, name) { return node.currentStyle[name]; };
+        }
+        else {
+            exports.DomUtility.getStyle = function (node, name) { return getComputedStyle(node, false)[name]; };
+        }
+        exports.DomUtility.setStyle = function (node, name, value) {
+            var convertor = exports.styleConvertors[name];
+            node.style[name] = convertor ? convertor(value) : value;
+            return exports.DomUtility;
+        };
+        exports.DomUtility.parse = function (domString) {
+            element_wrapper_1.innerHTML = domString;
+            return element_wrapper_1.childNodes;
+        };
+    }
+    catch (ex) { }
+    var emptyStringRegx = /\s+/g;
+    function findClassAt(clsnames, cls) {
+        var at = clsnames.indexOf(cls);
+        var len = cls.length;
+        while (at >= 0) {
+            if (at > 0) {
+                var prev = clsnames[at - 1];
+                if (!emptyStringRegx.test(prev)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            if ((at + len) !== clsnames.length) {
+                var next = clsnames[at + length];
+                if (!emptyStringRegx.test(next)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            return at;
+        }
+        return at;
+    }
+    exports.DomUtility.hasClass = function (node, cls) {
+        return findClassAt(node.className, cls) >= 0;
+    };
+    exports.DomUtility.addClass = function (node, cls) {
+        if (findClassAt(node.className, cls) >= 0)
+            return exports.DomUtility;
+        node.className += " " + cls;
+        return exports.DomUtility;
+    };
+    exports.DomUtility.removeClass = function (node, cls) {
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, cls);
+        if (at <= 0)
+            return exports.DomUtility;
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + cls.length);
+        node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+    };
+    exports.DomUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
+        if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
+            return _this.addClass(new_cls);
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, old_cls);
+        if (at <= 0) {
+            if (alwaysAdd)
+                node.className = clsnames + " " + new_cls;
+            return exports.DomUtility;
+        }
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + old_cls.length);
+        node.className = prev + new_cls + next;
+        return exports.DomUtility;
+    };
+    var JSXModes;
+    (function (JSXModes) {
+        JSXModes[JSXModes["vnode"] = 0] = "vnode";
+        JSXModes[JSXModes["dnode"] = 1] = "dnode";
+    })(JSXModes = exports.JSXModes || (exports.JSXModes = {}));
+    var _jsxMode = JSXModes.dnode;
+    function jsxMode(mode, statement) {
+        var old = _jsxMode;
+        try {
+            _jsxMode = mode;
+            return statement();
+        }
+        finally {
+            _jsxMode = old;
+        }
+    }
+    exports.jsxMode = jsxMode;
+    function internalCreateElement(tag, attrs, parent) {
+        var t = typeof tag;
+        var descriptor;
+        if (t === "string") {
+            //构建descriptor
+            descriptor = attrs || {};
+            descriptor.tag = tag;
+            var children = [];
+            for (var i = 2, j = arguments.length; i < j; i++) {
+                children.push(arguments[i]);
+            }
+            descriptor.children = children;
+            //是否有注册的组件
+            var componentType = exports.componentTypes[tag];
+            if (componentType) {
+                descriptor.tag = componentType;
+                //如果要求返回vnode，就直接返回descriptor;
+                if (_jsxMode === JSXModes.vnode) {
+                    return descriptor;
+                }
+                //如果直接调用createElement来生成控件，要求vnode里面不能延迟绑(descriptor里面不能有schema,因为它不知道viewmodel到底是那一个)。
+                var elems = createComponentElements(componentType, descriptor, null, null);
+                return elems;
+            }
+            else {
+                if (_jsxMode === JSXModes.vnode) {
+                    return descriptor;
+                }
+                return createDomElement(descriptor, null, null);
+            }
+        }
+        else if (t === "function") {
+            descriptor = attrs || {};
+            descriptor.tag = tag;
+            var children = [];
+            for (var i = 2, j = arguments.length; i < j; i++) {
+                children.push(arguments[i]);
+            }
+            descriptor.children = children;
+            if (_jsxMode === JSXModes.vnode)
+                return descriptor;
+            return createComponentElements(descriptor.tag, descriptor, null, null);
+        }
+        else {
+            descriptor = tag;
+            var elem = void 0;
+            var container = void 0;
+            var viewModel = void 0;
+            if (exports.DomUtility.isElement(attrs)) {
+                container = attrs;
+                viewModel = parent;
+            }
+            else {
+                viewModel = attrs;
+                container = parent;
+            }
+            //没有tag，就是文本
+            if (!descriptor.tag) {
+                elem = exports.DomUtility.createText(descriptor.content);
+                if (container)
+                    exports.DomUtility.appendChild(container, elem);
+                return elem;
+            }
+            else {
+                var t_1 = typeof descriptor.tag;
+                if (t_1 === "string") {
+                    var componentType = exports.componentTypes[descriptor.tag];
+                    if (componentType) {
+                        descriptor.tag = componentType;
+                        t_1 = "function";
+                    }
+                    else {
+                        elem = createDomElement(descriptor, viewModel);
+                        if (container)
+                            exports.DomUtility.appendChild(container, elem);
+                        return elem;
+                    }
+                }
+                if (t_1 === "function") {
+                    var elems = createComponentElements(descriptor.tag, descriptor, viewModel, container);
+                    if (container) {
+                        if (exports.DomUtility.isElement(elems))
+                            exports.DomUtility.appendChild(container, elems);
+                        else {
+                            for (var _i = 0, _a = elems; _i < _a.length; _i++) {
+                                var elem_1 = _a[_i];
+                                exports.DomUtility.appendChild(container, elem_1);
+                            }
+                        }
+                    }
+                    return elems;
+                }
+                throw new Error("参数错误");
+            }
+        }
+    }
+    exports.createElement = internalCreateElement;
+    function createDomElement(descriptor, viewModel, parent) {
+        var elem = exports.DomUtility.createElement(descriptor.tag);
+        if (parent)
+            exports.DomUtility.appendChild(parent, elem);
+        var ignoreChildren = false;
+        //let anchorElem = elem;
+        for (var attrName in descriptor) {
+            //不处理有特殊含义的属性
+            if (attrName === "tag" || attrName === "children" || attrName === "content")
+                continue;
+            var attrValue = descriptor[attrName];
+            if (attrName === "class")
+                attrName = "className";
+            if (bindDomAttr(elem, attrName, attrValue, viewModel) === RenderDirectives.IgnoreChildren)
+                ignoreChildren = true;
+        }
+        if (ignoreChildren)
+            return elem;
+        if (descriptor.content) {
+            exports.DomUtility.setContent(elem, descriptor.content);
+        }
+        var children = descriptor.children;
+        if (!children || children.length === 0)
+            return elem;
+        for (var i in descriptor.children) {
+            var child = descriptor.children[i];
+            if (typeof child === "string") {
+                exports.DomUtility.appendChild(elem, exports.DomUtility.createText(child));
+            }
+            else if (exports.DomUtility.isElement(child, true)) {
+                exports.DomUtility.appendChild(elem, child);
+            }
+            else {
+                exports.createElement(child, viewModel, elem);
+            }
+        }
+        return elem;
+    }
+    //把属性绑定到element上
+    function bindDomAttr(element, attrName, attrValue, viewModel) {
+        var match = attrName.match(evtnameRegx);
+        if (match && element[attrName] !== undefined && typeof attrValue === "function") {
+            var evtName = match[1];
+            if (viewModel)
+                exports.DomUtility.attach(element, evtName, makeAction(viewModel, attrValue));
+            else
+                exports.DomUtility.attach(element, evtName, attrValue);
+            return;
+        }
+        var binder = exports.attrBinders[attrName];
+        var bindResult;
+        if (attrValue instanceof ObservableSchema) {
+            var ob = attrValue.getFromRoot(component);
+            if (binder)
+                bindResult = binder.call(component, element, ob, component);
+            else {
+                exports.DomUtility.setAttribute(element, name, ob.get(ObservableModes.Raw));
+                ob.subscribe(function (e) {
+                    exports.DomUtility.setAttribute(element, name, e.value);
+                });
+            }
+            ;
+        }
+        else if (attrValue && attrValue.lamda && typeof attrValue.lamda === "function") {
+            if (binder) {
+                bindComputedExpression(attrValue, viewModel, function (val) { return binder.call(component, element, val); });
+            }
+            else {
+                bindComputedExpression(attrValue, viewModel, function (val) { return exports.DomUtility.setAttribute(element, attrName, val); });
+            }
+        }
+        else {
+            if (binder)
+                bindResult = binder.call(component, element, attrValue, viewModel, this);
+            else
+                exports.DomUtility.setAttribute(element, attrName, attrValue);
+        }
+        return bindResult;
+    }
+    exports.bindDomAttr = bindDomAttr;
+    function createComponentElements(componentType, descriptor, viewModel, container) {
+        //如果有构造好的render
+        if (componentType.$__render__) {
+            //直接调用__render__并返回结果
+            return componentType.$__render__.call(descriptor, viewModel, container);
+        }
+        //获取到vnode，attr-value得到的应该是schema
+        var compInstance;
+        var xmode = _jsxMode;
+        var omode = Observable.accessMode;
+        try {
+            _jsxMode = JSXModes.vnode;
+            Observable.accessMode = ObservableModes.Schema;
+            compInstance = new componentType(descriptor, container, viewModel);
+        }
+        finally {
+            _jsxMode = xmode;
+            Observable.accessMode = omode;
+        }
+        var renderResult;
+        var renderFn = componentType;
+        // object-component
+        if (typeof compInstance.render === 'function') {
+            //绑定属性
+            for (var propname in descriptor) {
+                if (propname === "tag" || propname === "children")
+                    continue;
+                bindComponentAttr(viewModel, compInstance, propname, descriptor[propname]);
+            }
+            ;
+            renderFn = compInstance.render;
+            //<comp1 a={vm.a}>
+            //  <comp2 b = {vm.b} />
+            //</comp1>
+            if (renderFn.$__render__)
+                return renderFn.$__render__.call(compInstance, descriptor, viewModel, container);
+            try {
+                _jsxMode = JSXModes.vnode;
+                Observable.accessMode = ObservableModes.Schema;
+                renderResult = renderFn.call(compInstance, descriptor, viewModel, container);
+            }
+            finally {
+                _jsxMode = xmode;
+                Observable.accessMode = omode;
+            }
+        }
+        else {
+            renderResult = compInstance;
+            compInstance = undefined;
+        }
+        return handleRenderResult(renderResult, compInstance, renderFn, viewModel, descriptor, container);
+    }
+    /**
+     *
+     *
+     * @param {IViewModel} viewModel
+     * @param {IComponent} subComponent
+     * @param {string} subAttrName
+     * @param {*} bindValue
+     */
+    function bindComponentAttr(viewModel, compInstance, propName, propValue) {
+        //找到组件的属性
+        var prop = compInstance[propName];
+        // TODO:找到组件名
+        var componentName = "Component";
+        //获取属性的类型
+        var propType;
+        if (prop) {
+        }
+        if (propType === ReactiveTypes.Internal || propType === ReactiveTypes.Iterator)
+            throw new Error(this.tag + "." + propName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
+        if (propType === ReactiveTypes.Out) {
+            if (propValue instanceof ObservableSchema) {
+                prop.subscribe(function (e) {
+                    //这里的级联update可能会有性能问题，要优化
+                    propValue.getFromRoot(compInstance).set(e.value, true);
+                }, viewModel);
+            }
+            else {
+                throw new Error("\u65E0\u6CD5\u7ED1\u5B9A[OUT]" + componentName + "}." + propName + "\u5C5E\u6027\uFF0C\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else if (propType === ReactiveTypes.In) {
+            if (propValue instanceof ObservableSchema) {
+                var bindOb = propValue.getFromRoot(viewModel);
+                bindOb.subscribe(function (e) {
+                    //这里的级联update可能会有性能问题，要优化
+                    prop.set(e.value, true);
+                });
+                prop.$_raw(prop.$target = clone(bindOb.get(ObservableModes.Raw), true));
+            }
+            else {
+                prop.$_raw(prop.$target = propValue);
+                console.warn("\u672A\u80FD\u7ED1\u5B9A[IN]" + componentName + "." + propName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else if (propType === ReactiveTypes.Parameter) {
+            if (propValue instanceof ObservableSchema) {
+                //这里的级联update可能会有性能问题，要优化
+                var bindOb = propValue.getFromRoot(viewModel);
+                bindOb.subscribe(function (e) { return prop.set(e.value, true); }, compInstance);
+                prop.$_raw(prop.$target = bindOb.get(ObservableModes.Raw));
+                prop.subscribe(function (e) { return propValue.getFromRoot(viewModel).set(e.value, true); }, viewModel);
+            }
+            else {
+                prop.$_raw(prop.$target = propValue);
+                console.warn("\u672A\u80FD\u7ED1\u5B9A[REF]" + componentName + "." + propName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+            }
+        }
+        else {
+            var value = propValue instanceof ObservableSchema ? propValue.getFromRoot(viewModel).get() : (propValue instanceof Observable ? propValue.get() : propValue);
+            value = clone(value, true);
+            if (prop instanceof Observable)
+                prop.$_raw(value);
+            else
+                compInstance[propName] = value;
+        }
+    }
+    function handleRenderResult(renderResult, instance, renderFn, viewModel, descriptor, container) {
+        var isArray = is_array(renderResult);
+        var resultIsElement = false;
+        if (isArray) {
+            for (var _i = 0, renderResult_1 = renderResult; _i < renderResult_1.length; _i++) {
+                var val = renderResult_1[_i];
+                resultIsElement = exports.DomUtility.isElement(renderResult, true);
+                break;
+            }
+            isArray = true;
+        }
+        else {
+            resultIsElement = exports.DomUtility.isElement(renderResult, true);
+        }
+        if (resultIsElement) {
+            //返回了dom-node
+            Object.defineProperty(renderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: renderFn });
+            if (container) {
+                if (isArray)
+                    for (var _a = 0, renderResult_2 = renderResult; _a < renderResult_2.length; _a++) {
+                        var elem = renderResult_2[_a];
+                        exports.DomUtility.appendChild(container, elem);
+                    }
+                else
+                    exports.DomUtility.appendChild(container, renderResult);
+            }
+            return renderResult;
+        }
+        else {
+            var finalRenderFn = void 0;
+            var renderNode_1 = renderResult;
+            if (isArray) {
+                finalRenderFn = function (descriptor, viewModel, container) {
+                    var result = [];
+                    for (var _i = 0, renderNode_2 = renderNode_1; _i < renderNode_2.length; _i++) {
+                        var vnode = renderNode_2[_i];
+                        var elem = exports.createElement(vnode, viewModel, container);
+                        //if(container) DomUtility.appendChild(container,elem);
+                        result.push(elem);
+                    }
+                    return result;
+                };
+            }
+            else {
+                finalRenderFn = function (descriptor, viewModel, container) {
+                    var elem = exports.createElement(renderNode_1, viewModel, container);
+                    //if(container) DomUtility.appendChild(container,elem);
+                    return elem;
+                };
+            }
+            Object.defineProperty(renderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: finalRenderFn });
+            Object.defineProperty(finalRenderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: finalRenderFn });
+            if (instance) {
+                instance["render"] = finalRenderFn;
+                if (instance["$meta"]) {
+                    instance.$meta.wrapper.prototype.render = finalRenderFn;
+                }
+            }
+            return renderResult = finalRenderFn.call(instance, descriptor, viewModel, container);
+        }
+    }
+    function getComputedValue(expr, viewModel) {
+        var args = [];
+        for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
+            var dep = _a[_i];
+            var ob = void 0;
+            if (dep instanceof ObservableSchema) {
+                ob = dep.getFromRoot(viewModel);
+            }
+            else if (dep instanceof Observable)
+                ob = dep;
+            if (ob)
+                args.push(ob.get(ObservableModes.Value));
+            else
+                args.push(dep);
+        }
+        return expr.lamda.apply(viewModel, args);
+    }
+    function bindComputedExpression(expr, viewModel, setter) {
+        for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
+            var dep = _a[_i];
+            var ob = void 0;
+            if (dep instanceof ObservableSchema) {
+                ob = dep.getFromRoot(viewModel);
+            }
+            else if (dep instanceof Observable)
+                ob = dep;
+            if (ob)
+                ob.subscribe(function (e) {
+                    setter(getComputedValue(expr, viewModel));
+                });
+        }
+    }
+    function makeExpr() {
+        var expr = { lamda: arguments[arguments.length - 1], parameters: [] };
+        for (var i = 0, j = arguments.length - 2; i < j; i++)
+            expr.parameters.push(arguments[i]);
+        return expr;
+    }
+    exports.EXP = makeExpr;
+    function NOT(param) {
+        var expr = { lamda: function (val) { return !param; }, parameters: [] };
+        expr.parameters.push(param);
+        return expr;
+    }
+    exports.NOT = NOT;
+    var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
+    function makeAction(component, method) {
+        return function () {
+            var rs = method.apply(component, arguments);
+            var reactives = [];
+            proxyMode(function () {
+                for (var n in component.$meta.reactives) {
+                    reactives.push(component[n]);
+                }
+            });
+            for (var i in reactives)
+                reactives[i].update();
+            return rs;
+        };
+    }
     //=======================================================================
     var ReactiveTypes;
     (function (ReactiveTypes) {
@@ -1392,16 +2024,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             Object.defineProperty(meta, name, { enumerable: false, configurable: false, writable: true, value: info = dft });
         return info;
     }
-    var componentInfos = {};
+    exports.componentTypes = {};
     function inherits(extendCls, basCls) {
         function __() { this.constructor = extendCls; }
         extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
     }
+    /**
+     * 它有2种用法，
+     *
+     * @export
+     * @param {(string|{new(...args:any[]):IComponent}|boolean|Function)} tag
+     * @param {({new(...args:any[]):IComponent}|boolean|Function)} [ComponentType]
+     * @returns {*}
+     */
     function component(tag, ComponentType) {
         var makeComponent = function (componentCtor) {
             var meta = metaInfo(componentCtor.prototype);
             var _Component = function () {
                 var ret = componentCtor.apply(this, arguments);
+                //如果类型信息没有初始化，就在第一次运行时做初始化
                 if (!this.$meta.inited) {
                     initComponent(this);
                 }
@@ -1411,7 +2052,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 _Component[k] = componentCtor[k];
             inherits(_Component, componentCtor);
             var metaDesc = { enumerable: false, configurable: false, get: function () { return componentCtor.prototype.$meta; } };
-            //Object.defineProperty(_Component,"$meta",metaDesc);
+            Object.defineProperty(_Component, "$meta", metaDesc);
             Object.defineProperty(_Component.prototype, "$meta", metaDesc);
             //Object.defineProperty(componentCtor.prototype,"$meta",metaDesc);
             meta.ctor = componentCtor;
@@ -1420,7 +2061,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 meta.explicitMode = ComponentType;
             if (tag) {
                 meta.tag = tag;
-                componentInfos[tag] = meta;
+                exports.componentTypes[tag] = meta.wrapper;
             }
             return _Component;
         };
@@ -1602,20 +2243,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Object.defineProperty(firstComponent, tplInfo.name, des);
         Object.defineProperty(firstComponent.$meta.ctor.prototype, tplInfo.name, des);
     }
-    function makeAction(component, method) {
-        return function () {
-            var rs = method.apply(component, arguments);
-            var reactives = [];
-            proxyMode(function () {
-                for (var n in component.$meta.reactives) {
-                    reactives.push(component[n]);
-                }
-            });
-            for (var i in reactives)
-                reactives[i].update();
-            return rs;
-        };
-    }
     ///组件的垃圾释放机制
     var ComponentGarbage = /** @class */ (function () {
         function ComponentGarbage() {
@@ -1763,7 +2390,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 vnode = new VirtualComponentNode(tag.prototype.$meta, attrs);
             }
             else {
-                var componentInfo = componentInfos[tag];
+                var componentInfo = exports.componentTypes[tag];
                 if (componentInfo)
                     vnode = new VirtualComponentNode(tag, attrs);
                 else
@@ -1867,6 +2494,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     var VirtualComponentNode = /** @class */ (function (_super) {
         __extends(VirtualComponentNode, _super);
         function VirtualComponentNode(tag, attrs) {
+            var _a;
             var _this = _super.call(this) || this;
             _this.attrs = attrs;
             var t = typeof tag;
@@ -1879,7 +2507,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             else if (t === "string") {
                 _this.tag = tag;
-                _this.meta = componentInfos[_this.tag];
+                _this.meta = (_a = exports.componentTypes[_this.tag]) === null || _a === void 0 ? void 0 : _a.$meta;
+                if (!_this.meta)
+                    throw new Error("似乎不是component");
             }
             else {
                 throw new Error("Invalid arguments");
@@ -1916,73 +2546,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return VirtualComponentNode;
     }(VirtualNode));
     exports.VirtualComponentNode = VirtualComponentNode;
-    function bindComponentAttr(component, subComponent, subAttrName, bindValue) {
-        var subMeta = subComponent.$meta;
-        var stateInfo = subMeta.reactives[subAttrName];
-        var subStateType = stateInfo ? stateInfo.type : undefined;
-        if (subStateType === ReactiveTypes.Internal || subStateType === ReactiveTypes.Iterator)
-            throw new Error(this.tag + "." + subAttrName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
-        var subAttr = subComponent[subAttrName];
-        if (subStateType === ReactiveTypes.Out) {
-            if (bindValue instanceof ObservableSchema) {
-                subAttr.subscribe(function (e) {
-                    //这里的级联update可能会有性能问题，要优化
-                    bindValue.getFromRoot(component).set(e.value, true);
-                }, component);
-            }
-            else {
-                throw new Error("\u65E0\u6CD5\u7ED1\u5B9A[OUT]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027\uFF0C\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else if (subStateType === ReactiveTypes.In) {
-            if (bindValue instanceof ObservableSchema) {
-                var bindOb = bindValue.getFromRoot(component);
-                bindOb.subscribe(function (e) {
-                    //这里的级联update可能会有性能问题，要优化
-                    subAttr.set(e.value, true);
-                }, subComponent);
-                subAttr.$_raw(subAttr.$target = clone(bindOb.get(ObservableModes.Raw), true));
-            }
-            else {
-                subAttr.$_raw(subAttr.$target = bindValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[IN]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else if (subStateType === ReactiveTypes.Parameter) {
-            if (bindValue instanceof ObservableSchema) {
-                //这里的级联update可能会有性能问题，要优化
-                var bindOb = bindValue.getFromRoot(component);
-                bindOb.subscribe(function (e) { return subAttr.set(e.value, true); }, subComponent);
-                subAttr.$_raw(subAttr.$target = bindOb.get(ObservableModes.Raw));
-                subAttr.subscribe(function (e) { return bindValue.getFromRoot(component).set(e.value, true); }, component);
-            }
-            else {
-                subAttr.$_raw(subAttr.$target = bindValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[REF]" + subMeta.tag + "." + subAttrName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else {
-            var value = bindValue instanceof ObservableSchema ? bindValue.getFromRoot(component).get() : bindValue;
-            value = clone(value, true);
-            if (subAttr instanceof Observable)
-                subAttr.$_raw(value);
-            else
-                subComponent[subAttrName] = value;
-        }
-    }
-    function NOT(params) {
-        return;
-    }
-    exports.NOT = NOT;
-    function EXP() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i] = arguments[_i];
-        }
-        return;
-    }
-    exports.EXP = EXP;
-    var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
     var RenderDirectives;
     (function (RenderDirectives) {
         RenderDirectives[RenderDirectives["Default"] = 0] = "Default";
@@ -2163,249 +2726,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return value;
     };
-    exports.DomUtility = {};
-    exports.DomUtility.isElement = function (elem, includeText) {
-        if (!elem)
-            return false;
-        if (!elem.insertBefore || !elem.ownerDocument)
-            return false;
-        return includeText ? true : elem.nodeType === 1;
-    };
-    exports.DomUtility.createElement = function (tag, attrs) {
-        var t = typeof (tag);
-        if (t === "string") {
-            var elem = exports.DomUtility.document.createElement(tag);
-            if (exports.DomUtility.isElement(attrs))
-                exports.DomUtility.appendChild(attrs, elem);
-            else if (typeof attrs === "object") {
-                for (var n in attrs)
-                    exports.DomUtility.setAttribute(elem, n, attrs[n]);
-                for (var i = 2, j = arguments.length; i < j; i++) {
-                    var child = arguments[i];
-                    if (typeof child === "string")
-                        exports.DomUtility.appendChild(elem, exports.DomUtility.createText(child));
-                    else
-                        exports.DomUtility.appendChild(elem, child);
-                }
-            }
-            return elem;
-        }
-        if (t === "object") {
-            var vnode = tag;
-            var node = vnode.tag ? exports.DomUtility.document.createElement(vnode.tag) : exports.DomUtility.createText(vnode.content);
-            if (attrs)
-                exports.DomUtility.appendChild(attrs, node);
-            var _attrs = vnode.attrs || {};
-            if (vnode.className)
-                _attrs["className"] = vnode.className;
-            if (vnode.name)
-                _attrs["name"] = vnode.name;
-            if (vnode.value)
-                _attrs["value"] = vnode.value;
-            if (vnode.id)
-                _attrs["id"] = vnode.id;
-            if (vnode.type)
-                _attrs["type"] = vnode.type;
-            if (vnode.title)
-                _attrs["title"] = vnode.title;
-            if (vnode.placeholder)
-                _attrs["placeholder"] = vnode.placeholder;
-            for (var n in _attrs) {
-                exports.DomUtility.setAttribute(node, n, vnode.attrs[n]);
-            }
-            if (vnode.children) {
-                for (var i in vnode.children) {
-                    var child = vnode.children[i];
-                    if (typeof child === "string")
-                        exports.DomUtility.createText(child, node);
-                    else
-                        exports.DomUtility.createElement(child, node);
-                }
-            }
-            return node;
-        }
-    };
-    exports.DomUtility.createText = function (txt, parent) {
-        var node = exports.DomUtility.document.createTextNode(txt);
-        if (parent)
-            exports.DomUtility.appendChild(parent, node);
-        return node;
-    };
-    exports.DomUtility.createPlaceholder = function () {
-        var rs = document.createElement("span");
-        rs.className = "YA-PLACEHOLDER";
-        rs.style.display = "none";
-        return rs;
-    };
-    exports.DomUtility.setContent = function (elem, content) {
-        if (elem.nodeType === 1)
-            elem.innerHTML = content;
-        else
-            elem.nodeValue = content;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.getContent = function (elem) {
-        return elem.nodeType === 1 ? elem.innerHTML : elem.nodeValue;
-    };
-    exports.DomUtility.setAttribute = function (elem, name, value) {
-        elem.setAttribute(name, value);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.getAttribute = function (elem, name) {
-        return elem.getAttribute(name);
-    };
-    exports.DomUtility.removeAttribute = function (elem, name) {
-        elem.removeAttribute(name);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.setProperty = function (elem, name, value) {
-        elem[name] = value;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.getProperty = function (elem, name) {
-        return elem[name];
-    };
-    exports.DomUtility.appendChild = function (container, child) {
-        container.appendChild(child);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.insertBefore = function (insert, rel) {
-        if (rel.parentNode)
-            rel.parentNode.insertBefore(insert, rel);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.insertAfter = function (insert, rel) {
-        if (rel.parentNode)
-            rel.parentNode.insertAfter(insert, rel);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.getParent = function (elem) { return elem.parentNode; };
-    exports.DomUtility.remove = function (node) {
-        if (node.parentNode)
-            node.parentNode.removeChild(node);
-        return exports.DomUtility;
-    };
-    exports.DomUtility.removeAllChildrens = function (elem) {
-        elem.innerHTML = elem.nodeValue = "";
-        return exports.DomUtility;
-    };
-    exports.DomUtility.getChildren = function (elem) { return elem.childNodes; };
-    exports.DomUtility.show = function (elem, immeditately) {
-        elem.style.display = "";
-        return exports.DomUtility;
-    };
-    exports.DomUtility.hide = function (elem, immeditately) {
-        elem.style.display = "none";
-        return exports.DomUtility;
-    };
-    exports.DomUtility.attach = function (elem, evtname, handler) {
-        if (elem.addEventListener)
-            elem.addEventListener(evtname, handler, false);
-        else if (elem.attachEvent)
-            elem.attachEvent('on' + evtname, handler);
-        else
-            elem['on' + evtname] = handler;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.detech = function (elem, evtname, handler) {
-        if (elem.removeEventListener)
-            elem.removeEventListener(evtname, handler, false);
-        else if (elem.detechEvent)
-            elem.detechEvent('on' + evtname, handler);
-        else
-            elem['on' + evtname] = null;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.is_inDocument = function (elem) {
-        var doc = elem.ownerDocument;
-        while (elem) {
-            elem = elem.parentNode;
-            if (elem === doc || elem === doc.body)
-                break;
-        }
-        if (!elem)
-            return false;
-        return true;
-    };
-    if (typeof document !== "undefined")
-        exports.DomUtility.document = document;
-    if (typeof window !== "undefined")
-        exports.DomUtility.global = exports.DomUtility.window = window;
-    try {
-        var element_wrapper_1 = exports.DomUtility.wrapper = exports.DomUtility.createElement("div");
-        if (element_wrapper_1.currentStyle) {
-            exports.DomUtility.getStyle = function (node, name) { return node.currentStyle[name]; };
-        }
-        else {
-            exports.DomUtility.getStyle = function (node, name) { return getComputedStyle(node, false)[name]; };
-        }
-        exports.DomUtility.setStyle = function (node, name, value) {
-            var convertor = exports.styleConvertors[name];
-            node.style[name] = convertor ? convertor(value) : value;
-            return exports.DomUtility;
-        };
-        exports.DomUtility.parse = function (domString) {
-            element_wrapper_1.innerHTML = domString;
-            return element_wrapper_1.childNodes;
-        };
-    }
-    catch (ex) { }
-    var emptyStringRegx = /\s+/g;
-    function findClassAt(clsnames, cls) {
-        var at = clsnames.indexOf(cls);
-        var len = cls.length;
-        while (at >= 0) {
-            if (at > 0) {
-                var prev = clsnames[at - 1];
-                if (!emptyStringRegx.test(prev)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            if ((at + len) !== clsnames.length) {
-                var next = clsnames[at + length];
-                if (!emptyStringRegx.test(next)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            return at;
-        }
-        return at;
-    }
-    exports.DomUtility.hasClass = function (node, cls) {
-        return findClassAt(node.className, cls) >= 0;
-    };
-    exports.DomUtility.addClass = function (node, cls) {
-        if (findClassAt(node.className, cls) >= 0)
-            return exports.DomUtility;
-        node.className += " " + cls;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.removeClass = function (node, cls) {
-        var clsnames = node.className;
-        var at = findClassAt(clsnames, cls);
-        if (at <= 0)
-            return exports.DomUtility;
-        var prev = clsnames.substring(0, at);
-        var next = clsnames.substr(at + cls.length);
-        node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
-    };
-    exports.DomUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
-        if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
-            return _this.addClass(new_cls);
-        var clsnames = node.className;
-        var at = findClassAt(clsnames, old_cls);
-        if (at <= 0) {
-            if (alwaysAdd)
-                node.className = clsnames + " " + new_cls;
-            return exports.DomUtility;
-        }
-        var prev = clsnames.substring(0, at);
-        var next = clsnames.substr(at + old_cls.length);
-        node.className = prev + new_cls + next;
-        return exports.DomUtility;
-    };
     //======================================================================
     function THIS(obj, name) {
         var method = name;
@@ -2438,9 +2758,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
-        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders,
-        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: EXP,
-        Host: exports.DomUtility, styleConvertors: exports.styleConvertors,
+        createElement: exports.createElement,
+        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
+        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: exports.EXP,
+        DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
         intimate: implicit, clone: clone, Promise: Promise
     };
     if (typeof window !== 'undefined')
