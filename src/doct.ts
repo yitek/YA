@@ -11,6 +11,7 @@ export interface IInfo{
     title?:string;
     descriptions?:string|any[];
     notices?:string|string[];
+    debugging?:string;
 }
 
 export type TAssert = (expected:any,actual:any,message?:string)=>any;
@@ -56,7 +57,7 @@ export function doct(info:IInfo,target?:any):any{//ClassInfo| {(target:any,name?
             if(Doct.autoRun) {
                 setTimeout(()=>{
                     let logger = Doct.logger || new HtmlLogger();
-                    executeClass(clsInfo,logger);
+                    executeClass(clsInfo,logger,info);
                 },0);
             }
             if(!callAsDecorator)return clsInfo;
@@ -326,12 +327,13 @@ export interface IExecuteInfo{
     asserts?:string[];
 }
 
-function executeClass(clsInfo:ClassInfo ,logger:ILogger):{[name:string]:IExecuteRecord}{
+function executeClass(clsInfo:ClassInfo ,logger:ILogger,des:IInfo):{[name:string]:IExecuteRecord}{
     logger.beginClass(clsInfo);
     try{
         let instance = new clsInfo.ctor();
         let rs = {};
         for(let n in clsInfo.methods){
+            if(des.debugging && n.indexOf(des.debugging)<0) continue;
             rs[n] = executeMethod(instance,clsInfo.methods[n],logger);
         }
         return rs;

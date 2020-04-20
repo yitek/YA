@@ -43,7 +43,7 @@ var __extends = (this && this.__extends) || (function () {
                 if (exports.Doct.autoRun) {
                     setTimeout(function () {
                         var logger = exports.Doct.logger || new HtmlLogger();
-                        executeClass(clsInfo_1, logger);
+                        executeClass(clsInfo_1, logger, info);
                     }, 0);
                 }
                 if (!callAsDecorator)
@@ -231,12 +231,14 @@ var __extends = (this && this.__extends) || (function () {
         return AssertException;
     }(Error));
     exports.AssertException = AssertException;
-    function executeClass(clsInfo, logger) {
+    function executeClass(clsInfo, logger, des) {
         logger.beginClass(clsInfo);
         try {
             var instance = new clsInfo.ctor();
             var rs = {};
             for (var n in clsInfo.methods) {
+                if (des.debugging && n.indexOf(des.debugging) < 0)
+                    continue;
                 rs[n] = executeMethod(instance, clsInfo.methods[n], logger);
             }
             return rs;

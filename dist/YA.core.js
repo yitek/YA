@@ -813,6 +813,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 this.update();
             return this;
         };
+        /**
+         * 更新数据，引发事件，事件会刷新页面
+         *
+         * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
+         * @memberof Observable
+         */
         Observable.prototype.update = function () {
             var newValue = this.$__obModifiedValue__;
             if (newValue === undefined)
@@ -1057,8 +1063,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return this;
         };
         ObservableArray.prototype.update = function () {
+            //有3种操作
+            // 用新数组代替了旧数组
+            // push/pop/shift/unshift
+            // 子项变更了
+            //新数组代替了旧数组，用super处理了。？？这里逻辑有问题，如果数组赋值后又push/pop了会怎么处理？
             if (!_super.prototype.update.call(this))
                 return true;
+            //查看子项变更
+            for (var n in this) {
+                var item = this[n];
+                item.update();
+            }
+            //处理push/pop等数组操作
             var changes = this.$_changes;
             if (!changes || this.$_changes.length === 0)
                 return true;
@@ -1864,10 +1881,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 continue;
             var attrValue = descriptor[attrName];
             var match = attrName.match(evtnameRegx);
-            if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
+            if (match && elem[attrName] !== undefined && attrValue) {
                 var evtName = match[1];
-                bindDomEvent(elem, evtName, attrValue, descriptor, compInstance);
-                continue;
+                if (bindDomEvent(elem, evtName, attrValue, descriptor, compInstance))
+                    continue;
             }
             if (attrName === "class")
                 attrName = "className";
@@ -1918,26 +1935,60 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return bindResult;
     }
     exports.bindDomAttr = bindDomAttr;
-    function bindDomEvent(element, evtName, handler, vnode, compInstance) {
-        var finalHandler = handler.$__wrappedEventHandler__;
-        if (!finalHandler) {
-            if (compInstance) {
-                finalHandler = function (e) {
-                    e = e || window.event;
-                    handler.call(compInstance, e);
-                    for (var n in compInstance) {
-                        var member = compInstance[n];
-                        if (member instanceof Observable)
-                            member.update();
-                    }
-                };
-            }
-            else
-                finalHandler = handler;
-            Object.defineProperty(handler, "$__wrappedEventHandler__", { enumerable: false, writable: false, configurable: false, value: finalHandler });
+    function bindDomEvent(element, evtName, params, vnode, compInstance) {
+        var handler = params;
+        var t = typeof params;
+        var pars;
+        if (t === "function") {
+            handler = params;
+            params = null;
         }
+        else if (is_array(params) && params.length > 0) {
+            handler = params[0];
+            if (typeof handler !== "function") {
+                return false;
+            }
+            pars = [];
+            for (var i = 1, j = params.length; i < j; i++) {
+                var par = params[i];
+                if (par instanceof ObservableProxy)
+                    pars.push(par.get(ObservableModes.Default));
+                else
+                    pars.push(par);
+            }
+        }
+        else
+            return false;
+        var finalHandler = function (e) {
+            e = e || window.event;
+            var self = compInstance || this;
+            //YA.EVENT = e;
+            if (!params) {
+                handler.call(self, e);
+            }
+            else {
+                var args = [];
+                for (var i = 0, j = pars.length; i < j; i++) {
+                    var par = pars[i];
+                    if (par === YA.EVENT) {
+                        args.push(e);
+                    }
+                    else
+                        args.push(par);
+                }
+                handler.apply(self, args);
+            }
+            if (compInstance)
+                for (var n in compInstance) {
+                    var member = compInstance[n];
+                    if (member instanceof Observable)
+                        member.update();
+                }
+        };
         exports.DomUtility.attach(element, evtName, finalHandler);
+        return true;
     }
+    exports.EVENT = {};
     function createComponentElements(componentType, descriptor, container) {
         //获取到vnode，attr-value得到的应该是schema
         var compInstance;
@@ -2444,7 +2495,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         observable: observable, enumerator: enumerator,
-        createElement: exports.createElement, createElements: createElements, createComponentElements: createComponentElements, mount: mount,
+        createElement: exports.createElement, createElements: createElements, createComponentElements: createComponentElements, mount: mount, EVENT: exports.EVENT,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         NOT: NOT, EXP: exports.EXP,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,

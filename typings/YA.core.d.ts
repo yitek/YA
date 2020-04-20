@@ -296,6 +296,12 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     } | TData, index?: any, extras?: any, initValue?: any);
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
+    /**
+     * 更新数据，引发事件，事件会刷新页面
+     *
+     * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
+     * @memberof Observable
+     */
     update(): boolean;
     toString(): string;
     static accessMode: ObservableModes;
@@ -478,6 +484,7 @@ export declare let createElement: (tag: string | Function | INodeDescriptor | an
 } | IViewModel | IDomNode, vmOrCtnrOrFirstChild?: IViewModel | IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
 export declare function createElements(arr: any[], container: IDomNode, compInstance: IComponent): IDomNode[];
 export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
+export declare let EVENT: any;
 declare function createComponentElements(componentType: any, descriptor: INodeDescriptor, container?: IDomNode): IDomNode[] | IDomNode;
 export declare function mount(container: IDomNode, componentType: any, attrs: any): IDomNode | IDomNode[];
 export interface IComputedExpression {
@@ -606,6 +613,7 @@ declare let YA: {
     createElements: typeof createElements;
     createComponentElements: typeof createComponentElements;
     mount: typeof mount;
+    EVENT: any;
     attrBinders: {
         [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
     };

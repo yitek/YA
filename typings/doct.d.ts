@@ -9,6 +9,7 @@ export interface IInfo {
     title?: string;
     descriptions?: string | any[];
     notices?: string | string[];
+    debugging?: string;
 }
 export declare type TAssert = (expected: any, actual: any, message?: string) => any;
 export declare type TAssertStatement = (assert: TAssert, container?: any) => any;

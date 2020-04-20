@@ -910,6 +910,13 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         if(updateImmediately) this.update();
         return this;
     }
+
+    /**
+     * 更新数据，引发事件，事件会刷新页面
+     *
+     * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
+     * @memberof Observable
+     */
     update():boolean{
         let newValue :any= this.$__obModifiedValue__;
         if(newValue===undefined) return true;
@@ -1151,7 +1158,19 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     }
 
     update():boolean{
+        //有3种操作
+        // 用新数组代替了旧数组
+        // push/pop/shift/unshift
+        // 子项变更了
+        
+        //新数组代替了旧数组，用super处理了。？？这里逻辑有问题，如果数组赋值后又push/pop了会怎么处理？
         if(!super.update()) return true;
+        //查看子项变更
+        for(let n in this){
+            let item = this[n];
+            item.update();
+        }
+        //处理push/pop等数组操作
         let changes = this.$_changes;
         if(!changes || this.$_changes.length===0) return true;
         this.$_changes = undefined;
@@ -2009,10 +2028,9 @@ function createDomElement(descriptor:INodeDescriptor,parent?:IDomNode,compInstan
         
         let attrValue= descriptor[attrName];
         let match = attrName.match(evtnameRegx);
-        if(match && elem[attrName]!==undefined && typeof attrValue==="function"){
+        if(match && elem[attrName]!==undefined && attrValue){
             let evtName = match[1];
-            bindDomEvent(elem,evtName,attrValue,descriptor,compInstance);
-            continue;
+            if(bindDomEvent(elem,evtName,attrValue,descriptor,compInstance)) continue;
         }
         
         if(attrName==="class") attrName = "className";
@@ -2058,24 +2076,49 @@ export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode
     return bindResult;
 }
 
-function bindDomEvent(element:IDomNode,evtName:string,handler:Function,vnode:INodeDescriptor,compInstance:IComponent){
-    let finalHandler = (handler as any).$__wrappedEventHandler__;
-    if(!finalHandler) {
-        if(compInstance){
-            finalHandler = function(e){
-                e = e||window.event;
-                handler.call(compInstance,e);
-                for(let n in compInstance){
-                    let member = compInstance[n];
-                    if(member instanceof Observable) member.update();
-                }
+function bindDomEvent(element:IDomNode,evtName:string,params:any,vnode:INodeDescriptor,compInstance:IComponent):boolean{
+    let handler= params;
+    let t = typeof params;
+    let pars;
+    if(t==="function"){
+        handler = params;
+        params=null;
+    }else if(is_array(params)&& params.length>0){
+        handler = params[0];
+        if(typeof handler!=="function"){
+            return false;
+        } 
+        pars=[];
+        for(let i = 1,j=params.length;i<j;i++){
+            let par = params[i];
+            if(par instanceof ObservableProxy) pars.push(par.get(ObservableModes.Default));
+            else pars.push(par);
+        }
+    }else return false;
+    let finalHandler = function(e){
+        e = e||window.event;
+        let self = compInstance || this;
+        //YA.EVENT = e;
+        if(!params){
+            handler.call(self,e);
+        }else{
+            let args=[];
+            for(let i=0,j=pars.length;i<j;i++){
+                let par = pars[i];
+                if(par===YA.EVENT){args.push(e);}
+                else args.push(par);
             }
-           
-        }else finalHandler = handler;
-        Object.defineProperty(handler,"$__wrappedEventHandler__",{enumerable:false,writable:false,configurable:false,value:finalHandler});
-    }
+            handler.apply(self,args);
+        } 
+        if(compInstance)for(let n in compInstance){
+            let member = compInstance[n];
+            if(member instanceof Observable) member.update();
+        }
+    };
     DomUtility.attach(element,evtName,finalHandler);
+    return true;
 }
+export let EVENT:any = {};
 
 function createComponentElements(componentType:any,descriptor:INodeDescriptor,container?:IDomNode):IDomNode[]|IDomNode{
     
@@ -2670,7 +2713,7 @@ export function queryString(str:string){
 let YA={
     Subject,Disposable, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
     ,observable,enumerator
-    ,createElement,createElements,createComponentElements,mount
+    ,createElement,createElements,createComponentElements,mount,EVENT
     ,attrBinders,componentInfos: componentTypes
     ,NOT,EXP
     ,DomUtility: DomUtility,styleConvertors

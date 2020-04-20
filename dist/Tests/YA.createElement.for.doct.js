@@ -70,10 +70,54 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             YA_core_1.default.createComponentElements(comp1, null, demoElement);
             assert_statement(function (assert) {
                 var t1 = new Date();
-                var ellapse = t1.valueOf() - t1.valueOf();
-                console.log(ellapse);
+                console.log(t1.valueOf() - t1.valueOf());
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
+        };
+        createElementAttrsTest.prototype.item = function (assert_statement, demoElement) {
+            function comp1() {
+                var data = [{ id: 1, name: "yiy11" }, { id: 2, name: "yiy12" }, { id: 3, name: "yiy23" }];
+                YA_core_1.default.observable(data, "items", this);
+                YA_core_1.default.enumerator({ id: 0, name: "yiy" }, "item", this);
+                this.nameChange = function (evt, item) {
+                    var name = YA_core_1.default.trim(evt.target.value);
+                    item.name = name;
+                };
+                this.showData = function () {
+                    var json = JSON.stringify(this.items.get(YA_core_1.ObservableModes.Value));
+                    console.log(json);
+                    alert(json);
+                };
+                this.render = function (container, descriptor) {
+                    return YA_core_1.default.createElement("div", null,
+                        YA_core_1.default.createElement("table", { border: "1" },
+                            YA_core_1.default.createElement("tbody", { for: [this.items, this.item] },
+                                YA_core_1.default.createElement("tr", null,
+                                    YA_core_1.default.createElement("td", null, this.item.id),
+                                    YA_core_1.default.createElement("td", null,
+                                        YA_core_1.default.createElement("input", { type: "text", value: this.item.name, onblur: [this.nameChange, YA_core_1.default.EVENT, this.item] })),
+                                    YA_core_1.default.createElement("td", null, this.item.name)))),
+                        YA_core_1.default.createElement("button", { onclick: this.showData }, "\u70B9\u51FB\u6211\u67E5\u770B\u53D8\u66F4\u540E\u7684\u6570\u636E"));
+                };
+            }
+            ;
+            var t = new Date();
+            YA_core_1.default.createComponentElements(comp1, null, demoElement);
+            assert_statement(function (assert) {
+                var t1 = new Date();
+                console.log(t1.valueOf() - t1.valueOf());
+                //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+            });
+        };
+        createElementAttrsTest.prototype.complex = function (assert_statement, demoElement) {
+            function comp1() {
+                var provinces = [{ key: "cq", value: "重庆" }, { key: "sc", value: "四川" }, { key: "bj", value: "北京" }];
+                var interests = [{ key: "football", value: "足球" }, { key: "basketball", value: "篮球" }, { key: "swimming", value: "游泳" }];
+                var data = [
+                    { id: 1, name: "yiy11" }, { id: 2, name: "yiy12" }, { id: 3, name: "yiy23" }
+                ];
+            }
+            ;
         };
         __decorate([
             doct_1.doct({
@@ -91,6 +135,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ]
             })
         ], createElementAttrsTest.prototype, "filter", null);
+        __decorate([
+            doct_1.doct({
+                title: "子项内容变更",
+                descriptions: [
+                    "search"
+                ]
+            })
+        ], createElementAttrsTest.prototype, "item", null);
+        __decorate([
+            doct_1.doct({
+                title: "复杂的循环",
+                descriptions: [
+                    "复杂的循环，嵌套，变更子项等"
+                ]
+            })
+        ], createElementAttrsTest.prototype, "complex", null);
         createElementAttrsTest = __decorate([
             doct_1.doct({
                 title: "YA.createElement.for",
@@ -99,7 +159,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "该类为这些可释放对象的基类。提供2个函数,dispose跟deteching。",
                     "dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true",
                     "该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
-                ]
+                ],
+                debugging: "item"
             })
         ], createElementAttrsTest);
         return createElementAttrsTest;
