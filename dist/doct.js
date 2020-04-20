@@ -256,7 +256,7 @@ var __extends = (this && this.__extends) || (function () {
             index++;
         };
         for (var i in methodInfo.codes) {
-            record.executeInfos[i] = { code: methodInfo.codes[index], asserts: [] };
+            record.executeInfos[i] = { code: methodInfo.codes[i], asserts: [] };
         }
         var demoElement = exports.Doct.useDemo && exports.Doct.createDemoElement ? exports.Doct.createDemoElement(exports.Doct.useDemo === "immediate") : null;
         record.demoElement = demoElement;
@@ -279,12 +279,15 @@ var __extends = (this && this.__extends) || (function () {
                 end = record.endTime = new Date();
                 record.ellapse = record.endTime.valueOf() - record.beginTime.valueOf();
             }
-            logger.endMethod(record);
             if (demoElement && exports.Doct.useDemo) {
                 exports.Doct.disposeDemoElement(demoElement);
-                if (!exports.Doct.hasDemo(demoElement))
+                if (!exports.Doct.hasDemo(demoElement)) {
                     record.demoElement = null;
+                    if (demoElement.parentNode)
+                        demoElement.parentNode.removeChild(demoElement);
+                }
             }
+            logger.endMethod(record);
         }
         return record;
     }
@@ -370,14 +373,14 @@ var __extends = (this && this.__extends) || (function () {
             if (record.executeInfos.length > 0) {
                 var dt = createElement("dt", "codes", this._usageElement);
                 dt.innerHTML = "代码";
-                var dd = createElement("dd", "codes", this._usageElement);
-                var codes = createElement("ul", "codes", dd);
+                var dd_1 = createElement("dd", "codes", this._usageElement);
+                var codes = createElement("ul", "codes", dd_1);
                 for (var i in record.executeInfos) {
                     var execuetInfo = record.executeInfos[i];
                     var codeli = createElement("li", "code", codes);
                     var cd = createElement("code", "code", codeli);
                     var pre = createElement("pre", "code", cd);
-                    pre.innerHTML = execuetInfo.code;
+                    pre.innerHTML = execuetInfo.code.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                     if (execuetInfo.asserts.length) {
                         var comment = createElement("div", "comments", codeli);
                         createElement("ins", "comment", comment, "/*");
@@ -392,10 +395,12 @@ var __extends = (this && this.__extends) || (function () {
             if (record.demoElement) {
                 var dt = createElement("dt", "demo", this._usageElement);
                 dt.innerHTML = "运行效果";
-                var dd = createElement("dd", "demo", this._usageElement);
-                dd.appendChild(record.demoElement);
+                var dd_2 = createElement("dd", "demo", this._usageElement);
+                dd_2.appendChild(record.demoElement);
                 record.demoElement.$__doctCustomDispose__ = true;
             }
+            var ins = createElement("dt", "perf", this._usageElement, "性能");
+            var dd = createElement("dd", "demo", this._usageElement, record.ellapse.toString());
             return this;
         };
         HtmlLogger.prototype.endClass = function (clsInfo) {
@@ -432,7 +437,7 @@ var __extends = (this && this.__extends) || (function () {
             var ol = createElement("ol", "notices", dd);
             for (var i in basInfo.notices) {
                 var content = basInfo.notices[i];
-                if (content && (content = content.replace(/(^\s+)|(\s+$)/g, "").replace(/\n/g, "<br />")))
+                if (content && (content = htmlEncode(content.replace(/(^\s+)|(\s+$)/g, ""))))
                     createElement("li", "", ol).innerHTML = content;
             }
         }
@@ -462,6 +467,11 @@ var __extends = (this && this.__extends) || (function () {
             }
         }
         return ul;
+    }
+    function htmlEncode(content) {
+        if (content === undefined || content === null)
+            return "";
+        return content.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
     }
 });
 //# sourceMappingURL=doct.js.map

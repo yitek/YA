@@ -1,209 +1,88 @@
-import {doct,  TAssert,TAssertStatement} from '../doct';
-import * as YA from '../YA.core';
+import {doct,TAssertStatement,TAssert} from '../doct';
+import YA from '../YA.core';
 
-
-@doct({title:"YA.component"})
-export class componentTest {
-    @doct({
-        title:"js原生"
-    })
-    jsRaw(assert_statement:TAssertStatement,container:YA.IDomNode){
-        let comp = YA.component(function(){
-            this.model = {title:"YA.component的基本用法"};
-            this.render = (container?:any)=>{
-                return <div onclick={this.changeTitle}>点击这里会弹出一个输入框,输入的文本将显示在这里:[{this.model.title}].</div>;
-            }
-            this.changeTitle = ()=>{
-                let newTitle = window.prompt("请输入新的标题:",this.model.title);
-                this.model.title = newTitle;
-            }
-        });
-        comp.render(container);
-
+@doct({
+    title:"YA.component"
+    ,descriptions:[
+        "某些对象在运行中引用了外部的资源，当这些对象被系统/框架释放时，需要同时释放他们引用的资源。"
+        ,"该类为这些可释放对象的基类。提供2个函数,dispose跟deteching。"
+        ,"dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true"
+        ,"该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
+    ]
+})
+export class ComponentTest {
+    constructor(){
     }
-    @doct({title:"TS类带装饰器"})
-    ts(assert_statement:TAssertStatement,container:any){
-        @YA.component("My")
-        class MyComponent{
-            @YA.reactive()
-            model={title:"YA framework"};
+    
+    @doct({
+        title:"基本用法"
+        ,descriptions:[
+            "用dispose(callback)注册释放时的回调"
+            ,"用dispose(any)来释放资源"
+        ]
+    })
+    base(assert_statement:TAssertStatement,demoElement?:any){
+        let disposable = new YA.Disposable();
+        let dispose1Arg,dispose1Sender;
+        let dispose2Arg,dispose2Sender;
+        //注册第一个dispose回调，当dispose发生时，它会被调用
+        disposable.dispose((arg,sender)=>{dispose1Arg=arg;dispose1Sender= sender;});
+        //注册第二个dispose回调，当dispose发生时，它会被调用
+        disposable.dispose((arg,sender)=>{dispose2Arg=arg;dispose2Sender= sender;});
+        //带参数释放资源
+        disposable.dispose("dispose arg");
 
-            readonly:boolean;
-            @YA.template()
-            render(container?:any){
-                return <div onclick={this.changeTitle}>点击这里会弹出一个输入框,输入的文本将显示在这里:[{this.model.title}].</div>;
-            }
-            rows=[];
-        
-            item;
-            col;
-
-            tpl(container,outer_vnode){
-                return <table class={YA.EXP(this.model.title,(t)=>t+"px")}>
-                    <thead>
-            <tr for={[outer_vnode.children,this.col]}><th if={YA.NOT(this.col.disabled)}>{this.col.name}</th></tr>
-                    </thead>
-                    <tbody for={[this.rows,this.item]}>
-            <tr for={[outer_vnode.children,this.col]}><td>{this.item[this.col]}</td></tr>
-                    </tbody>
-                    
-                </table>;
-            }
-
-            changeTitle(e){
-                let newTitle = window.prompt("请输入新的标题:",this.model.title);
-                this.model.title = newTitle;
-            }
-
-        };
-
-        let myComponent = new MyComponent();
-        myComponent.render(container);
-        
         assert_statement((assert:TAssert)=>{
-            //assert(YA.DataTypes.Object,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.DataTypes[proxy.$type]}`);
-            //assert("YA framework",proxy.title,"可以访问对象上的数据:proxy.title==='YA framework'");
-            //assert("id,title",membernames.join(","),"可以且只可以枚举原始数据的字段:membernames=['1','title']");
+            assert(disposable.$isDisposed===true,"对象处于释放状态，disposable.$isDisposed===true");
+            assert(dispose1Arg==="dispose arg",`一个回调会被调用，接收到的参数为dispose调用的参数，dispose1Arg==="dispose arg"`);
+            assert(dispose1Sender===disposable,`第一个回调函数的第二个参数为dispose对象，dispose1Sender===disposable`);
+            assert(dispose2Arg==="dispose arg",`第二个回调函数也会被调用dispose2Arg==="dispose arg"`);
+            assert(dispose2Sender===disposable,`dispose2Sender===disposable`);
         });
-        
+
+        let ex;
+        try{
+            disposable.dispose("second");
+        }catch(ex1){ex =ex1;}
+
+        assert_statement((assert:TAssert)=>{
+            assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+        });
     }
-    
 
     @doct({
-        title:"模板函数中的IF"
+        title:"释放前检查"
+        ,descriptions:[
+            "用deteching(callback)注册释放前的的检查方法"
+            ,"用deteching()来做检查，只有所有的检查方法都不返回false，才会认为检查通过"
+        ]
     })
-    IF(assert_statement:TAssertStatement,container:any){
-        @YA.component("My")
-        class MyComponent{
-            @YA.reactive()
-            model={title:"YA framework",showTitle:true};
-            @YA.template()
-            render(container?:any){
-                return <div>
-                    <input type="checkbox" checked={this.model.showTitle} onclick={this.changeState} />可以用checkbox控制后面的文本的显示:
-                    <div if={this.model.showTitle}>[{this.model.title}]</div>
-                    <span>---->这是文本后面的文字</span>
-                </div>;
-            }
-            changeState(e){
-                this.model.showTitle = !this.model.showTitle;
-            }
+    deteching(assert_statement:TAssertStatement,demoElement?:any){
+        let disposable = new YA.Disposable();
+        let deteching1Sender,deteching1ReturnValue=false;
+        //注册一个释放前检查函数
+        disposable.deteching((sender)=>{deteching1Sender=sender;return deteching1ReturnValue;});
+        let deteching2Sender;
+        //注册另一个释放前检查函数
+        disposable.deteching((sender)=>{deteching2Sender=sender;return true;});
 
-        };
-
-        let myComponent = new MyComponent();
-        myComponent.render(container);
-    }
-    @doct({title:"模板函数中的for"})
-    For(assert_statement:TAssertStatement,container:any){
-        @YA.component("My")
-        class MyComponent{
-            @YA.reactive()
-            queries={title:""};
-            @YA.reactive()
-            rows=[{"$__ONLY_USED_BY_SCHEMA__":true,title:"YA-v1.0",author:{name:"yiy"}}];
-            @YA.reactive(YA.ReactiveTypes.Iterator)
-            item=this.rows[0];
-
-            data=[
-                {title:"YA-v1.1",author:{name:"yiy1"}}
-                ,{title:"YA-v2.1",author:{name:"yiy2"}}
-                ,{title:"YA-v3.2",author:{name:"yiy3"}}
-                ,{title:"YA-v4.2",author:{name:"yiy1"}}
-                ,{title:"YA-v5.3",author:{name:"yiy2"}}
-                ,{title:"YA-v6.4",author:{name:"yiy3"}}
-                ,{title:"YA-v7.4",author:{name:"yiy1"}}
-
-            ];
+        let check = disposable.deteching();
+        assert_statement((assert:TAssert)=>{
+            assert(deteching1Sender===disposable,"第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
+            assert(check===false,"deteching()的结果为false,因为有一个检查函数返回了false");
+            assert(deteching2Sender===undefined,"第二个回调函数不会运行 ,因为它前面的检查函数没通过检查:deteching2Sender===undefined");
+        });
+        //清空测试变量
+        deteching1Sender = deteching2Sender = undefined;
+        //改变第一个检查函数的返回值
+        deteching1ReturnValue =true;
+        //做检查
+        check = disposable.deteching();
+        assert_statement((assert:TAssert)=>{
+            assert(check===true,"deteching()的结果为true,因为所有的检查函数都没有返回false：check===true");
+            assert(deteching1Sender===disposable,"第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
             
-            @YA.template()
-            render(container?:any){
-                return <div>
-                    <div>
-                        <input type="text" placeholder="标题" value={this.queries.title} onblur={this.changeTitle}/>
-                        <button  onclick={this.doFilter}>过滤</button>
-                    </div>
-                    <table border="1" cellspacing="0" style={{border:"1px"}}>
-                        <thead>
-                            <tr><th>标题</th><th>作者</th></tr>
-                        </thead>
-                        <tbody for={[this.rows,this.item]}>
-            <tr><td>{this.item.title}</td><td>{this.item.author.name}</td></tr>
-                        </tbody>
-                    </table>
-                </div>;
-            }
-           
-            
-            
-            changeTitle(e){
-                this.queries.title = e.target.value;
-            }
-            doFilter(e){
-                let rows = [];
-                for(const item of this.data){
-                    //let item = this.data[i];
-                    if(item.title.indexOf(this.queries.title)>=0) rows.push(item);
-                }
-                this.rows=rows;
-            }
-
-        };
-
-        let myComponent = new MyComponent();  
-        myComponent.rows= myComponent.data as any;
-        myComponent.render(container);
-        
+            assert(deteching2Sender===disposable,"第二个回调函数也被调用:deteching2Sender===disposable");
+        });
     }
-    @doct({
-        title:"控件组合使用"
-    })
-    composite(assert_statement:TAssertStatement,container:any){
-        @YA.component("CompA")
-        class CompA{
-            @YA.IN
-            name="";
-            @YA.OUT
-            signture="";
-            //@YA.template()
-            render(){
-                return <div>  My name is {this.name},my signture is here:
-                    <input type="text" value={this.signture} onblur={this.onblur}/>
-                </div>
-            }
-
-            onblur(e){
-                this.signture = e.target.value;
-            }
-        }
-
-        @YA.component("CompB")
-        class CompB{
-            //@YA.reactive()
-            myname="yiy";
-            //@YA.reactive()
-            mysignture="";
-
-            //@YA.template()
-            render(container:any){
-                return <div>
-                    <button onclick={this.changeMyName}>点击这里修改名称</button>
-                    <fieldset>
-                        <legend>签名</legend>
-                        <CompA name={this.myname} signture={this.mysignture}/>
-                    </fieldset>
-                    你的签名:{this.mysignture}
-                </div>
-            }
-
-            changeMyName(){
-                let newName = prompt("修改我的名字",this.myname);
-                this.myname= newName;
-            }
-        }
-
-        let b = new CompB();
-        b.render(container);
-    }
-    
 }

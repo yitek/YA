@@ -83,9 +83,6 @@ export interface ISubject<TEvtArgs> {
      * @type {[topic:string]:Function[]}
      * @memberof ISubject
      */
-    $__topics__: {
-        [topic: string]: any;
-    };
     /**
      * 注册监听函数
      * notify的时候，注册了相关主题的监听函数会被调用
@@ -237,13 +234,18 @@ export declare enum ObservableModes {
     Raw = 1,
     Value = 2,
     Observable = 3,
-    Schema = 4
+    /**
+     * 行为基本等同Observable,但如果该变量是Proxy,则会返回Proxy
+     */
+    Proxy = 4,
+    Schema = 5
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;
     $extras?: any;
     $target?: TData;
     $isset?: boolean;
+    $root?: IObservable<any>;
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     update(): boolean;
@@ -259,6 +261,7 @@ export interface IChangeEventArgs<TData> {
     item?: IObservable<TData>;
     sender?: any;
     cancel?: boolean;
+    changes?: IChangeEventArgs<any>[];
 }
 export declare enum ChangeTypes {
     Value = 0,
@@ -274,7 +277,7 @@ export interface IObservableIndexable<TData extends {
     [index in keyof object]: any;
 }> extends IObservable<TData> {
     $target: any;
-    $_modifiedValue: any;
+    $__obModifiedValue__: any;
 }
 export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData> {
     $type: DataTypes;
@@ -282,10 +285,12 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $extras?: any;
     $isset?: boolean;
     $schema?: ObservableSchema<TData>;
-    $_index?: number | string;
-    $_modifiedValue: TData;
-    $_owner?: IObservableIndexable<TData>;
-    $_raw: (value?: TData) => any;
+    $root: Observable<any>;
+    $__obExtras__?: any;
+    $__obIndex__?: number | string;
+    $__obModifiedValue__: TData;
+    $__obOwner__?: IObservableIndexable<TData>;
+    $__obRaw__: (value?: TData) => any;
     constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
     } | TData, index?: any, extras?: any, initValue?: any);
@@ -294,16 +299,8 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     update(): boolean;
     toString(): string;
     static accessMode: ObservableModes;
+    static isObservable(ob: any): boolean;
 }
-/**
- * 获取Observable的extras的一个辅助方法
- *
- * @export
- * @param {Observable<any>} ob
- * @param {string} [name]
- * @param {*} [dft]
- */
-export declare function extras(ob: Observable<any>, name?: string, dft?: any): any;
 export interface IObservableObject<TData extends {
     [index: string]: any;
 }> extends IObservable<TData> {
@@ -317,7 +314,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     } | TData, index?: any, extras?: any, initValue?: any);
     $prop(name: string): any;
     get(accessMode?: ObservableModes): any;
-    set(newValue: TData, updateImmediately?: boolean): IObservableObject<TData>;
+    set(newValue: TData | IObservable<TData>, updateImmediately?: boolean): IObservableObject<TData>;
     update(): boolean;
 }
 export interface IObservableArray<TItem> extends IObservable<TItem[]> {
@@ -344,10 +341,13 @@ export declare class ObservableSchema<TData> {
     $type: DataTypes;
     $index: string | number;
     $paths: string[];
-    $ctor: {
+    $obCtor: {
         new (init: TData | {
             (val?: TData): any;
         } | IObservableIndexable<any>, index?: any, extras?: any, initValue?: any): Observable<any>;
+    };
+    $proxyCtor: {
+        new (schema: ObservableSchema<any>, parent: ObservableProxy): any;
     };
     $owner?: ObservableSchema<TData>;
     $itemSchema?: ObservableSchema<TData>;
@@ -358,8 +358,41 @@ export declare class ObservableSchema<TData> {
     defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
     asArray(): ObservableSchema<TData>;
     initObject(ob: Observable<TData>): void;
+    createObservable(val?: any): Observable<TData>;
+    createProxy(): ObservableProxy;
     static schemaToken: string;
 }
+export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData>> {
+    get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
+    set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
+    update(): boolean;
+}
+export declare class ObservableProxy implements IObservable<any> {
+    $parent: ObservableProxy;
+    $schema: ObservableSchema<any>;
+    $type: DataTypes;
+    $extras?: any;
+    $target?: any;
+    $isset?: boolean;
+    $root?: Observable<any>;
+    $__topics__: any;
+    $__rootOb__: IObservable<any>;
+    $rootOb: IObservable<any>;
+    constructor(param: ObservableSchema<any> | Observable<any> | any, parent?: ObservableProxy);
+    get(accessMode?: ObservableModes): any;
+    set(newValue: any, updateImmediately?: boolean): any;
+    subscribe(): any;
+    unsubscribe(): any;
+    notify(): any;
+    fulfill(): any;
+    update(): any;
+    pop(): any;
+    push(): any;
+    shift(): any;
+    unshift(): any;
+}
+export declare function observable(initData: any, index?: string, subject?: any): Observable<any>;
+export declare function enumerator(initData: any, index?: string, subject?: any): ObservableProxy;
 export interface IDomNode {
     nodeType: number;
     nodeValue: any;
@@ -392,7 +425,7 @@ export interface IDomUtility {
     getParent(node: IDomNode): IDomNode;
     hide(node: any, immeditately?: boolean): IDomUtility;
     show(node: any, immeditately?: boolean): IDomUtility;
-    removeAllChildrens(node: IDomNode): IDomUtility;
+    removeAllChildren(node: IDomNode): IDomUtility;
     getChildren(node: IDomNode): IDomNode[];
     getStyle(node: IDomNode, name: string): string;
     setStyle(node: IDomNode, name: string, value: string): IDomUtility;
@@ -405,6 +438,14 @@ export interface IDomUtility {
     parse(domString: string): IDomNode[];
 }
 export declare let DomUtility: IDomUtility;
+export declare enum ReactiveTypes {
+    None = 0,
+    Internal = -1,
+    Iterator = -2,
+    In = 1,
+    Out = 2,
+    Parameter = 3
+}
 export declare type TChildDescriptor = string | IDomNode | INodeDescriptor;
 export interface INodeDescriptor {
     tag?: string | Function;
@@ -426,83 +467,42 @@ export interface IViewModel {
  * @param {INodeDescriptor} vnode 描述了属性与那些observable关联；当然也可以直接与值关联.这个参数主要是组件用于获取它的children信息
  * @returns {(IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
  */
-export declare type TRender = (descriptor: INodeDescriptor, viewModel: IViewModel, container?: IDomNode) => IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
+export declare type TRender = (descriptor: INodeDescriptor, container?: IDomNode) => IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
 export declare enum JSXModes {
     vnode = 0,
     dnode = 1
 }
 export declare function jsxMode(mode: JSXModes, statement: () => any): any;
-export declare let createElement: (tag: string | Function | INodeDescriptor, attrs?: {
+export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
 } | IViewModel | IDomNode, vmOrCtnrOrFirstChild?: IViewModel | IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
-export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, viewModel?: IViewModel): any;
+export declare function createElements(arr: any[], container: IDomNode, compInstance: IComponent): IDomNode[];
+export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
+declare function createComponentElements(componentType: any, descriptor: INodeDescriptor, container?: IDomNode): IDomNode[] | IDomNode;
+export declare function mount(container: IDomNode, componentType: any, attrs: any): IDomNode | IDomNode[];
 export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
 }
 export declare let EXP: (...args: any[]) => IComputedExpression;
 export declare function NOT(param: any): IComputedExpression;
-export declare enum ReactiveTypes {
-    None = 0,
-    Internal = -1,
-    Iterator = -2,
-    In = 1,
-    Out = 2,
-    Parameter = 3
-}
 export interface IReactiveInfo {
-    name?: string;
-    type?: ReactiveTypes;
-    schema?: ObservableSchema<any>;
-    initData?: any;
-}
-/**
- * 两种用法:
- * 1 作为class member的装饰器 @reactive()
- * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
- * @param {(ReactiveTypes|Function)} [type]
- * @param {{[prop:string]:IReactiveInfo}} [defs]
- * @returns
- */
-export declare function reactive(type?: ReactiveTypes | Function, defs?: {
-    [prop: string]: IReactiveInfo;
-}): any;
-export declare function IN(target: any, name: string): any;
-export declare function OUT(target: any, name: string): any;
-export declare function PARAM(target: any, name: string): any;
-export interface ITemplateInfo {
-    name?: string;
-    vnode?: any;
-    partial?: string;
-    render?: Function;
-}
-export declare function template(partial?: string | Function, defs?: {
-    [prop: string]: ITemplateInfo;
-}): (target: IComponentInfo, info: string | ITemplateInfo) => void;
-export interface IActionInfo {
-    name?: string;
-    async?: boolean;
-    method?: Function;
+    type: ReactiveTypes;
+    schema: ObservableSchema<any>;
 }
 export interface IComponentInfo {
     reactives?: {
         [prop: string]: IReactiveInfo;
-    };
-    templates?: {
-        [partial: string]: ITemplateInfo;
-    };
-    actions?: {
-        [methodname: string]: IActionInfo;
     };
     ctor?: TComponentType;
     wrapper?: TComponentType;
     tag?: string;
     render?: Function;
     inited?: boolean;
-    explicitMode?: boolean;
+    explicit?: boolean;
 }
 export interface IComponent extends IDisposable {
-    $meta: IComponentInfo;
+    $_meta: IComponentInfo;
     render(container?: IDomNode, descriptor?: INodeDescriptor): IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
     $__elements__: IDomNode | IDomNode[];
     $__placeholder__: IDomNode;
@@ -521,29 +521,9 @@ export interface IDisposeInfo {
     inactiveTime?: Date;
     checkTime?: Date;
 }
-export interface IInternalComponent extends IComponent {
-    $_disposeInfo: IDisposeInfo;
-    $childNodes: VirtualNode[];
-    $reactives: {
-        [name: string]: Observable<any>;
-    };
-}
 export declare let componentTypes: {
     [tag: string]: TComponentType;
 };
-/**
- * 它有2种用法，
- *
- * @export
- * @param {(string|{new(...args:any[]):IComponent}|boolean|Function)} tag
- * @param {({new(...args:any[]):IComponent}|boolean|Function)} [ComponentType]
- * @returns {*}
- */
-export declare function component(tag: string | {
-    new (...args: any[]): IComponent;
-} | boolean | Function, ComponentType?: {
-    new (...args: any[]): IComponent;
-} | boolean | Function): any;
 export declare class ComponentGarbage {
     static singleon: ComponentGarbage;
     private _toBeChecks;
@@ -574,49 +554,6 @@ export declare class ComponentGarbage {
     static interval: number;
     static periodicClearCount: number;
 }
-export declare class VirtualNode implements INodeDescriptor {
-    tag?: string;
-    attrs?: {
-        [name: string]: any;
-    };
-    content?: any;
-    children?: VirtualNode[];
-    constructor();
-    render(component: IComponent, container?: any): any;
-    static create(tag: string | TComponentType, attrs: {
-        [attrName: string]: any;
-    }): VirtualNode;
-}
-export declare let virtualNode: (tag: string | TComponentType, attrs: {
-    [attrName: string]: any;
-}, ...args: any[]) => INodeDescriptor;
-export declare class VirtualTextNode extends VirtualNode {
-    content: any;
-    constructor(content: any);
-    render(component: IComponent, container?: any): any;
-}
-export declare class VirtualElementNode extends VirtualNode {
-    tag: string;
-    attrs: {
-        [name: string]: any;
-    };
-    children?: VirtualNode[];
-    constructor(tag: string, attrs: {
-        [name: string]: any;
-    });
-    render(component: IComponent, container?: any): any;
-}
-export declare class VirtualComponentNode extends VirtualNode {
-    attrs: {
-        [name: string]: any;
-    };
-    children?: VirtualNode[];
-    meta: IComponentInfo;
-    constructor(tag: string | TComponentType | IComponentInfo, attrs: {
-        [name: string]: any;
-    });
-    render(component: IComponent, container?: any): any;
-}
 export declare enum RenderDirectives {
     Default = 0,
     IgnoreChildren = 1,
@@ -629,7 +566,7 @@ export declare class Placeholder {
     constructor(replace: any, before?: any, after?: any);
 }
 export declare let attrBinders: {
-    [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
+    [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
 };
 export declare let styleConvertors: any;
 export interface IInputCompoent {
@@ -661,28 +598,20 @@ declare let YA: {
     ObservableObject: typeof ObservableObject;
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
-    createElement: (tag: string | Function | INodeDescriptor, attrs?: IDomNode | IViewModel | {
+    observable: typeof observable;
+    enumerator: typeof enumerator;
+    createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IDomNode | IViewModel | {
         [name: string]: any;
     }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IDomNode | IDomNode[];
-    component: typeof component;
-    state: typeof reactive;
-    IN: typeof IN;
-    OUT: typeof OUT;
-    PARAM: typeof PARAM;
-    template: typeof template;
+    createElements: typeof createElements;
+    createComponentElements: typeof createComponentElements;
+    mount: typeof mount;
     attrBinders: {
-        [name: string]: (elem: any, bindValue: any, component: IComponent, vnode: VirtualNode) => any;
+        [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
     };
     componentInfos: {
         [tag: string]: TComponentType;
     };
-    VirtualNode: typeof VirtualNode;
-    VirtualTextNode: typeof VirtualTextNode;
-    VirtualElementNode: typeof VirtualElementNode;
-    VirtualComponentNode: typeof VirtualComponentNode;
-    virtualNode: (tag: string | TComponentType, attrs: {
-        [attrName: string]: any;
-    }, ...args: any[]) => INodeDescriptor;
     NOT: typeof NOT;
     EXP: (...args: any[]) => IComputedExpression;
     DomUtility: IDomUtility;
@@ -690,5 +619,9 @@ declare let YA: {
     intimate: typeof implicit;
     clone: typeof clone;
     Promise: typeof Promise;
+    trim: typeof trim;
+    is_array: typeof is_array;
+    is_assoc: typeof is_assoc;
+    is_empty: typeof is_empty;
 };
 export default YA;

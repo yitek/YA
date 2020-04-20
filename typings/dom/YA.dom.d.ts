@@ -161,17 +161,6 @@ export declare class MessageBox extends YA.Promise {
     private _center;
     private _adjacentBackend;
 }
-export declare function messageBox(msg: string | IMessageBoxOpts): MessageBox;
-export declare class Button {
-    onclick: any;
-    text: string;
-    confirm: any;
-    className: any;
-    private _comfirmed;
-    private _comfirmElem;
-    render(p: any): any;
-    private _onclick;
-}
 export declare function cancelEvent(evt: Event): boolean;
 export declare class Size {
     w: number;

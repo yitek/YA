@@ -112,7 +112,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function trim(text) {
         if (text === null || text === undefined)
             return "";
-        text = text.toString().replace(trimreg, "");
+        return text.toString().replace(trimreg, "");
     }
     exports.trim = trim;
     var percentRegx = /([+-]?[\d,]+(?:.\d+))%/g;
@@ -674,7 +674,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ObservableModes[ObservableModes["Raw"] = 1] = "Raw";
         ObservableModes[ObservableModes["Value"] = 2] = "Value";
         ObservableModes[ObservableModes["Observable"] = 3] = "Observable";
-        ObservableModes[ObservableModes["Schema"] = 4] = "Schema";
+        /**
+         * 行为基本等同Observable,但如果该变量是Proxy,则会返回Proxy
+         */
+        ObservableModes[ObservableModes["Proxy"] = 4] = "Proxy";
+        ObservableModes[ObservableModes["Schema"] = 5] = "Schema";
     })(ObservableModes = exports.ObservableModes || (exports.ObservableModes = {}));
     function observableMode(mode, statement) {
         var accessMode = Observable.accessMode;
@@ -716,55 +720,72 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var _this = _super.call(this) || this;
             if (init instanceof ObservableObject || init instanceof ObservableArray) {
                 //ctor(owner,index,extras)
-                _this.$_owner = init;
-                _this.$_index = index;
-                _this.$_raw = function (val) { return observableMode(ObservableModes.Raw, function () { return val === undefined
-                    ? (_this.$_owner.$_modifiedValue === undefined
-                        ? _this.$_owner.$target
-                        : (_this.$_owner.$_modifiedValue === Undefined ? null : _this.$_owner.$_modifiedValue))[_this.$_index]
-                    : (_this.$_owner.$_modifiedValue === undefined
-                        ? _this.$_owner.$target
-                        : (_this.$_owner.$_modifiedValue === Undefined ? null : _this.$_owner.$_modifiedValue))[_this.$_index] = val; }); };
-                _this.$extras = extras;
+                _this.$__obOwner__ = init;
+                _this.$__obIndex__ = index;
+                _this.$__obRaw__ = function (val) { return observableMode(ObservableModes.Raw, function () { return val === undefined
+                    ? (_this.$__obOwner__.$__obModifiedValue__ === undefined
+                        ? _this.$__obOwner__.$target
+                        : (_this.$__obOwner__.$__obModifiedValue__ === Undefined ? null : _this.$__obOwner__.$__obModifiedValue__))[_this.$__obIndex__]
+                    : (_this.$__obOwner__.$__obModifiedValue__ === undefined
+                        ? _this.$__obOwner__.$target
+                        : (_this.$__obOwner__.$__obModifiedValue__ === Undefined ? null : _this.$__obOwner__.$__obModifiedValue__))[_this.$__obIndex__] = val; }); };
+                _this.$__obExtras__ = extras;
                 if (initValue !== undefined) {
-                    _this.$_raw(_this.$target = initValue);
+                    _this.$__obRaw__(_this.$target = initValue);
                 }
                 else {
-                    _this.$target = _this.$_raw();
+                    _this.$target = _this.$__obRaw__();
                 }
             }
             else if (typeof init === "function") {
                 //ctor(TRaw,extras)
-                _this.$extras = index;
-                _this.$_raw = init;
+                _this.$__obExtras__ = index;
+                _this.$__obRaw__ = init;
                 if (initValue !== undefined) {
-                    _this.$_raw(_this.$target = initValue);
+                    _this.$__obRaw__(_this.$target = initValue);
                 }
                 else {
-                    _this.$target = _this.$_raw();
+                    _this.$target = _this.$__obRaw__();
                 }
             }
             else {
                 //ctor(initValue,accessor,extras)
                 if (typeof index === "function") {
-                    _this.$extras = extras;
-                    _this.$_raw = index;
+                    _this.$__obExtras__ = extras;
+                    _this.$__obRaw__ = index;
                     _this.$target = init;
                     index.call(_this, init);
                 }
                 else {
                     //ctor(initValue,extras)
                     _this.$target = init;
-                    _this.$extras = index;
-                    _this.$_raw = function (val) { return val === undefined ? init : init = val; };
+                    _this.$__obExtras__ = index;
+                    _this.$__obRaw__ = function (val) { return val === undefined ? init : init = val; };
                 }
             }
-            implicit(_this, {
-                $target: _this.$target, $extras: _this.$extras, $type: DataTypes.Value, $schema: _this.$schema, $isset: false,
-                $_raw: _this.$_raw, $_index: _this.$_index, $_modifiedValue: undefined, $_owner: _this.$_owner
-            });
             if (_this.$target instanceof Observable_1)
                 throw new Error("不正确的赋值");
+            implicit(_this, {
+                $target: _this.$target, $type: DataTypes.Value, $schema: _this.$schema, $isset: false,
+                $__obRaw__: _this.$__obRaw__, $__obIndex__: _this.$__obIndex__, $__obModifiedValue__: undefined, $__obOwner__: _this.$__obOwner__, $__obExtras__: _this.$__obExtras__
+            });
+            Object.defineProperty(_this, "$extras", { enumerable: false, configurable: false,
+                get: function () {
+                    if (_this.$__obExtras__ !== undefined)
+                        return _this.$__obExtras__;
+                    if (_this.$__obOwner__)
+                        return _this.$__obOwner__.$extras;
+                    return undefined;
+                },
+                set: function (val) { return _this.$__obExtras__ = val; }
+            });
+            Object.defineProperty(_this, "$root", { enumerable: false, configurable: false,
+                get: function () {
+                    if (_this.$__obOwner__)
+                        return _this.$__obOwner__.$root;
+                    return _this;
+                }
+            });
             return _this;
         }
         Observable_1 = Observable;
@@ -772,35 +793,35 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (accessMode === undefined)
                 accessMode = Observable_1.accessMode;
             if (accessMode == ObservableModes.Raw)
-                return this.$_raw();
+                return this.$__obRaw__();
             if (accessMode == ObservableModes.Schema)
                 return this.$schema;
-            if (accessMode == ObservableModes.Observable)
+            if (accessMode == ObservableModes.Observable || accessMode == ObservableModes.Proxy)
                 return this;
-            return (this.$_modifiedValue === undefined) ? this.$target : (this.$_modifiedValue === Undefined ? undefined : this.$_modifiedValue);
+            return (this.$__obModifiedValue__ === undefined) ? this.$target : (this.$__obModifiedValue__ === Undefined ? undefined : this.$__obModifiedValue__);
         };
         Observable.prototype.set = function (newValue, updateImmediately) {
             this.$isset = true;
             if (newValue && newValue instanceof Observable_1)
                 newValue = newValue.get(ObservableModes.Value);
             if (Observable_1.accessMode === ObservableModes.Raw) {
-                this.$_raw.call(this, newValue);
+                this.$__obRaw__.call(this, newValue);
                 return this;
             }
-            this.$_modifiedValue = newValue === undefined ? Undefined : newValue;
+            this.$__obModifiedValue__ = newValue === undefined ? Undefined : newValue;
             if (updateImmediately)
                 this.update();
             return this;
         };
         Observable.prototype.update = function () {
-            var newValue = this.$_modifiedValue;
+            var newValue = this.$__obModifiedValue__;
             if (newValue === undefined)
                 return true;
-            this.$_modifiedValue = undefined;
+            this.$__obModifiedValue__ = undefined;
             newValue = newValue === Undefined ? undefined : newValue;
             var oldValue = this.$target;
             if (newValue !== oldValue) {
-                this.$_raw(this.$target = newValue);
+                this.$__obRaw__(this.$target = newValue);
                 var evtArgs = { type: ChangeTypes.Value, value: newValue, old: oldValue, sender: this };
                 this.notify(evtArgs);
                 return evtArgs.cancel !== true;
@@ -811,6 +832,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var currentValue = this.get(ObservableModes.Default);
             return currentValue === undefined || currentValue === null ? "" : currentValue.toString();
         };
+        Observable.isObservable = function (ob) {
+            if (!ob)
+                return false;
+            return ob.subscribe && ob.get && ob.set && ob.update;
+        };
         var Observable_1;
         Observable.accessMode = ObservableModes.Default;
         Observable = Observable_1 = __decorate([
@@ -819,32 +845,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Observable;
     }(Subject));
     exports.Observable = Observable;
-    /**
-     * 获取Observable的extras的一个辅助方法
-     *
-     * @export
-     * @param {Observable<any>} ob
-     * @param {string} [name]
-     * @param {*} [dft]
-     */
-    function extras(ob, name, dft) {
-        var extras = ob.$extras || (ob.$extras = {});
-        if (name !== undefined) {
-            var val = extras[name];
-            if (val === undefined)
-                val = extras[name] = dft;
-            return val;
-        }
-        return extras;
-    }
-    exports.extras = extras;
     var ObservableObject = /** @class */ (function (_super) {
         __extends(ObservableObject, _super);
         function ObservableObject(init, index, extras, initValue) {
             var _this = _super.call(this, init, index, extras, initValue) || this;
             _this.$type = DataTypes.Object;
             if (!_this.$target)
-                _this.$_raw(_this.$target = {});
+                _this.$__obRaw__(_this.$target = {});
             if (!_this.$schema) {
                 _this.$schema = new ObservableSchema(_this.$target);
                 _this.$schema.initObject(_this);
@@ -862,7 +869,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (accessMode === undefined)
                 accessMode = Observable.accessMode;
             if (accessMode === ObservableModes.Raw)
-                return this.$_raw();
+                return this.$__obRaw__();
             if (accessMode == ObservableModes.Schema)
                 return this.$schema;
             if (accessMode === ObservableModes.Value) {
@@ -882,7 +889,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ObservableObject.prototype.set = function (newValue, updateImmediately) {
             var _this = this;
             this.$isset = true;
-            if (newValue && newValue instanceof Observable)
+            if (newValue && Observable.isObservable(newValue))
                 newValue = newValue.get(ObservableModes.Value);
             _super.prototype.set.call(this, newValue || null);
             if (!newValue)
@@ -892,7 +899,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     if (n === "constructor" || n[0] === "$")
                         continue;
                     var proxy = _this[n];
-                    if (proxy instanceof Observable)
+                    if (Observable.isObservable(proxy))
                         proxy.set(newValue[n]);
                 }
             });
@@ -908,7 +915,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             proxyMode(function () {
                 for (var n in _this) {
                     var proxy = _this[n];
-                    if (proxy instanceof Observable)
+                    if (Observable.isObservable(proxy))
                         proxy.update();
                 }
             });
@@ -929,7 +936,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _this.$type = DataTypes.Array;
             target = _this.$target;
             if (Object.prototype.toString.call(target) !== "[object Array]")
-                _this.$_raw.call(_this, target = _this.$target = []);
+                _this.$__obRaw__.call(_this, target = _this.$target = []);
             if (!_this.$schema) {
                 _this.$schema = new ObservableSchema(_this.$target);
             }
@@ -1003,7 +1010,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (accessMode === undefined)
                 accessMode = Observable.accessMode;
             if (accessMode === ObservableModes.Raw)
-                return this.$_raw();
+                return this.$__obRaw__();
             if (accessMode == ObservableModes.Schema)
                 return this.$schema;
             if (accessMode === ObservableModes.Value) {
@@ -1022,13 +1029,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         ObservableArray.prototype.set = function (newValue, updateImmediately) {
             this.$isset = true;
-            if (newValue && newValue instanceof Observable)
+            if (newValue && Observable.isObservable(newValue))
                 newValue = newValue.get(ObservableModes.Value);
             else {
                 var newArr = [];
                 for (var _i = 0, newValue_1 = newValue; _i < newValue_1.length; _i++) {
                     var item = newValue_1[_i];
-                    if (item instanceof Observable)
+                    if (Observable.isObservable(item))
                         newArr.push(item.get(ObservableModes.Value));
                     else
                         newArr.push(item);
@@ -1064,12 +1071,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         change.sender.notify(change);
                     case ChangeTypes.Push:
                         arr.push(change.value);
-                        this.notify(change);
+                        //this.notify(change);
                         //if(change.cancel!==true && change.item) change.item.notify(change);
                         break;
                     case ChangeTypes.Pop:
                         arr.pop();
-                        this.notify(change);
+                        //this.notify(change);
                         if (change.cancel !== true && change.item) {
                             change.sender = change.item;
                             change.item.notify(change);
@@ -1077,11 +1084,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         break;
                     case ChangeTypes.Unshift:
                         arr.unshift(change.value);
-                        this.notify(change);
+                        //this.notify(change);
                         break;
                     case ChangeTypes.Shift:
                         arr.shift();
-                        this.notify(change);
+                        //this.notify(change);
                         if (change.cancel !== true && change.item) {
                             change.sender = change.item;
                             change.item.notify(change);
@@ -1089,7 +1096,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         break;
                     case ChangeTypes.Item:
                         arr[change.index] = change.value;
-                        this.notify(change);
+                        //this.notify(change);
                         if (change.cancel !== true) {
                             var itemEvts = {};
                             for (var n in change)
@@ -1111,8 +1118,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.ObservableArray = ObservableArray;
     function makeArrayItem(obArray, index) {
         obArray.$_itemSchema.$index = index;
-        var item = new obArray.$_itemSchema.$ctor(obArray, index, undefined);
-        item.$_index = index;
+        var item = new obArray.$_itemSchema.$obCtor(obArray, index, undefined);
+        item.$__obIndex__ = index;
         Object.defineProperty(obArray, index, { enumerable: true, configurable: true,
             get: function (mode) { return item.get(mode); },
             set: function (item_value) {
@@ -1127,17 +1134,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         });
     }
-    function defineProp(target, name, accessorFactory) {
-        var rnd = parseInt((Math.random() * 1000000).toString());
-        var private_prop_name = "$_PRIVATE_" + name + "_" + rnd;
-        Object.defineProperty(target, name, {
+    function defineProp(target, propname, propSchema, private_prop_name) {
+        if (!private_prop_name)
+            private_prop_name = "$__" + propname + "__";
+        Object.defineProperty(target, propname, {
             enumerable: true,
             configurable: false,
             get: function (param) {
                 var ob = this[private_prop_name];
                 if (!ob)
                     Object.defineProperty(this, private_prop_name, {
-                        enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
+                        enumerable: false, configurable: false, writable: false, value: ob = new propSchema.$obCtor(this, propname)
                     });
                 return ob.get(param);
             },
@@ -1145,12 +1152,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var ob = this[private_prop_name];
                 if (!ob)
                     Object.defineProperty(this, private_prop_name, {
-                        enumerable: false, configurable: false, writable: false, value: ob = accessorFactory.call(this, target, name)
+                        enumerable: false, configurable: false, writable: false, value: ob = new propSchema.$obCtor(this, propname)
                     });
                 return ob.set(val);
             }
         });
-        return this;
     }
     //=======================================================================
     var ObservableSchema = /** @class */ (function () {
@@ -1173,7 +1179,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 "$index": index,
                 "$paths": paths,
                 "$owner": owner,
-                "$ctor": Observable,
+                "$obCtor": Observable,
+                "$proxyCtor": ObservableProxy,
                 "$itemSchema": null,
                 "$initData": initData
             });
@@ -1191,7 +1198,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 else {
                     this.$type = DataTypes.Value;
-                    this.$ctor = Observable;
+                    this.$obCtor = Observable;
                 }
             }
         }
@@ -1215,6 +1222,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (this.$type === DataTypes.Array)
                 throw new Error("无法将ObservableSchema从Array转化成Object.");
             this.$type = DataTypes.Object;
+            var schema = this;
             var _ObservableObject = /** @class */ (function (_super) {
                 __extends(_ObservableObject, _super);
                 function _ObservableObject(init, index, extras, initValue) {
@@ -1224,15 +1232,36 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }(ObservableObject));
             ;
             _ObservableObject.prototype.$schema = this;
-            this.$ctor = _ObservableObject;
+            this.$obCtor = _ObservableObject;
+            var _ObservableObjectProxy = /** @class */ (function (_super) {
+                __extends(_ObservableObjectProxy, _super);
+                function _ObservableObjectProxy(schema, parent) {
+                    return _super.call(this, schema, parent) || this;
+                }
+                return _ObservableObjectProxy;
+            }(ObservableProxy));
+            this.$proxyCtor = _ObservableObjectProxy;
             return this;
         };
         ObservableSchema.prototype.defineProp = function (propname, initValue) {
             if (this.$type !== DataTypes.Object)
                 throw new Error("调用$defineProp之前，要首先调用$asObject");
             var propSchema = new ObservableSchema_1(initValue, propname, this);
+            var private_prop_name = "$__" + propname + "__";
+            var self = this;
             Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
-            defineProp(this.$ctor.prototype, propname, function (owner, name) { return new propSchema.$ctor(this, name); });
+            defineProp(this.$obCtor.prototype, propname, propSchema, private_prop_name);
+            Object.defineProperty(this.$proxyCtor.prototype, propname, {
+                enumerable: true, configurable: false,
+                get: function () {
+                    var proxy = this[private_prop_name];
+                    if (!proxy)
+                        Object.defineProperty(this, private_prop_name, {
+                            enumerable: false, configurable: false, writable: false, value: proxy = new propSchema.$proxyCtor(self, this)
+                        });
+                    return proxy.get();
+                }
+            });
             return propSchema;
         };
         ObservableSchema.prototype.asArray = function () {
@@ -1260,19 +1289,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (!this.$itemSchema)
                 this.$itemSchema = new ObservableSchema_1(undefined, -1, this);
             _ObservableArray.prototype.$schema = this;
-            this.$ctor = _ObservableArray;
+            this.$obCtor = _ObservableArray;
         };
         ObservableSchema.prototype.initObject = function (ob) {
-            var _loop_1 = function (n) {
-                if (n === "constructor" || n[0] === "$" || n === ObservableSchema_1.schemaToken)
-                    return "continue";
-                var propSchema = this_1[n];
-                defineProp(ob, n, function (owner, name) { return new propSchema.$ctor(this, name); });
-            };
-            var this_1 = this;
             for (var n in this) {
-                _loop_1(n);
+                if (n === "constructor" || n[0] === "$" || n === ObservableSchema_1.schemaToken)
+                    continue;
+                var propSchema = this[n];
+                defineProp(ob, n, propSchema);
             }
+        };
+        ObservableSchema.prototype.createObservable = function (val) {
+            return new this.$obCtor(val);
+        };
+        ObservableSchema.prototype.createProxy = function () {
+            return new this.$proxyCtor(this, undefined);
         };
         var ObservableSchema_1;
         ObservableSchema.schemaToken = "$__ONLY_USED_BY_SCHEMA__";
@@ -1282,6 +1313,155 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return ObservableSchema;
     }());
     exports.ObservableSchema = ObservableSchema;
+    function defineProxyProto(proto, memberNames) {
+        for (var _i = 0, memberNames_1 = memberNames; _i < memberNames_1.length; _i++) {
+            var n = memberNames_1[_i];
+            (function (member, proto) {
+                Object.defineProperty(proto, member, { enumerable: false, configurable: true, writable: true, value: function () {
+                        var ob;
+                        if (this.$parent) {
+                            ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
+                        }
+                        else {
+                            ob = this.$rootOb;
+                        }
+                        var rs = ob[member].apply(ob, arguments);
+                        return rs === ob ? this : rs;
+                    } });
+            })(n, proto);
+        }
+    }
+    var ObservableProxy = /** @class */ (function () {
+        function ObservableProxy(param, parent) {
+            var schema;
+            var ob;
+            if (param instanceof ObservableSchema)
+                schema = param;
+            else if (param instanceof Observable) {
+                ob = param;
+                schema = param.$schema;
+            }
+            else {
+                schema = new ObservableSchema(param);
+            }
+            implicit(this, {
+                $parent: parent, $schema: schema, $__rootOb__: ob
+            });
+            Object.defineProperty(this, "$rootOb", { enumerable: false, get: function () {
+                    if (this.$__rootOb__)
+                        return this.$__rootOb__;
+                    return this.$parent ? this.$parent.$rootOb : undefined;
+                }
+            });
+            Object.defineProperty(this, "$root", { enumerable: false, get: function () {
+                    ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
+                    return ob.$root;
+                }
+            });
+            for (var n in schema) {
+                var sub = schema[n];
+                Object.defineProperty(this, n, { enumerable: true, writable: false, configurable: false, value: new ObservableProxy_1(sub, this) });
+            }
+        }
+        ObservableProxy_1 = ObservableProxy;
+        ObservableProxy.prototype.get = function (accessMode) {
+            if (accessMode === ObservableModes.Proxy || Observable.accessMode === ObservableModes.Proxy)
+                return this;
+            var ob;
+            if (this.$parent) {
+                ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
+                return ob.get(accessMode);
+            }
+            else {
+                return this.$rootOb.get(accessMode);
+            }
+        };
+        ObservableProxy.prototype.set = function (newValue, updateImmediately) {
+            if (this.$parent) {
+                var ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
+                //if(newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
+                ob.set(newValue, updateImmediately);
+            }
+            else {
+                if (newValue instanceof ObservableProxy_1) {
+                    this.$__rootOb__ = newValue;
+                }
+                else if (newValue instanceof Observable) {
+                    this.$__rootOb__ = newValue;
+                }
+                else {
+                    newValue = new Observable(newValue);
+                    if (this.$__rootOb__)
+                        this.$__rootOb__.set(newValue, updateImmediately);
+                    else
+                        this.$__rootOb__ = newValue;
+                }
+            }
+            return this;
+        };
+        ObservableProxy.prototype.subscribe = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.unsubscribe = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.notify = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.fulfill = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.update = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.pop = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.push = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.shift = function () { throw new Error("abstract method"); };
+        ObservableProxy.prototype.unshift = function () { throw new Error("abstract method"); };
+        var ObservableProxy_1;
+        ObservableProxy = ObservableProxy_1 = __decorate([
+            implicit()
+        ], ObservableProxy);
+        return ObservableProxy;
+    }());
+    exports.ObservableProxy = ObservableProxy;
+    defineProxyProto(ObservableProxy.prototype, ["update", "subscribe", "unsubscribe", "notify", "fulfill", "push", "pop", "shift", "unshift", "clear"]);
+    function observable(initData, index, subject) {
+        if (Observable.isObservable(initData))
+            throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
+        var t = typeof initData;
+        var ob;
+        if (t === "object") {
+            if (is_array(initData)) {
+                ob = new ObservableArray(initData);
+            }
+            else
+                ob = new ObservableObject(initData);
+            if (index) {
+                ob.$__obIndex__ = index;
+                ob.$target = initData;
+            }
+        }
+        else {
+            var schema = new ObservableSchema(initData);
+            schema.$index = index;
+            ob = schema.createObservable(initData);
+        }
+        if (subject) {
+            Object.defineProperty(subject, index, { enumerable: true, configurable: false,
+                get: function () {
+                    return ob.get();
+                },
+                set: function (val) { return ob.set(val); }
+            });
+        }
+        ob.$extras = subject;
+        return ob;
+    }
+    exports.observable = observable;
+    function enumerator(initData, index, subject) {
+        var proxy = new ObservableProxy(initData);
+        if (subject) {
+            Object.defineProperty(subject, index, { enumerable: true, configurable: false,
+                get: function () {
+                    return proxy.get();
+                },
+                set: function (val) { return proxy.set(val); }
+            });
+        }
+        return proxy;
+    }
+    exports.enumerator = enumerator;
     exports.DomUtility = {};
     exports.DomUtility.isElement = function (elem, includeText) {
         if (!elem)
@@ -1361,7 +1541,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             node.parentNode.removeChild(node);
         return exports.DomUtility;
     };
-    exports.DomUtility.removeAllChildrens = function (elem) {
+    exports.DomUtility.removeAllChildren = function (elem) {
         elem.innerHTML = elem.nodeValue = "";
         return exports.DomUtility;
     };
@@ -1478,6 +1658,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         node.className = prev + new_cls + next;
         return exports.DomUtility;
     };
+    /////////////////////////////////////////////////////////////////////////////
+    //
+    // vnode操作/JSX 与绑定
+    //
+    var ReactiveTypes;
+    (function (ReactiveTypes) {
+        ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
+        ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
+        ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
+        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
+        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
+        ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
+    })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
     var JSXModes;
     (function (JSXModes) {
         JSXModes[JSXModes["vnode"] = 0] = "vnode";
@@ -1495,7 +1688,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     }
     exports.jsxMode = jsxMode;
-    function internalCreateElement(tag, attrs, parent) {
+    function internalCreateElement(tag, attrs, compInst) {
+        if (tag === undefined || tag === null || tag === "")
+            return;
         var t = typeof tag;
         var descriptor;
         if (t === "string") {
@@ -1516,7 +1711,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     return descriptor;
                 }
                 //如果直接调用createElement来生成控件，要求vnode里面不能延迟绑(descriptor里面不能有schema,因为它不知道viewmodel到底是那一个)。
-                var elems = createComponentElements(componentType, descriptor, null, null);
+                var elems = createComponentElements(componentType, descriptor, null);
                 return elems;
             }
             else {
@@ -1536,27 +1731,32 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             descriptor.children = children;
             if (_jsxMode === JSXModes.vnode)
                 return descriptor;
-            return createComponentElements(descriptor.tag, descriptor, null, null);
+            return createComponentElements(descriptor.tag, descriptor, null);
         }
-        else {
-            descriptor = tag;
-            var elem = void 0;
+        else if (t === "object") {
             var container = void 0;
-            var viewModel = void 0;
+            var comp = compInst;
             if (exports.DomUtility.isElement(attrs)) {
                 container = attrs;
-                viewModel = parent;
             }
-            else {
-                viewModel = attrs;
-                container = parent;
+            if (is_array(tag)) {
+                return createElements(tag, container, comp);
             }
+            descriptor = tag;
+            var elem_1;
             //没有tag，就是文本
             if (!descriptor.tag) {
-                elem = exports.DomUtility.createText(descriptor.content);
+                if (Observable.isObservable(descriptor.content)) {
+                    var ob = descriptor.content;
+                    elem_1 = exports.DomUtility.createText(ob.get(ObservableModes.Value));
+                    descriptor.content.subscribe(function (e) { return exports.DomUtility.setContent(elem_1, e.value); }, ob.$root.$extras);
+                }
+                else {
+                    elem_1 = exports.DomUtility.createText(descriptor.content);
+                }
                 if (container)
-                    exports.DomUtility.appendChild(container, elem);
-                return elem;
+                    exports.DomUtility.appendChild(container, elem_1);
+                return elem_1;
             }
             else {
                 var t_1 = typeof descriptor.tag;
@@ -1567,21 +1767,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         t_1 = "function";
                     }
                     else {
-                        elem = createDomElement(descriptor, viewModel);
-                        if (container)
-                            exports.DomUtility.appendChild(container, elem);
-                        return elem;
+                        elem_1 = createDomElement(descriptor, container, comp);
+                        //if(container) DomUtility.appendChild(container,elem);
+                        return elem_1;
                     }
                 }
                 if (t_1 === "function") {
-                    var elems = createComponentElements(descriptor.tag, descriptor, viewModel, container);
+                    var elems = createComponentElements(descriptor.tag, descriptor, container);
                     if (container) {
                         if (exports.DomUtility.isElement(elems))
                             exports.DomUtility.appendChild(container, elems);
                         else {
                             for (var _i = 0, _a = elems; _i < _a.length; _i++) {
-                                var elem_1 = _a[_i];
-                                exports.DomUtility.appendChild(container, elem_1);
+                                var elem_2 = _a[_i];
+                                exports.DomUtility.appendChild(container, elem_2);
                             }
                         }
                     }
@@ -1590,9 +1789,70 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 throw new Error("参数错误");
             }
         }
+        else {
+            throw new Error("不正确的参数");
+        }
     }
     exports.createElement = internalCreateElement;
-    function createDomElement(descriptor, viewModel, parent) {
+    function createElements(arr, container, compInstance) {
+        var rs = [];
+        for (var _i = 0, arr_1 = arr; _i < arr_1.length; _i++) {
+            var child = arr_1[_i];
+            var ct = typeof child;
+            if (ct === "string") {
+                var elem = exports.DomUtility.createText(child);
+                if (container)
+                    exports.DomUtility.appendChild(container, elem);
+                rs.push(elem);
+            }
+            else if (ct === "object") {
+                if (Observable.isObservable(child))
+                    (function (child, rs) {
+                        var text = child.get(ObservableModes.Value);
+                        var elem = exports.DomUtility.createText(text, container);
+                        child.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, child.$root.$extras);
+                        if (container)
+                            exports.DomUtility.appendChild(container, elem);
+                        rs.push(elem);
+                    })(child, rs);
+                else if (exports.DomUtility.isElement(child, true)) {
+                    var elem = child;
+                    if (container)
+                        exports.DomUtility.appendChild(container, elem);
+                    rs.push(elem);
+                }
+                else if (is_array(child)) {
+                    var arr_3 = createElements(child, container, compInstance);
+                    for (var _a = 0, arr_2 = arr_3; _a < arr_2.length; _a++) {
+                        var arrItem = arr_2[_a];
+                        rs.push(arrItem);
+                    }
+                }
+                else {
+                    var sub = exports.createElement(child, container, compInstance);
+                    if (exports.DomUtility.isElement(sub)) {
+                        if (container)
+                            exports.DomUtility.appendChild(container, sub);
+                        rs.push(sub);
+                    }
+                    else {
+                        for (var _b = 0, sub_1 = sub; _b < sub_1.length; _b++) {
+                            var item = sub_1[_b];
+                            if (container)
+                                exports.DomUtility.appendChild(container, item);
+                            rs.push(item);
+                        }
+                    }
+                }
+            }
+            else {
+                console.warn("\u4E0D\u6070\u5F53\u7684\u53C2\u6570\uFF0C\u5FFD\u7565", child);
+            }
+        }
+        return rs;
+    }
+    exports.createElements = createElements;
+    function createDomElement(descriptor, parent, compInstance) {
         var elem = exports.DomUtility.createElement(descriptor.tag);
         if (parent)
             exports.DomUtility.appendChild(parent, elem);
@@ -1603,127 +1863,121 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (attrName === "tag" || attrName === "children" || attrName === "content")
                 continue;
             var attrValue = descriptor[attrName];
+            var match = attrName.match(evtnameRegx);
+            if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
+                var evtName = match[1];
+                bindDomEvent(elem, evtName, attrValue, descriptor, compInstance);
+                continue;
+            }
             if (attrName === "class")
                 attrName = "className";
-            if (bindDomAttr(elem, attrName, attrValue, viewModel) === RenderDirectives.IgnoreChildren)
+            if (bindDomAttr(elem, attrName, attrValue, descriptor, compInstance) === RenderDirectives.IgnoreChildren)
                 ignoreChildren = true;
         }
         if (ignoreChildren)
             return elem;
         if (descriptor.content) {
-            exports.DomUtility.setContent(elem, descriptor.content);
+            if (Observable.isObservable(descriptor.content)) {
+                var ob = descriptor.content;
+                var txtElem_1 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
+                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_1, e.value); }, ob.$root.$extras);
+            }
+            else {
+                var txtElem = exports.DomUtility.createText(descriptor.content, elem);
+            }
         }
         var children = descriptor.children;
         if (!children || children.length === 0)
             return elem;
-        for (var i in descriptor.children) {
-            var child = descriptor.children[i];
-            if (typeof child === "string") {
-                exports.DomUtility.appendChild(elem, exports.DomUtility.createText(child));
-            }
-            else if (exports.DomUtility.isElement(child, true)) {
-                exports.DomUtility.appendChild(elem, child);
-            }
-            else {
-                exports.createElement(child, viewModel, elem);
-            }
-        }
+        createElements(children, elem, compInstance);
         return elem;
     }
     //把属性绑定到element上
-    function bindDomAttr(element, attrName, attrValue, viewModel) {
-        var match = attrName.match(evtnameRegx);
-        if (match && element[attrName] !== undefined && typeof attrValue === "function") {
-            var evtName = match[1];
-            if (viewModel)
-                exports.DomUtility.attach(element, evtName, makeAction(viewModel, attrValue));
-            else
-                exports.DomUtility.attach(element, evtName, attrValue);
-            return;
-        }
+    function bindDomAttr(element, attrName, attrValue, vnode, compInstance) {
         var binder = exports.attrBinders[attrName];
         var bindResult;
-        if (attrValue instanceof ObservableSchema) {
-            var ob = attrValue.getFromRoot(component);
-            if (binder)
-                bindResult = binder.call(component, element, ob, component);
-            else {
-                exports.DomUtility.setAttribute(element, name, ob.get(ObservableModes.Raw));
-                ob.subscribe(function (e) {
-                    exports.DomUtility.setAttribute(element, name, e.value);
-                });
-            }
-            ;
-        }
-        else if (attrValue && attrValue.lamda && typeof attrValue.lamda === "function") {
+        //计算表达式
+        if (attrValue && attrValue.lamda && typeof attrValue.lamda === "function") {
             if (binder) {
-                bindComputedExpression(attrValue, viewModel, function (val) { return binder.call(component, element, val); });
+                bindComputedExpression(attrValue, compInstance, function (val) { return binder.call(compInstance, element, val, compInstance); });
             }
             else {
-                bindComputedExpression(attrValue, viewModel, function (val) { return exports.DomUtility.setAttribute(element, attrName, val); });
+                bindComputedExpression(attrValue, compInstance, function (val) { return exports.DomUtility.setAttribute(element, attrName, val); });
             }
         }
         else {
             if (binder)
-                bindResult = binder.call(component, element, attrValue, viewModel, this);
+                bindResult = binder.call(compInstance, element, attrValue, vnode, compInstance);
+            else if (Observable.isObservable(attrValue)) {
+                exports.DomUtility.setAttribute(element, attrName, attrValue.get(ObservableModes.Value));
+                attrValue.subscribe(function (e) { return exports.DomUtility.setAttribute(element, attrName, e.value); }, compInstance);
+            }
             else
                 exports.DomUtility.setAttribute(element, attrName, attrValue);
         }
         return bindResult;
     }
     exports.bindDomAttr = bindDomAttr;
-    function createComponentElements(componentType, descriptor, viewModel, container) {
-        //如果有构造好的render
-        if (componentType.$__render__) {
-            //直接调用__render__并返回结果
-            return componentType.$__render__.call(descriptor, viewModel, container);
+    function bindDomEvent(element, evtName, handler, vnode, compInstance) {
+        var finalHandler = handler.$__wrappedEventHandler__;
+        if (!finalHandler) {
+            if (compInstance) {
+                finalHandler = function (e) {
+                    e = e || window.event;
+                    handler.call(compInstance, e);
+                    for (var n in compInstance) {
+                        var member = compInstance[n];
+                        if (member instanceof Observable)
+                            member.update();
+                    }
+                };
+            }
+            else
+                finalHandler = handler;
+            Object.defineProperty(handler, "$__wrappedEventHandler__", { enumerable: false, writable: false, configurable: false, value: finalHandler });
         }
+        exports.DomUtility.attach(element, evtName, finalHandler);
+    }
+    function createComponentElements(componentType, descriptor, container) {
         //获取到vnode，attr-value得到的应该是schema
         var compInstance;
+        var renderResult;
+        var renderFn = componentType;
         var xmode = _jsxMode;
         var omode = Observable.accessMode;
         try {
             _jsxMode = JSXModes.vnode;
-            Observable.accessMode = ObservableModes.Schema;
-            compInstance = new componentType(descriptor, container, viewModel);
+            Observable.accessMode = ObservableModes.Observable;
+            compInstance = new componentType(descriptor, container);
+            // object-component
+            if (typeof compInstance.render === 'function') {
+                //绑定属性
+                for (var propname in descriptor) {
+                    if (propname === "tag" || propname === "children")
+                        continue;
+                    bindComponentAttr(compInstance, propname, descriptor[propname]);
+                }
+                ;
+                renderFn = compInstance.render;
+                _jsxMode = JSXModes.vnode;
+                Observable.accessMode = ObservableModes.Proxy;
+                renderResult = renderFn.call(compInstance, container, descriptor);
+            }
+            else {
+                renderResult = compInstance;
+                compInstance = undefined;
+            }
         }
         finally {
             _jsxMode = xmode;
             Observable.accessMode = omode;
         }
-        var renderResult;
-        var renderFn = componentType;
-        // object-component
-        if (typeof compInstance.render === 'function') {
-            //绑定属性
-            for (var propname in descriptor) {
-                if (propname === "tag" || propname === "children")
-                    continue;
-                bindComponentAttr(viewModel, compInstance, propname, descriptor[propname]);
-            }
-            ;
-            renderFn = compInstance.render;
-            //<comp1 a={vm.a}>
-            //  <comp2 b = {vm.b} />
-            //</comp1>
-            if (renderFn.$__render__)
-                return renderFn.$__render__.call(compInstance, descriptor, viewModel, container);
-            try {
-                _jsxMode = JSXModes.vnode;
-                Observable.accessMode = ObservableModes.Schema;
-                renderResult = renderFn.call(compInstance, descriptor, viewModel, container);
-            }
-            finally {
-                _jsxMode = xmode;
-                Observable.accessMode = omode;
-            }
-        }
-        else {
-            renderResult = compInstance;
-            compInstance = undefined;
-        }
-        return handleRenderResult(renderResult, compInstance, renderFn, viewModel, descriptor, container);
+        return handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
     }
+    function mount(container, componentType, attrs) {
+        return createComponentElements(componentType, attrs, container);
+    }
+    exports.mount = mount;
     /**
      *
      *
@@ -1732,65 +1986,67 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
      * @param {string} subAttrName
      * @param {*} bindValue
      */
-    function bindComponentAttr(viewModel, compInstance, propName, propValue) {
+    function bindComponentAttr(compInstance, propName, propValue) {
         //找到组件的属性
         var prop = compInstance[propName];
         // TODO:找到组件名
         var componentName = "Component";
-        //获取属性的类型
-        var propType;
         if (prop) {
-        }
-        if (propType === ReactiveTypes.Internal || propType === ReactiveTypes.Iterator)
-            throw new Error(this.tag + "." + propName + "\u662F\u5185\u90E8\u53D8\u91CF\uFF0C\u4E0D\u53EF\u4EE5\u5728\u5916\u90E8\u8D4B\u503C");
-        if (propType === ReactiveTypes.Out) {
-            if (propValue instanceof ObservableSchema) {
-                prop.subscribe(function (e) {
-                    //这里的级联update可能会有性能问题，要优化
-                    propValue.getFromRoot(compInstance).set(e.value, true);
-                }, viewModel);
+            if (Observable.isObservable(prop)) {
+                var meta = compInstance.$_meta || {};
+                //获取属性的类型
+                var propType = meta.reactives ? meta.reactives[propName].type : ReactiveTypes.In;
+                var isOb = Observable.isObservable(propValue);
+                if (propType === ReactiveTypes.In) {
+                    if (isOb)
+                        prop.set(propValue.get(ObservableModes.Value));
+                    else
+                        prop.set(propValue);
+                }
+                else if (propType == ReactiveTypes.Out) {
+                    if (isOb) {
+                        prop.subscribe(function (e) {
+                            propValue.set(e.value);
+                            propValue.update();
+                        }, propValue.$root.$extras);
+                    }
+                    else {
+                        console.warn(propValue + "传入的不是observable,out未能绑定，不能联动");
+                    }
+                }
+                else if (propType == ReactiveTypes.Parameter) {
+                    if (isOb) {
+                        prop.subscribe(function (e) {
+                            propValue.set(e.value);
+                            propValue.update();
+                        }, propValue.$root.$extras);
+                        propValue.subscribe(function (e) {
+                            prop.set(e.value);
+                            prop.update();
+                        }, prop.$root.$extras);
+                        prop.set(propValue.get(ObservableModes.Value));
+                    }
+                    else {
+                        prop.set(propValue);
+                        console.warn(propValue + "传入的不是observable,paremeter未能绑定，不能联动");
+                    }
+                }
+                else {
+                    console.warn(propName + "\u662F\u79C1\u6709\u7C7B\u578B,\u5916\u90E8\u4F20\u5165\u7684\u672A\u8D4B\u503C");
+                }
             }
             else {
-                throw new Error("\u65E0\u6CD5\u7ED1\u5B9A[OUT]" + componentName + "}." + propName + "\u5C5E\u6027\uFF0C\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
+                if (Observable.isObservable(propValue)) {
+                    compInstance[propName] = propValue.get(ObservableModes.Value);
+                    propValue.subscribe(function (e) { return compInstance[propName] = e.value; }, compInstance);
+                }
+                else {
+                    compInstance[propName] = propValue;
+                }
             }
-        }
-        else if (propType === ReactiveTypes.In) {
-            if (propValue instanceof ObservableSchema) {
-                var bindOb = propValue.getFromRoot(viewModel);
-                bindOb.subscribe(function (e) {
-                    //这里的级联update可能会有性能问题，要优化
-                    prop.set(e.value, true);
-                });
-                prop.$_raw(prop.$target = clone(bindOb.get(ObservableModes.Raw), true));
-            }
-            else {
-                prop.$_raw(prop.$target = propValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[IN]" + componentName + "." + propName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else if (propType === ReactiveTypes.Parameter) {
-            if (propValue instanceof ObservableSchema) {
-                //这里的级联update可能会有性能问题，要优化
-                var bindOb = propValue.getFromRoot(viewModel);
-                bindOb.subscribe(function (e) { return prop.set(e.value, true); }, compInstance);
-                prop.$_raw(prop.$target = bindOb.get(ObservableModes.Raw));
-                prop.subscribe(function (e) { return propValue.getFromRoot(viewModel).set(e.value, true); }, viewModel);
-            }
-            else {
-                prop.$_raw(prop.$target = propValue);
-                console.warn("\u672A\u80FD\u7ED1\u5B9A[REF]" + componentName + "." + propName + "\u5C5E\u6027,\u7236\u7EC4\u4EF6\u8D4B\u4E88\u8BE5\u5C5E\u6027\u7684\u503C\u4E0D\u662FObservable");
-            }
-        }
-        else {
-            var value = propValue instanceof ObservableSchema ? propValue.getFromRoot(viewModel).get() : (propValue instanceof Observable ? propValue.get() : propValue);
-            value = clone(value, true);
-            if (prop instanceof Observable)
-                prop.$_raw(value);
-            else
-                compInstance[propName] = value;
         }
     }
-    function handleRenderResult(renderResult, instance, renderFn, viewModel, descriptor, container) {
+    function handleRenderResult(renderResult, instance, renderFn, descriptor, container) {
         var isArray = is_array(renderResult);
         var resultIsElement = false;
         if (isArray) {
@@ -1805,8 +2061,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             resultIsElement = exports.DomUtility.isElement(renderResult, true);
         }
         if (resultIsElement) {
-            //返回了dom-node
-            Object.defineProperty(renderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: renderFn });
             if (container) {
                 if (isArray)
                     for (var _a = 0, renderResult_2 = renderResult; _a < renderResult_2.length; _a++) {
@@ -1819,68 +2073,44 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return renderResult;
         }
         else {
-            var finalRenderFn = void 0;
-            var renderNode_1 = renderResult;
+            var renderNode = renderResult;
             if (isArray) {
-                finalRenderFn = function (descriptor, viewModel, container) {
-                    var result = [];
-                    for (var _i = 0, renderNode_2 = renderNode_1; _i < renderNode_2.length; _i++) {
-                        var vnode = renderNode_2[_i];
-                        var elem = exports.createElement(vnode, viewModel, container);
-                        //if(container) DomUtility.appendChild(container,elem);
-                        result.push(elem);
-                    }
-                    return result;
-                };
+                var result = [];
+                for (var _b = 0, renderNode_1 = renderNode; _b < renderNode_1.length; _b++) {
+                    var vnode = renderNode_1[_b];
+                    var elem = exports.createElement(vnode, container);
+                    //if(container) DomUtility.appendChild(container,elem);
+                    result.push(elem);
+                }
+                renderResult = result;
             }
             else {
-                finalRenderFn = function (descriptor, viewModel, container) {
-                    var elem = exports.createElement(renderNode_1, viewModel, container);
-                    //if(container) DomUtility.appendChild(container,elem);
-                    return elem;
-                };
+                renderResult = exports.createElement(renderNode, container, instance);
             }
-            Object.defineProperty(renderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: finalRenderFn });
-            Object.defineProperty(finalRenderFn, "$__render__", { enumerable: false, writable: false, configurable: false, value: finalRenderFn });
-            if (instance) {
-                instance["render"] = finalRenderFn;
-                if (instance["$meta"]) {
-                    instance.$meta.wrapper.prototype.render = finalRenderFn;
-                }
-            }
-            return renderResult = finalRenderFn.call(instance, descriptor, viewModel, container);
+            return renderResult;
         }
     }
-    function getComputedValue(expr, viewModel) {
+    function getComputedValue(expr, compInstance) {
         var args = [];
         for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
             var dep = _a[_i];
             var ob = void 0;
-            if (dep instanceof ObservableSchema) {
-                ob = dep.getFromRoot(viewModel);
-            }
-            else if (dep instanceof Observable)
+            if (Observable.isObservable(dep))
                 ob = dep;
             if (ob)
                 args.push(ob.get(ObservableModes.Value));
             else
                 args.push(dep);
         }
-        return expr.lamda.apply(viewModel, args);
+        return expr.lamda.apply(compInstance, args);
     }
-    function bindComputedExpression(expr, viewModel, setter) {
+    function bindComputedExpression(expr, instance, setter) {
         for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
-            var dep = _a[_i];
-            var ob = void 0;
-            if (dep instanceof ObservableSchema) {
-                ob = dep.getFromRoot(viewModel);
-            }
-            else if (dep instanceof Observable)
-                ob = dep;
+            var ob = _a[_i];
             if (ob)
                 ob.subscribe(function (e) {
-                    setter(getComputedValue(expr, viewModel));
-                });
+                    setter(getComputedValue(expr, instance));
+                }, instance);
         }
     }
     function makeExpr() {
@@ -1897,351 +2127,109 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.NOT = NOT;
     var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
+    function componential(instance, ctor) {
+        if (!instance.$_meta)
+            Object.defineProperty(ctor.prototype, "$_meta", { enumerable: false, writable: false, configurable: false, value: { reactives: {} } });
+        //已经有组件信息，且组件信息已经初始化
+        if (instance.$_meta.inited)
+            return instance;
+        //分成以下几步组件化
+        makeRender(instance, instance.render, "render");
+    }
+    function makeRender(compInstance, rawRender, fnName) {
+        var renderWapper;
+        renderWapper = function (container, descriptor) {
+            var nodes = rawRender.call(this, container, descriptor);
+            return (is_array(nodes) ? createElements(nodes, container, compInstance) : exports.createElement(nodes));
+        };
+        var des = { enumerable: false, writable: true, configurable: false, value: renderWapper };
+        Object.defineProperty(rawRender, "$__renderWrappedFn__", des);
+        compInstance[fnName] = renderWapper;
+        compInstance.constructor.prototype[fnName] = renderWapper;
+        des.value = rawRender;
+        Object.defineProperty(rawRender, "$__renderRawFn__", des);
+        return renderWapper;
+    }
+    function initReactives(instance, ctor) {
+    }
+    function makeReactive(subject, propName, schema, type) {
+        var privateName = "$__" + propName + "__";
+        Object.defineProperty(subject, propName, {
+            get: function () {
+                var ob = this[privateName];
+                if (!ob) {
+                    ob = schema.createObservable();
+                    implicit(subject, privateName, ob);
+                    ob.$index = propName;
+                    ob.$extras = this;
+                    Object.defineProperty(ob, "$__reactive__", { enumerable: false, writable: false, configurable: false, value: type });
+                }
+                return ob.get();
+            },
+            set: function (val) {
+                var ob = this[privateName];
+                if (!ob) {
+                    ob = schema.create();
+                    implicit(subject, privateName, ob);
+                    ob.$index = propName;
+                    ob.$extras = this;
+                    Object.defineProperty(ob, "$__reactive__", { enumerable: false, writable: false, configurable: false, value: type });
+                }
+                if (Observable.isObservable(val))
+                    val = val.get(ObservableModes.Value);
+                return ob.set(val);
+            }
+        });
+    }
+    function initReactive(instance, ctor, propName) {
+        var prop = instance[propName];
+        var ob;
+        var reactiveInfo;
+        if (Observable.isObservable(prop)) {
+            ob = prop;
+            reactiveInfo = instance.$_meta.reactives[propName];
+            if (!reactiveInfo)
+                instance.$_meta.reactives[propName] = {
+                    type: ReactiveTypes.In,
+                    schema: prop.$schema
+                };
+        }
+        else {
+            reactiveInfo = instance.$_meta.reactives[propName];
+            if (!reactiveInfo && !instance.$_meta.explicit) {
+                var schema = new ObservableSchema(prop);
+                schema.$index = propName;
+                reactiveInfo = { type: ReactiveTypes.In, schema: schema };
+                instance.$_meta.reactives[propName] = reactiveInfo;
+            }
+            if (!reactiveInfo)
+                return;
+        }
+    }
     function makeAction(component, method) {
         return function () {
             var rs = method.apply(component, arguments);
+            var amode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Observable;
             var reactives = [];
-            proxyMode(function () {
-                for (var n in component.$meta.reactives) {
-                    reactives.push(component[n]);
+            try {
+                for (var n in component) {
+                    var prop = component[n];
+                    if (Observable.isObservable(prop)) {
+                        prop.update();
+                    }
                 }
-            });
-            for (var i in reactives)
-                reactives[i].update();
+            }
+            finally {
+                Observable.accessMode = amode;
+            }
             return rs;
         };
-    }
-    //=======================================================================
-    var ReactiveTypes;
-    (function (ReactiveTypes) {
-        ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
-        ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
-        ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
-        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
-        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
-        ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
-    })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
-    /**
-     * 两种用法:
-     * 1 作为class member的装饰器 @reactive()
-     * 2 对某个component类手动构建reactive信息，reactive(MyComponent,{name:'model',type:0,schema:null})
-     * @param {(ReactiveTypes|Function)} [type]
-     * @param {{[prop:string]:IReactiveInfo}} [defs]
-     * @returns
-     */
-    function reactive(type, defs) {
-        function makeReactiveInfo(target, info) {
-            var infos = metaInfo(target, "reactives", {});
-            if (info.name) {
-                if (!info.initData)
-                    info.initData = target[info.name];
-                infos[info.name] = info;
-            }
-            else {
-                infos[info] = { type: type || ReactiveTypes.Internal, name: info, schema: target[info] };
-            }
-        }
-        if (defs) {
-            var target = type.prototype;
-            for (var n in defs) {
-                var def = defs[n];
-                def.name = n;
-                makeReactiveInfo(target, def);
-            }
-        }
-        return makeReactiveInfo;
-    }
-    exports.reactive = reactive;
-    function IN(target, name) {
-        var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.In, name: name };
-        //return target;
-    }
-    exports.IN = IN;
-    function OUT(target, name) {
-        var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.Out, name: name };
-        //return target;
-    }
-    exports.OUT = OUT;
-    function PARAM(target, name) {
-        var infos = metaInfo(target, "reactives", {});
-        infos[name] = { type: ReactiveTypes.Parameter, name: name };
-        //return target;
-    }
-    exports.PARAM = PARAM;
-    function template(partial, defs) {
-        function markTemplateInfo(target, info) {
-            var infos = metaInfo(target, "templates", {});
-            if (defs) {
-                infos[info.partial] = info;
-            }
-            else {
-                partial || (partial = info);
-                infos[partial] = { name: info, partial: partial };
-            }
-        }
-        if (defs) {
-            var target = partial.prototype;
-            for (var n in defs) {
-                var def = defs[n];
-                def.name = n;
-                def.partial || (def.partial = n);
-                markTemplateInfo(target, def);
-            }
-        }
-        return markTemplateInfo;
-    }
-    exports.template = template;
-    function action(async, defs) {
-        function markActionInfo(target, info) {
-            var infos = metaInfo(target, "actions", {});
-            if (defs) {
-                infos[info.name] = info;
-            }
-            else {
-                infos[info] = { name: info, async: async };
-            }
-        }
-        if (defs) {
-            var target = async.prototype;
-            for (var n in defs) {
-                var def = defs[n];
-                def.name = n;
-                markActionInfo(target, def);
-            }
-        }
-        return markActionInfo;
-    }
-    function metaInfo(target, name, dft) {
-        var meta = target.$meta;
-        if (!meta)
-            Object.defineProperty(target, "$meta", { enumerable: false, configurable: false, writable: true, value: meta = {} });
-        if (!name)
-            return meta;
-        var info = meta[name];
-        if (info === undefined && dft !== undefined)
-            Object.defineProperty(meta, name, { enumerable: false, configurable: false, writable: true, value: info = dft });
-        return info;
     }
     exports.componentTypes = {};
     function inherits(extendCls, basCls) {
         function __() { this.constructor = extendCls; }
         extendCls.prototype = basCls === null ? Object.create(basCls) : (__.prototype = basCls.prototype, new __());
-    }
-    /**
-     * 它有2种用法，
-     *
-     * @export
-     * @param {(string|{new(...args:any[]):IComponent}|boolean|Function)} tag
-     * @param {({new(...args:any[]):IComponent}|boolean|Function)} [ComponentType]
-     * @returns {*}
-     */
-    function component(tag, ComponentType) {
-        var makeComponent = function (componentCtor) {
-            var meta = metaInfo(componentCtor.prototype);
-            var _Component = function () {
-                var ret = componentCtor.apply(this, arguments);
-                //如果类型信息没有初始化，就在第一次运行时做初始化
-                if (!this.$meta.inited) {
-                    initComponent(this);
-                }
-                return ret;
-            };
-            for (var k in componentCtor)
-                _Component[k] = componentCtor[k];
-            inherits(_Component, componentCtor);
-            var metaDesc = { enumerable: false, configurable: false, get: function () { return componentCtor.prototype.$meta; } };
-            Object.defineProperty(_Component, "$meta", metaDesc);
-            Object.defineProperty(_Component.prototype, "$meta", metaDesc);
-            //Object.defineProperty(componentCtor.prototype,"$meta",metaDesc);
-            meta.ctor = componentCtor;
-            meta.wrapper = _Component;
-            if (typeof ComponentType === "boolean")
-                meta.explicitMode = ComponentType;
-            if (tag) {
-                meta.tag = tag;
-                exports.componentTypes[tag] = meta.wrapper;
-            }
-            return _Component;
-        };
-        var t = typeof tag;
-        if (t === "function" || t === "boolean") {
-            ComponentType = tag;
-            tag = "";
-        }
-        if (ComponentType !== undefined && ComponentType !== true && ComponentType !== false) {
-            var wrapped = makeComponent(ComponentType);
-            return attachManualAPI(wrapped);
-        }
-        else
-            return makeComponent;
-    }
-    exports.component = component;
-    function attachManualAPI(componentType) {
-        implicit(componentType, "create", function () { return new componentType(); });
-        implicit(componentType, "render", function (container) { return new componentType().render(container); });
-        return componentType;
-    }
-    function createComponent(componentInfo, context) {
-        //let componentInfo = componentInfos[tag];
-        if (!componentInfo)
-            throw new Error("\u4E0D\u662FComponent,\u8BF7\u8C03\u7528component\u6CE8\u518C\u6216\u6807\u8BB0\u4E3A@component");
-        var instance = new componentInfo.ctor();
-        if (!componentInfo.inited) {
-            initComponent(instance);
-        }
-        return instance;
-    }
-    function initComponent(firstComponent) {
-        var meta = firstComponent.$meta;
-        if (!meta || meta.inited)
-            return firstComponent;
-        if (!meta.explicitMode) {
-            //let proto = meta.ctor.prototype;
-            var reactives = meta.reactives || (meta.reactives = {});
-            for (var n in firstComponent) {
-                if (reactives[n])
-                    continue;
-                var member = firstComponent[n];
-                if (typeof member === "function")
-                    continue;
-                reactives[n] = { name: n, type: ReactiveTypes.Internal };
-            }
-            var tpls = meta.templates || (meta.templates = {});
-            var defaultTemplateName = "render";
-            //如果还未定义默认的模板函数
-            if (!tpls[defaultTemplateName]) {
-                var render = firstComponent[defaultTemplateName];
-                if (typeof render === "function") {
-                    tpls[defaultTemplateName] = { name: defaultTemplateName };
-                }
-            }
-        }
-        for (var name_1 in meta.reactives) {
-            var stateInfo = meta.reactives[name_1];
-            if (stateInfo.type === ReactiveTypes.None)
-                continue;
-            var initData = firstComponent[stateInfo.name];
-            var schema = stateInfo.schema;
-            if (!schema) {
-                schema = stateInfo.schema = new ObservableSchema(stateInfo.initData || initData, name_1);
-            }
-            stateInfo.initData = initData;
-            schema.$index = name_1;
-            initReactive(firstComponent, stateInfo);
-        }
-        for (var name_2 in meta.templates) {
-            initTemplate(firstComponent, meta.templates[name_2]);
-        }
-        if (!meta.templates["render"] && firstComponent.render) {
-            initTemplate(firstComponent, { name: "render" });
-        }
-        if (!meta.ctor.prototype.dispose) {
-            Disposable.call(meta.ctor.prototype);
-        }
-        meta.inited = true;
-    }
-    function initReactive(firstComponent, stateInfo) {
-        if (stateInfo.type === ReactiveTypes.Iterator)
-            return initIterator(firstComponent, stateInfo);
-        var descriptor = {
-            enumerable: true,
-            configurable: false,
-            get: function () {
-                if (Observable.accessMode === ObservableModes.Schema)
-                    return stateInfo.schema;
-                var states = this.$reactives || (this.$reactives = {});
-                var ob = states[stateInfo.name];
-                if (!ob)
-                    ob = states[stateInfo.name] = new stateInfo.schema.$ctor(stateInfo.initData);
-                return ob.get();
-            },
-            set: function (val) {
-                var states = this.$reactives || (this.$reactives = {});
-                var ob = states[stateInfo.name];
-                if (val && val.get)
-                    val = val.get(ObservableModes.Value);
-                if (ob)
-                    ob.set(val);
-                else
-                    ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-            }
-        };
-        Object.defineProperty(firstComponent, stateInfo.name, descriptor);
-        Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
-    }
-    function initIterator(firstComponent, stateInfo) {
-        var descriptor = {
-            enumerable: false,
-            configurable: false,
-            get: function () {
-                if (Observable.accessMode === ObservableModes.Schema)
-                    return stateInfo.schema;
-                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                var ob = states[stateInfo.name];
-                return ob ? ob.get() : undefined;
-            },
-            set: function (val) {
-                var states = firstComponent.$reactives || (firstComponent.$reactives = {});
-                if (val instanceof Observable) {
-                    states[stateInfo.name] = val;
-                    return;
-                }
-                var ob = states[stateInfo.name] = new stateInfo.schema.$ctor(val);
-            }
-        };
-        Object.defineProperty(firstComponent, stateInfo.name, descriptor);
-        Object.defineProperty(firstComponent.$meta.ctor.prototype, stateInfo.name, descriptor);
-    }
-    function setIterator(component, schema, value) {
-        var meta = component.$meta;
-        var name = schema.$index;
-        var info = meta.reactives[name];
-        if (info.type !== ReactiveTypes.Iterator) {
-            initIterator(component, info);
-        }
-        component[name] = value;
-        return component[name];
-    }
-    function initTemplate(firstComponent, tplInfo) {
-        var rawMethod = firstComponent[tplInfo.name];
-        if (rawMethod.$orign) {
-            tplInfo.render = rawMethod.$render;
-            return;
-        }
-        ;
-        var tplMethod = function (container) {
-            var component = this;
-            if (tplInfo.render)
-                return tplInfo.render.call(component, container);
-            var result;
-            observableMode(ObservableModes.Schema, function () {
-                var vnode = rawMethod.call(component, container);
-                if (exports.DomUtility.isElement(vnode)) {
-                    tplInfo.render = rawMethod;
-                    result = vnode;
-                }
-                else {
-                    tplInfo.vnode = vnode;
-                    result = Undefined;
-                }
-            });
-            if (result === Undefined) {
-                observableMode(ObservableModes.Observable, function () {
-                    result = tplInfo.vnode.render(component, container, tplInfo.vnode);
-                });
-                tplInfo.render = function (container) {
-                    return tplInfo.vnode.render(component, container, tplInfo.vnode);
-                };
-            }
-            return result;
-        };
-        Object.defineProperty(tplMethod, "$orign", { configurable: false, writable: false, enumerable: false, value: rawMethod });
-        Object.defineProperty(tplMethod, "$render", { configurable: false, writable: false, enumerable: false, value: tplInfo.render });
-        var des = { configurable: false, writable: false, enumerable: false, value: tplMethod };
-        Object.defineProperty(firstComponent, tplInfo.name, des);
-        Object.defineProperty(firstComponent.$meta.ctor.prototype, tplInfo.name, des);
     }
     ///组件的垃圾释放机制
     var ComponentGarbage = /** @class */ (function () {
@@ -2346,206 +2334,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return true;
         }
     }
-    //=========================================================================
-    function addRelElements(ob, elems) {
-        if (is_array(elems))
-            for (var i in elems)
-                addRelElements(ob, elems[i]);
-        var extras = ob.$extras || (ob.$extras = {});
-        if (extras instanceof Observable)
-            debugger;
-        var rel_elements = extras.rel_elements || (extras.rel_elements = []);
-        if (extras.last_rel_element === elems)
-            return;
-        rel_elements.push(extras.last_rel_element = elems);
-    }
-    function getRelElements(ob, includeSubs) {
-        var rs = is_array(includeSubs) ? includeSubs : [];
-        var extras = ob.$extras;
-        if (extras) {
-            var rel_elements = extras.rel_elements;
-            if (rel_elements)
-                for (var i in rel_elements) {
-                    rs.push(rel_elements[i]);
-                }
-        }
-        if (includeSubs) {
-            observableMode(ObservableModes.Observable, function () {
-                for (var n in ob) {
-                    var sub = ob[n];
-                    getRelElements(sub, rs);
-                }
-            });
-        }
-        return rs;
-    }
-    var VirtualNode = /** @class */ (function () {
-        function VirtualNode() {
-        }
-        VirtualNode.prototype.render = function (component, container) {
-        };
-        VirtualNode.create = function (tag, attrs) {
-            var vnode;
-            if (tag && tag.prototype) {
-                vnode = new VirtualComponentNode(tag.prototype.$meta, attrs);
-            }
-            else {
-                var componentInfo = exports.componentTypes[tag];
-                if (componentInfo)
-                    vnode = new VirtualComponentNode(tag, attrs);
-                else
-                    vnode = new VirtualElementNode(tag, attrs);
-            }
-            for (var i = 2, j = arguments.length; i < j; i++) {
-                var childNode = arguments[i];
-                if (!(childNode instanceof VirtualNode))
-                    childNode = new VirtualTextNode(childNode);
-                (vnode.children || (vnode.children = [])).push(childNode);
-            }
-            return vnode;
-        };
-        return VirtualNode;
-    }());
-    exports.VirtualNode = VirtualNode;
-    exports.virtualNode = VirtualNode.create;
-    var VirtualTextNode = /** @class */ (function (_super) {
-        __extends(VirtualTextNode, _super);
-        function VirtualTextNode(content) {
-            var _this = _super.call(this) || this;
-            _this.content = content;
-            return _this;
-        }
-        VirtualTextNode.prototype.render = function (component, container) {
-            var elem;
-            if (this.content instanceof ObservableSchema) {
-                var ob = this.content.getFromRoot(component);
-                elem = exports.DomUtility.createText(ob.get());
-                ob.subscribe(function (e) {
-                    elem.nodeValue = e.value;
-                });
-            }
-            else {
-                elem = exports.DomUtility.createText(this.content);
-            }
-            if (container)
-                exports.DomUtility.appendChild(container, elem);
-            return elem;
-        };
-        return VirtualTextNode;
-    }(VirtualNode));
-    exports.VirtualTextNode = VirtualTextNode;
-    var VirtualElementNode = /** @class */ (function (_super) {
-        __extends(VirtualElementNode, _super);
-        function VirtualElementNode(tag, attrs) {
-            var _this = _super.call(this) || this;
-            _this.tag = tag;
-            _this.attrs = attrs;
-            return _this;
-        }
-        VirtualElementNode.prototype.render = function (component, container) {
-            var elem = exports.DomUtility.createElement(this.tag);
-            var ignoreChildren = false;
-            if (container)
-                exports.DomUtility.appendChild(container, elem);
-            var anchorElem = elem;
-            for (var attrName in this.attrs) {
-                var attrValue = this.attrs[attrName];
-                var match = attrName.match(evtnameRegx);
-                if (match && elem[attrName] !== undefined && typeof attrValue === "function") {
-                    var evtName = match[1];
-                    exports.DomUtility.attach(elem, evtName, makeAction(component, attrValue));
-                    continue;
-                }
-                var binder = exports.attrBinders[attrName];
-                var bindResult = void 0;
-                if (attrValue instanceof ObservableSchema) {
-                    if (binder)
-                        bindResult = binder.call(component, elem, attrValue, component, this);
-                    else
-                        (function (name, attrValue) {
-                            var ob = attrValue.getFromRoot(component);
-                            exports.DomUtility.setAttribute(elem, name, ob.get(ObservableModes.Raw));
-                            ob.subscribe(function (e) {
-                                exports.DomUtility.setAttribute(elem, name, e.value);
-                            });
-                        })(attrName, attrValue);
-                }
-                else {
-                    if (binder)
-                        bindResult = binder.call(component, elem, attrValue, component, this);
-                    else
-                        exports.DomUtility.setAttribute(elem, attrName, attrValue);
-                }
-                if (bindResult === RenderDirectives.IgnoreChildren)
-                    ignoreChildren = true;
-            }
-            if (!this.children || this.children.length === 0)
-                return elem;
-            if (!ignoreChildren) {
-                for (var i in this.children) {
-                    this.children[i].render(component, elem);
-                }
-            }
-            return elem;
-        };
-        return VirtualElementNode;
-    }(VirtualNode));
-    exports.VirtualElementNode = VirtualElementNode;
-    var VirtualComponentNode = /** @class */ (function (_super) {
-        __extends(VirtualComponentNode, _super);
-        function VirtualComponentNode(tag, attrs) {
-            var _a;
-            var _this = _super.call(this) || this;
-            _this.attrs = attrs;
-            var t = typeof tag;
-            if (t === "function") {
-                _this.meta = tag.prototype.$meta;
-                _this.tag = _this.meta.tag;
-            }
-            else if (t === "object") {
-                _this.meta = tag;
-            }
-            else if (t === "string") {
-                _this.tag = tag;
-                _this.meta = (_a = exports.componentTypes[_this.tag]) === null || _a === void 0 ? void 0 : _a.$meta;
-                if (!_this.meta)
-                    throw new Error("似乎不是component");
-            }
-            else {
-                throw new Error("Invalid arguments");
-            }
-            return _this;
-        }
-        VirtualComponentNode.prototype.render = function (component, container) {
-            var subComponent = createComponent(this.meta);
-            for (var subAttrName in this.attrs) {
-                bindComponentAttr(component, subComponent, subAttrName, this.attrs[subAttrName]);
-            }
-            ;
-            var subMeta = subComponent.$meta;
-            var subNodes = [];
-            for (var n in subMeta.templates) {
-                var tpl = subMeta.templates[n];
-                var elems = subComponent[tpl.name].call(subComponent, container);
-                if (elems) {
-                    if (exports.DomUtility.isElement(elems)) {
-                        elems.$_YA_COMPONENT = subComponent;
-                        subNodes.push(elems);
-                    }
-                    else if (is_array(elems)) {
-                        for (var i = 0, j = elems.length; i < j; i++) {
-                            var el = elems[i];
-                            el.$_YA_COMPONENT = subComponent;
-                            subNodes.push(el);
-                        }
-                    }
-                }
-                return subNodes;
-            }
-        };
-        return VirtualComponentNode;
-    }(VirtualNode));
-    exports.VirtualComponentNode = VirtualComponentNode;
     var RenderDirectives;
     (function (RenderDirectives) {
         RenderDirectives[RenderDirectives["Default"] = 0] = "Default";
@@ -2562,158 +2350,55 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.Placeholder = Placeholder;
     exports.attrBinders = {};
-    exports.attrBinders.for = function bindFor(elem, bindValue, component, vnode, ignoreAddRel) {
-        var each = bindValue[0];
-        var value = bindValue[1];
-        var key = bindValue[2];
-        if (each instanceof ObservableSchema) {
-            each = each.getFromRoot(component);
-            if (!ignoreAddRel)
-                addRelElements(each, elem);
-            each.subscribe(function (e) {
-                if (e.type === ChangeTypes.Value) {
-                    elem.innerHTML = "";
-                    observableMode(ObservableModes.Observable, function () {
-                        bindFor.call(component, elem, bindValue, component, vnode, false);
-                    });
-                    e.cancel = true;
-                }
+    exports.attrBinders.for = function (elem, bindValue, vnode, compInstance) {
+        //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
+        var arr = bindValue[0];
+        var valVar = bindValue[1];
+        var keyVar = bindValue[2];
+        var each;
+        if (Observable.isObservable(arr)) {
+            arr.subscribe(function (e) {
+                var arr = e.sender;
+                exports.DomUtility.removeAllChildren(elem);
+                for (var key in arr)
+                    (function (key, value) {
+                        if (keyVar)
+                            keyVar.set(key);
+                        if (valVar)
+                            valVar.set(value);
+                        var renderRs = createElements(vnode.children, elem, compInstance);
+                        if (value instanceof Observable) {
+                            value.subscribe(function (e) {
+                                if (e.type === ChangeTypes.Remove) {
+                                    for (var _i = 0, renderRs_1 = renderRs; _i < renderRs_1.length; _i++) {
+                                        var subElem = renderRs_1[_i];
+                                        exports.DomUtility.remove(subElem);
+                                    }
+                                }
+                            }, compInstance);
+                        }
+                    })(key, arr[key]);
             });
         }
-        if (!(value instanceof ObservableSchema))
-            throw new Error("迭代变量必须被iterator装饰");
-        for (var k in each) {
-            if (k === "constructor" || k[0] === "$")
-                continue;
-            var item = each[k];
-            var obItem = setIterator(component, value, item);
-            for (var i in vnode.children) {
-                var childElements = vnode.children[i].render(component, elem);
-                addRelElements(obItem, childElements);
-                obItem.subscribe(function (e) {
-                    if (e.type === ChangeTypes.Remove) {
-                        var obItem_1 = e.sender;
-                        var nodes = getRelElements(obItem_1);
-                        for (var i_1 in nodes) {
-                            var node = nodes[i_1];
-                            if (node.parentNode)
-                                node.parentNode.removeChild(node);
-                            if (node.$_YA_COMPONENT) {
-                                if (!node.$_YA_COMPONENT.$isDisposed) {
-                                    node.$_YA_COMPONENT.dispose();
-                                }
-                                node.$_YA_COMPONENT = undefined;
+        for (var key in arr)
+            (function (key, value) {
+                if (keyVar)
+                    keyVar.set(key);
+                if (valVar)
+                    valVar.set(value);
+                var renderRs = createElements(vnode.children, elem, compInstance);
+                if (value instanceof Observable) {
+                    value.subscribe(function (e) {
+                        if (e.type === ChangeTypes.Remove) {
+                            for (var _i = 0, renderRs_2 = renderRs; _i < renderRs_2.length; _i++) {
+                                var subElem = renderRs_2[_i];
+                                exports.DomUtility.remove(subElem);
                             }
                         }
-                    }
-                });
-            }
-        }
+                    }, compInstance);
+                }
+            })(key, arr[key]);
         return RenderDirectives.IgnoreChildren;
-    };
-    exports.attrBinders.if = function bindIf(elem, bindValue, component, vnode) {
-        if (bindValue instanceof ObservableSchema) {
-            var ob = bindValue.getFromRoot(component);
-            var placeholder_1 = exports.DomUtility.createPlaceholder();
-            var isElementInContainer_1 = ob.get();
-            if (!isElementInContainer_1) {
-                var p = exports.DomUtility.getParent(elem);
-                if (p) {
-                    exports.DomUtility.insertBefore(placeholder_1, elem);
-                    exports.DomUtility.remove(elem);
-                }
-                else
-                    exports.DomUtility.hide(elem);
-            }
-            ob.subscribe(function (e) {
-                if (e.value) {
-                    if (!isElementInContainer_1) {
-                        var p = exports.DomUtility.getParent(placeholder_1);
-                        if (p) {
-                            exports.DomUtility.insertBefore(elem, placeholder_1);
-                            exports.DomUtility.remove(placeholder_1);
-                            isElementInContainer_1 = true;
-                        }
-                    }
-                }
-                else {
-                    if (isElementInContainer_1) {
-                        var p = exports.DomUtility.getParent(elem);
-                        if (p) {
-                            exports.DomUtility.insertBefore(placeholder_1, elem);
-                            exports.DomUtility.remove(elem);
-                            isElementInContainer_1 = false;
-                        }
-                        else
-                            exports.DomUtility.hide(elem);
-                    }
-                }
-            });
-        }
-        else {
-            if (!bindValue) {
-                var p = exports.DomUtility.getParent(elem);
-                if (p)
-                    exports.DomUtility.remove(elem);
-            }
-        }
-    };
-    exports.attrBinders.style = function bindStyle(elem, bindValue, component) {
-        var t = typeof bindValue;
-        if (t === "string") {
-            elem.style.cssText = bindValue;
-            return;
-        }
-        if (t !== "object") {
-            console.warn("错误的绑定了style属性，必须是string/object");
-            return;
-        }
-        if (bindValue instanceof ObservableSchema) {
-            var ob = bindValue.getFromRoot(component);
-            var val = ob.get(ObservableModes.Value);
-            if (typeof val === "string")
-                elem.style.cssText = val;
-            else {
-                for (var n in val) {
-                    var convertor = exports.styleConvertors[n];
-                    elem.style[n] = convertor ? convertor(val[n]) : val[n];
-                }
-            }
-            ob.subscribe(function (e) {
-                var val = e.value;
-                if (typeof val === "string")
-                    elem.style.cssText = val;
-                else {
-                    for (var n in val) {
-                        var convertor = exports.styleConvertors[n];
-                        elem.style[n] = convertor ? convertor(val[n]) : val[n];
-                    }
-                }
-            });
-        }
-        for (var styleName in bindValue)
-            (function (styleName, subValue, elem, component) {
-                var ob;
-                var styleValue;
-                var convertor = exports.styleConvertors[styleName];
-                if (subValue instanceof Observable) {
-                    ob = subValue;
-                    styleValue = ob.get();
-                }
-                else if (subValue instanceof ObservableSchema) {
-                    ob = subValue.getFromRoot(component);
-                    styleValue = ob.get();
-                }
-                else
-                    styleValue = subValue;
-                elem.style[styleName] = convertor ? convertor(styleValue) : styleValue;
-                if (ob) {
-                    addRelElements(ob, elem);
-                    ob.subscribe(function (e) {
-                        elem.style[styleName] = convertor ? convertor(e.value) : e.value;
-                    });
-                }
-            })(styleName, bindValue[styleName], elem, component);
     };
     exports.styleConvertors = {};
     var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
@@ -2758,11 +2443,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
-        createElement: exports.createElement,
-        component: component, state: reactive, IN: IN, OUT: OUT, PARAM: PARAM, template: template, attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
-        VirtualNode: VirtualNode, VirtualTextNode: VirtualTextNode, VirtualElementNode: VirtualElementNode, VirtualComponentNode: VirtualComponentNode, virtualNode: exports.virtualNode, NOT: NOT, EXP: exports.EXP,
+        observable: observable, enumerator: enumerator,
+        createElement: exports.createElement, createElements: createElements, createComponentElements: createComponentElements, mount: mount,
+        attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
+        NOT: NOT, EXP: exports.EXP,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
-        intimate: implicit, clone: clone, Promise: Promise
+        intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty
     };
     if (typeof window !== 'undefined')
         window.YA = YA;

@@ -119,4 +119,154 @@ export class CreateElementTest {
         }) as YA.IDomNode;
         YA.DomUtility.appendChild(demoElement,domNode);
     }
+    @doct({
+        title:"组件的组合调用"
+    })
+    composite(assert_statement:TAssertStatement,demoElement:any){
+        let Comp1 = function(descriptor,container){
+            //return <div class={descriptor.css}>这是Comp1:{descriptor.text}</div>;
+            return <div class={descriptor.css}>这是Comp1:{descriptor.text}</div>;
+        } as any;
+
+        function Comp2(){
+            this.render = (container,descriptor)=>{
+                /*return <div class={descriptor.css}>
+                    这是COMP2:{descriptor.text}
+                    {descriptor.children}
+                </div>; */
+                return <div class={descriptor.css}>
+                    COMP2.text:{descriptor.text}
+                    {descriptor.children}
+                </div>;
+            };
+            
+        }
+
+        function Comp3(){
+            this.comp2 = "green-block";
+            this.comp1 = "red-block";
+            this.render = (container,descriptor)=>{
+                /* return <div class={descriptor.css}>
+                    这是Comp3
+                    <Comp2 css ={this.comp2}>
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <Comp1 css={this.comp1} text="这是comp1.text的内容" />
+                    </Comp2>
+                </div>; */
+                return <div class={descriptor.css}>
+                    这是Comp3
+                    <Comp2 css ={this.comp2} text="这是comp3给comp2的文本">
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <Comp1 css={this.comp1} text="这是comp1.text的内容" />
+                    </Comp2>
+                </div>;
+            };
+        }
+        let elem = YA.createElement(Comp3) as YA.IDomNode;
+        YA.DomUtility.appendChild(demoElement,elem);
+        
+    }
+
+    @doct({
+        title:"vnode&属性绑定"
+    })
+    vnode(assert_statement:TAssertStatement,demoElement:any){
+        
+        let attrs:any = YA.observable({css:"green-block",text:"init text"});
+        let vnode:YA.INodeDescriptor;
+        YA.proxyMode(()=>{
+            vnode = {
+                tag:"div",className :attrs.css,
+                children:[
+                    "这是vnode创建的div",
+                    {tag:"br"},
+                    "vnode.text=",
+                    attrs.text
+                ]
+            };
+        });
+        let elem = YA.createElement(vnode) as YA.IDomNode;
+            YA.DomUtility.appendChild(demoElement,elem);
+    }
+    @doct({
+        title:"控件与属性绑定"
+    })
+    compAttr(assert_statement:TAssertStatement,demoElement:any){
+        function Comp(){
+            YA.observable("blue-block","css",this);
+            YA.observable("","text",this);
+            YA.observable("这是comp2自己赋值的文本","innerText",this);
+            this.render =(container:YA.IDomNode,descriptor:YA.INodeDescriptor)=>{
+                /*return <div class={this.css}>
+                    this.text =  {this.text}<br />
+                    this.innerText={this.innerText}
+                </div>;*/
+                return <div class={this.css}>
+                    this.text =  {this.text}<br />
+                    this.innerText={this.innerText}
+                </div>;
+            }
+        }
+        let node:YA.IDomNode = YA.createElement(Comp,{css:"red-block","text":"注入的text"}) as YA.IDomNode;
+        YA.DomUtility.appendChild(demoElement,node);
+    }
+    @doct({
+        title:"多层绑定"
+    })
+    deep(assert_statement:TAssertStatement,demoElement:any){
+        let Comp1 = function(descriptor,container){
+            //return <div class={descriptor.css}>这是Comp1:{descriptor.text}</div>;
+            return <div class={descriptor.css}>这是Comp1.text:{descriptor.text}</div>;
+        } as any;
+
+        function Comp2(){
+            YA.observable("blue-block","css",this);
+            YA.observable("","text",this);
+            YA.observable("这是comp2自己赋值的文本","innerText",this);
+            this.render = (container,descriptor)=>{
+                /*return <div class={this.css}>
+                    COMP2.text:{this.text}
+                    <div>COMP2.innerText:{this.innerText}</div>
+                    {descriptor.children}
+                </div> */
+                return <div class={this.css}>
+                    这是comp2创建的div<br />
+                    COMP2.text:{this.text}
+                    <div>COMP2.innerText:{this.innerText}</div>
+                    后面跟着comp1注入的children<br />
+                    {descriptor.children}
+                </div>;
+            };
+            
+        }
+
+        function Comp3(){
+            YA.observable("red-block","comp1",this);
+            YA.observable("blue-block","comp2",this);
+            YA.observable("yellow-block","comp3",this);
+            this.render = (container,descriptor)=>{
+                /* return <div class={this.comp3}>
+                    这是Comp3
+                    <Comp2 css ={this.comp2}>
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <div class="orange-block">这是comp2里面的内容</div>
+                        <Comp1 css={this.comp1} text="这是comp1.text的内容" />
+                    </Comp2>
+                </div>; */
+                return <div class={this.comp3}>
+                    这是Comp3创建的div
+                    <Comp2 css ={this.comp2} text="comp3传递给comp2.text的内容">
+                        <div class="orange-block">这是comp3给定的comp2.children</div>
+                        <div class="orange-block">comp3里面包含了comp1</div>
+                        <Comp1 css={this.comp1} text="这是comp3.text的内容,赋予给了Comp1.text" />
+                    </Comp2>
+                </div>;
+            };
+        }
+        let elem = YA.createElement(Comp3) as YA.IDomNode;
+        YA.DomUtility.appendChild(demoElement,elem);
+        
+    }
 }

@@ -91,8 +91,8 @@ export class ObservableArrayTest {
         obArray.update();
         assert_statement((assert:TAssert)=>{
             assert("yiy4new YA",data[3].author.name + data[3].title,`原始数据得到更新:data[3]=={title:"new YA",author:{name:"yiy4"}}`);
-            assert(true , arrEvtArgs!==undefined,"注册在obArray上的事件被触发：arrEvtArgs!==undefined");
-            assert(YA.ChangeTypes.Item , arrEvtArgs.type,"事件类型为Value:arrEvtArgs.type===YA.ChangeTypes.Item");
+            assert(true , arrEvtArgs===undefined,"注册在obArray上的事件不会被出发，因为不是数组自己变化了：arrEvtArgs===undefined");
+            //assert(YA.ChangeTypes.Item , arrEvtArgs.type,"事件类型为Value:arrEvtArgs.type===YA.ChangeTypes.Item");
 
             assert(true , item3EvtArgs!==undefined,"注册在obArray[3]上的事件被触发");
             assert(YA.ChangeTypes.Value , item3EvtArgs.type,"事件类型为Value:item3EvtArgs.type===YA.ChangeTypes.Value");

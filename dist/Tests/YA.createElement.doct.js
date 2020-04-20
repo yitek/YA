@@ -99,6 +99,144 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
             YA.DomUtility.appendChild(demoElement, domNode);
         };
+        CreateElementTest.prototype.composite = function (assert_statement, demoElement) {
+            var Comp1 = function (descriptor, container) {
+                //return <div class={descriptor.css}>这是Comp1:{descriptor.text}</div>;
+                return YA.createElement("div", { class: descriptor.css },
+                    "\u8FD9\u662FComp1:",
+                    descriptor.text);
+            };
+            function Comp2() {
+                this.render = function (container, descriptor) {
+                    /*return <div class={descriptor.css}>
+                        这是COMP2:{descriptor.text}
+                        {descriptor.children}
+                    </div>; */
+                    return YA.createElement("div", { class: descriptor.css },
+                        "COMP2.text:",
+                        descriptor.text,
+                        descriptor.children);
+                };
+            }
+            function Comp3() {
+                var _this = this;
+                this.comp2 = "green-block";
+                this.comp1 = "red-block";
+                this.render = function (container, descriptor) {
+                    /* return <div class={descriptor.css}>
+                        这是Comp3
+                        <Comp2 css ={this.comp2}>
+                            <div class="orange-block">这是comp2里面的内容</div>
+                            <div class="orange-block">这是comp2里面的内容</div>
+                            <Comp1 css={this.comp1} text="这是comp1.text的内容" />
+                        </Comp2>
+                    </div>; */
+                    return YA.createElement("div", { class: descriptor.css },
+                        "\u8FD9\u662FComp3",
+                        YA.createElement(Comp2, { css: _this.comp2, text: "\u8FD9\u662Fcomp3\u7ED9comp2\u7684\u6587\u672C" },
+                            YA.createElement("div", { class: "orange-block" }, "\u8FD9\u662Fcomp2\u91CC\u9762\u7684\u5185\u5BB9"),
+                            YA.createElement("div", { class: "orange-block" }, "\u8FD9\u662Fcomp2\u91CC\u9762\u7684\u5185\u5BB9"),
+                            YA.createElement(Comp1, { css: _this.comp1, text: "\u8FD9\u662Fcomp1.text\u7684\u5185\u5BB9" })));
+                };
+            }
+            var elem = YA.createElement(Comp3);
+            YA.DomUtility.appendChild(demoElement, elem);
+        };
+        CreateElementTest.prototype.vnode = function (assert_statement, demoElement) {
+            var attrs = YA.observable({ css: "green-block", text: "init text" });
+            var vnode;
+            YA.proxyMode(function () {
+                vnode = {
+                    tag: "div", className: attrs.css,
+                    children: [
+                        "这是vnode创建的div",
+                        { tag: "br" },
+                        "vnode.text=",
+                        attrs.text
+                    ]
+                };
+            });
+            var elem = YA.createElement(vnode);
+            YA.DomUtility.appendChild(demoElement, elem);
+        };
+        CreateElementTest.prototype.compAttr = function (assert_statement, demoElement) {
+            function Comp() {
+                var _this = this;
+                YA.observable("blue-block", "css", this);
+                YA.observable("", "text", this);
+                YA.observable("这是comp2自己赋值的文本", "innerText", this);
+                this.render = function (container, descriptor) {
+                    /*return <div class={this.css}>
+                        this.text =  {this.text}<br />
+                        this.innerText={this.innerText}
+                    </div>;*/
+                    return YA.createElement("div", { class: _this.css },
+                        "this.text =  ",
+                        _this.text,
+                        YA.createElement("br", null),
+                        "this.innerText=",
+                        _this.innerText);
+                };
+            }
+            var node = YA.createElement(Comp, { css: "red-block", "text": "注入的text" });
+            YA.DomUtility.appendChild(demoElement, node);
+        };
+        CreateElementTest.prototype.deep = function (assert_statement, demoElement) {
+            var Comp1 = function (descriptor, container) {
+                //return <div class={descriptor.css}>这是Comp1:{descriptor.text}</div>;
+                return YA.createElement("div", { class: descriptor.css },
+                    "\u8FD9\u662FComp1.text:",
+                    descriptor.text);
+            };
+            function Comp2() {
+                var _this = this;
+                YA.observable("blue-block", "css", this);
+                YA.observable("", "text", this);
+                YA.observable("这是comp2自己赋值的文本", "innerText", this);
+                this.render = function (container, descriptor) {
+                    /*return <div class={this.css}>
+                        COMP2.text:{this.text}
+                        <div>COMP2.innerText:{this.innerText}</div>
+                        {descriptor.children}
+                    </div> */
+                    return YA.createElement("div", { class: _this.css },
+                        "\u8FD9\u662Fcomp2\u521B\u5EFA\u7684div",
+                        YA.createElement("br", null),
+                        "COMP2.text:",
+                        _this.text,
+                        YA.createElement("div", null,
+                            "COMP2.innerText:",
+                            _this.innerText),
+                        "\u540E\u9762\u8DDF\u7740comp1\u6CE8\u5165\u7684children",
+                        YA.createElement("br", null),
+                        descriptor.children);
+                };
+            }
+            function Comp3() {
+                var _this = this;
+                YA.observable("red-block", "comp1", this);
+                YA.observable("blue-block", "comp2", this);
+                YA.observable("yellow-block", "comp3", this);
+                this.render = function (container, descriptor) {
+                    /* return <div class={this.comp3}>
+                        这是Comp3
+                        <Comp2 css ={this.comp2}>
+                            <div class="orange-block">这是comp2里面的内容</div>
+                            <div class="orange-block">这是comp2里面的内容</div>
+                            <Comp1 css={this.comp1} text="这是comp1.text的内容" />
+                        </Comp2>
+                    </div>; */
+                    return YA.createElement("div", { class: _this.comp3 },
+                        "\u8FD9\u662FComp3\u521B\u5EFA\u7684div",
+                        YA.createElement(Comp2, { css: _this.comp2, text: "comp3\u4F20\u9012\u7ED9comp2.text\u7684\u5185\u5BB9" },
+                            YA.createElement("div", { class: "orange-block" }, "\u8FD9\u662Fcomp3\u7ED9\u5B9A\u7684comp2.children"),
+                            YA.createElement("div", { class: "orange-block" }, "comp3\u91CC\u9762\u5305\u542B\u4E86comp1"),
+                            YA.createElement(Comp1, { css: _this.comp1, text: "\u8FD9\u662Fcomp3.text\u7684\u5185\u5BB9,\u8D4B\u4E88\u7ED9\u4E86Comp1.text" })));
+                };
+            }
+            var elem = YA.createElement(Comp3);
+            YA.DomUtility.appendChild(demoElement, elem);
+        };
         __decorate([
             doct_1.doct({
                 title: "用于jsx factory的重载。",
@@ -127,6 +265,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 title: "用tag调用注册到组件库中的组件"
             })
         ], CreateElementTest.prototype, "componentLib_jsx", null);
+        __decorate([
+            doct_1.doct({
+                title: "组件的组合调用"
+            })
+        ], CreateElementTest.prototype, "composite", null);
+        __decorate([
+            doct_1.doct({
+                title: "vnode&属性绑定"
+            })
+        ], CreateElementTest.prototype, "vnode", null);
+        __decorate([
+            doct_1.doct({
+                title: "控件与属性绑定"
+            })
+        ], CreateElementTest.prototype, "compAttr", null);
+        __decorate([
+            doct_1.doct({
+                title: "多层绑定"
+            })
+        ], CreateElementTest.prototype, "deep", null);
         CreateElementTest = __decorate([
             doct_1.doct({
                 title: "YA.createElement",

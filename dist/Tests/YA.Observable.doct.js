@@ -44,7 +44,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 assert(33, value_afterSet, "set操作后，代理的数据为修改后的值:value_afterSet===33");
                 assert(12, raw_data, "update操作之前，被代理的数据不会变化:raw_value===12");
                 assert(12, proxy.$target, "proxy.$target===12");
-                assert(33, proxy.$_modifiedValue, "代理内部缓存了最新写入的数据");
+                assert(33, proxy.$__obModifiedValue__, "代理内部缓存了最新写入的数据");
                 assert(undefined, changeInfo, "监听器也不会触发");
             });
             //4 用最新写入的数据，更新被代理的数据
@@ -105,11 +105,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             assert_statement(function (assert) {
                 assert("yiy", nameProp.$target, "nameProp初值从原始对象中来:nameProp.$target==='yiy'");
                 assert(44, nameProp.$extras, "额外信息为44:nameProp.$extras===44");
-                assert(owner, nameProp.$_owner);
+                assert(owner, nameProp.$__obOwner__);
                 assert("YA framework", titleProp.$target, "titleProp初值为指定的初值:nameProp.$target==='YA framework'");
                 assert("YA framework", owner.$target.title, "该初值会立即回写回原始数据:data.title==='YA framework'");
                 assert(null, titleProp.$extras, "额外信息为null:titleProp.$extras===null");
-                assert(owner, titleProp.$_owner);
+                assert(owner, titleProp.$__obOwner__);
             });
         };
         __decorate([

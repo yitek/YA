@@ -164,3 +164,24 @@ ul, dl {
   padding: 5px;
   margin: 5px;
 }
+
+.orange-block {
+  background-color: orange;
+  color: block;
+  padding: 5px;
+  margin: 5px;
+}
+
+.yellow-block {
+  background-color: yellow;
+  color: block;
+  padding: 5px;
+  margin: 5px;
+}
+
+.green-block {
+  background-color: green;
+  color: white;
+  padding: 5px;
+  margin: 5px;
+}

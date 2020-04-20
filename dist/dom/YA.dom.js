@@ -11,12 +11,6 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
 (function (factory) {
     if (typeof module === "object" && typeof module.exports === "object") {
         var v = factory(require, exports);
@@ -1004,46 +998,34 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return MessageBox;
     }(YA.Promise));
     exports.MessageBox = MessageBox;
-    function messageBox(msg) {
-        return new MessageBox((typeof msg === "string" ? { content: msg, dragable: true } : msg)).open();
-    }
-    exports.messageBox = messageBox;
-    var Button = /** @class */ (function () {
-        function Button() {
-            this.onclick = null;
-            this.text = "";
-            this.confirm = undefined;
-            this.className = undefined;
-        }
-        Button.prototype.render = function (p) {
-            return YA.virtualNode("button", { class: "", onclick: this._onclick }, this.text);
-        };
-        Button.prototype._onclick = function (evt) {
-            if (this._comfirmed || !this.confirm) {
-                this._comfirmed = false;
-                if (this.onclick) {
-                    this.onclick(evt);
-                }
-            }
-            else {
-            }
-            return cancelEvent(evt);
-        };
-        __decorate([
-            YA.reactive(YA.ReactiveTypes.In)
-        ], Button.prototype, "text", void 0);
-        __decorate([
-            YA.reactive(YA.ReactiveTypes.In)
-        ], Button.prototype, "confirm", void 0);
-        __decorate([
-            YA.reactive(YA.ReactiveTypes.In)
-        ], Button.prototype, "className", void 0);
-        Button = __decorate([
-            YA.component("Button", false)
-        ], Button);
-        return Button;
-    }());
-    exports.Button = Button;
+    //export function messageBox(msg:string|IMessageBoxOpts){
+    //    return new MessageBox((typeof msg==="string"?{content:msg,dragable:true}:msg )as IMessageBoxOpts).open();
+    // }
+    // @YA.component("Button",false)
+    // export class Button{
+    //     onclick=null;
+    //     @YA.reactive(YA.ReactiveTypes.In)
+    //     text="";
+    //     @YA.reactive(YA.ReactiveTypes.In)
+    //     confirm=undefined;
+    //     @YA.reactive(YA.ReactiveTypes.In)
+    //     className=undefined;
+    //     private _comfirmed:boolean;
+    //     private _comfirmElem:Dom;
+    //     render(p){
+    //         return <button class="" onclick={this._onclick}>{this.text}</button>;
+    //     }
+    //     private _onclick(evt){
+    //         if(this._comfirmed || !this.confirm){
+    //             this._comfirmed=false;
+    //             if(this.onclick){
+    //                 this.onclick(evt);
+    //             } 
+    //         }else {
+    //         }
+    //         return cancelEvent(evt);
+    //     }
+    // }
     function cancelEvent(evt) {
         evt || (evt === event);
         if (evt.preventDefault)

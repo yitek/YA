@@ -354,7 +354,7 @@ function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecu
         
     };
     for(const i in methodInfo.codes){
-        record.executeInfos[i] = {code:methodInfo.codes[index],asserts:[]};
+        record.executeInfos[i] = {code:methodInfo.codes[i],asserts:[]};
     }
     let demoElement =Doct.useDemo && Doct.createDemoElement? Doct.createDemoElement(Doct.useDemo==="immediate"):null;
     record.demoElement = demoElement;
@@ -377,12 +377,15 @@ function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecu
             record.ellapse = record.endTime.valueOf()-record.beginTime.valueOf();
         }
 
-       
-        logger.endMethod(record);
         if(demoElement && Doct.useDemo){
             Doct.disposeDemoElement(demoElement);
-            if(!Doct.hasDemo(demoElement)) record.demoElement = null;
+            if(!Doct.hasDemo(demoElement)){
+                record.demoElement = null;
+                if(demoElement.parentNode) demoElement.parentNode.removeChild(demoElement);
+            } 
         } 
+        logger.endMethod(record);
+        
     }
     
             
@@ -481,7 +484,8 @@ export class HtmlLogger implements ILogger{
                 let execuetInfo = record.executeInfos[i];
                 let codeli = createElement("li","code",codes);
                 let cd = createElement("code","code",codeli);
-                let pre= createElement("pre","code",cd); pre.innerHTML = execuetInfo.code;
+                let pre= createElement("pre","code",cd);
+                pre.innerHTML = execuetInfo.code.replace(/</g,"&lt;").replace(/>/g,"&gt;");
                 if(execuetInfo.asserts.length){
                     let comment = createElement("div","comments",codeli);
                     createElement("ins","comment",comment,"/*");
@@ -503,6 +507,10 @@ export class HtmlLogger implements ILogger{
             dd.appendChild(record.demoElement);
             (record.demoElement as any).$__doctCustomDispose__=true;
         }
+
+        let ins = createElement("dt","perf",this._usageElement,"性能");
+        let dd = createElement("dd","demo",this._usageElement,record.ellapse.toString());
+
         return this;
     }
     endClass(clsInfo:ClassInfo):ILogger{
@@ -534,7 +542,7 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
         let ol = createElement("ol","notices",dd);
         for(const i in basInfo.notices){
             let content = basInfo.notices[i];
-            if(content && (content = content.replace(/(^\s+)|(\s+$)/g,"").replace(/\n/g,"<br />")))
+            if(content && (content = htmlEncode(content.replace(/(^\s+)|(\s+$)/g,""))))
                 createElement("li","",ol).innerHTML = content ;
         }
     }
@@ -560,4 +568,9 @@ function makeDescList(arr:any[],p:any){
         }
     }
     return ul;
+}
+
+function htmlEncode(content:string){
+    if(content===undefined||content===null) return "";
+    return content.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br />");
 }

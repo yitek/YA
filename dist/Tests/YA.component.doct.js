@@ -16,254 +16,95 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var doct_1 = require("../doct");
-    var YA = require("../YA.core");
-    var componentTest = /** @class */ (function () {
-        function componentTest() {
+    var YA_core_1 = require("../YA.core");
+    var ComponentTest = /** @class */ (function () {
+        function ComponentTest() {
         }
-        componentTest.prototype.jsRaw = function (assert_statement, container) {
-            var comp = YA.component(function () {
-                var _this = this;
-                this.model = { title: "YA.component的基本用法" };
-                this.render = function (container) {
-                    return YA.virtualNode("div", { onclick: _this.changeTitle },
-                        "\u70B9\u51FB\u8FD9\u91CC\u4F1A\u5F39\u51FA\u4E00\u4E2A\u8F93\u5165\u6846,\u8F93\u5165\u7684\u6587\u672C\u5C06\u663E\u793A\u5728\u8FD9\u91CC:[",
-                        _this.model.title,
-                        "].");
-                };
-                this.changeTitle = function () {
-                    var newTitle = window.prompt("请输入新的标题:", _this.model.title);
-                    _this.model.title = newTitle;
-                };
-            });
-            comp.render(container);
-        };
-        componentTest.prototype.ts = function (assert_statement, container) {
-            var MyComponent = /** @class */ (function () {
-                function MyComponent() {
-                    this.model = { title: "YA framework" };
-                    this.rows = [];
-                }
-                MyComponent.prototype.render = function (container) {
-                    return YA.virtualNode("div", { onclick: this.changeTitle },
-                        "\u70B9\u51FB\u8FD9\u91CC\u4F1A\u5F39\u51FA\u4E00\u4E2A\u8F93\u5165\u6846,\u8F93\u5165\u7684\u6587\u672C\u5C06\u663E\u793A\u5728\u8FD9\u91CC:[",
-                        this.model.title,
-                        "].");
-                };
-                MyComponent.prototype.tpl = function (container, outer_vnode) {
-                    return YA.virtualNode("table", { class: YA.EXP(this.model.title, function (t) { return t + "px"; }) },
-                        YA.virtualNode("thead", null,
-                            YA.virtualNode("tr", { for: [outer_vnode.children, this.col] },
-                                YA.virtualNode("th", { if: YA.NOT(this.col.disabled) }, this.col.name))),
-                        YA.virtualNode("tbody", { for: [this.rows, this.item] },
-                            YA.virtualNode("tr", { for: [outer_vnode.children, this.col] },
-                                YA.virtualNode("td", null, this.item[this.col]))));
-                };
-                MyComponent.prototype.changeTitle = function (e) {
-                    var newTitle = window.prompt("请输入新的标题:", this.model.title);
-                    this.model.title = newTitle;
-                };
-                __decorate([
-                    YA.reactive()
-                ], MyComponent.prototype, "model", void 0);
-                __decorate([
-                    YA.template()
-                ], MyComponent.prototype, "render", null);
-                MyComponent = __decorate([
-                    YA.component("My")
-                ], MyComponent);
-                return MyComponent;
-            }());
-            ;
-            var myComponent = new MyComponent();
-            myComponent.render(container);
+        ComponentTest.prototype.base = function (assert_statement, demoElement) {
+            var disposable = new YA_core_1.default.Disposable();
+            var dispose1Arg, dispose1Sender;
+            var dispose2Arg, dispose2Sender;
+            //注册第一个dispose回调，当dispose发生时，它会被调用
+            disposable.dispose(function (arg, sender) { dispose1Arg = arg; dispose1Sender = sender; });
+            //注册第二个dispose回调，当dispose发生时，它会被调用
+            disposable.dispose(function (arg, sender) { dispose2Arg = arg; dispose2Sender = sender; });
+            //带参数释放资源
+            disposable.dispose("dispose arg");
             assert_statement(function (assert) {
-                //assert(YA.DataTypes.Object,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.DataTypes[proxy.$type]}`);
-                //assert("YA framework",proxy.title,"可以访问对象上的数据:proxy.title==='YA framework'");
-                //assert("id,title",membernames.join(","),"可以且只可以枚举原始数据的字段:membernames=['1','title']");
+                assert(disposable.$isDisposed === true, "对象处于释放状态，disposable.$isDisposed===true");
+                assert(dispose1Arg === "dispose arg", "\u4E00\u4E2A\u56DE\u8C03\u4F1A\u88AB\u8C03\u7528\uFF0C\u63A5\u6536\u5230\u7684\u53C2\u6570\u4E3Adispose\u8C03\u7528\u7684\u53C2\u6570\uFF0Cdispose1Arg===\"dispose arg\"");
+                assert(dispose1Sender === disposable, "\u7B2C\u4E00\u4E2A\u56DE\u8C03\u51FD\u6570\u7684\u7B2C\u4E8C\u4E2A\u53C2\u6570\u4E3Adispose\u5BF9\u8C61\uFF0Cdispose1Sender===disposable");
+                assert(dispose2Arg === "dispose arg", "\u7B2C\u4E8C\u4E2A\u56DE\u8C03\u51FD\u6570\u4E5F\u4F1A\u88AB\u8C03\u7528dispose2Arg===\"dispose arg\"");
+                assert(dispose2Sender === disposable, "dispose2Sender===disposable");
+            });
+            var ex;
+            try {
+                disposable.dispose("second");
+            }
+            catch (ex1) {
+                ex = ex1;
+            }
+            assert_statement(function (assert) {
+                assert(ex !== undefined, "如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
-        componentTest.prototype.IF = function (assert_statement, container) {
-            var MyComponent = /** @class */ (function () {
-                function MyComponent() {
-                    this.model = { title: "YA framework", showTitle: true };
-                }
-                MyComponent.prototype.render = function (container) {
-                    return YA.virtualNode("div", null,
-                        YA.virtualNode("input", { type: "checkbox", checked: this.model.showTitle, onclick: this.changeState }),
-                        "\u53EF\u4EE5\u7528checkbox\u63A7\u5236\u540E\u9762\u7684\u6587\u672C\u7684\u663E\u793A:",
-                        YA.virtualNode("div", { if: this.model.showTitle },
-                            "[",
-                            this.model.title,
-                            "]"),
-                        YA.virtualNode("span", null, "---->\u8FD9\u662F\u6587\u672C\u540E\u9762\u7684\u6587\u5B57"));
-                };
-                MyComponent.prototype.changeState = function (e) {
-                    this.model.showTitle = !this.model.showTitle;
-                };
-                __decorate([
-                    YA.reactive()
-                ], MyComponent.prototype, "model", void 0);
-                __decorate([
-                    YA.template()
-                ], MyComponent.prototype, "render", null);
-                MyComponent = __decorate([
-                    YA.component("My")
-                ], MyComponent);
-                return MyComponent;
-            }());
-            ;
-            var myComponent = new MyComponent();
-            myComponent.render(container);
-        };
-        componentTest.prototype.For = function (assert_statement, container) {
-            var MyComponent = /** @class */ (function () {
-                function MyComponent() {
-                    this.queries = { title: "" };
-                    this.rows = [{ "$__ONLY_USED_BY_SCHEMA__": true, title: "YA-v1.0", author: { name: "yiy" } }];
-                    this.item = this.rows[0];
-                    this.data = [
-                        { title: "YA-v1.1", author: { name: "yiy1" } },
-                        { title: "YA-v2.1", author: { name: "yiy2" } },
-                        { title: "YA-v3.2", author: { name: "yiy3" } },
-                        { title: "YA-v4.2", author: { name: "yiy1" } },
-                        { title: "YA-v5.3", author: { name: "yiy2" } },
-                        { title: "YA-v6.4", author: { name: "yiy3" } },
-                        { title: "YA-v7.4", author: { name: "yiy1" } }
-                    ];
-                }
-                MyComponent.prototype.render = function (container) {
-                    return YA.virtualNode("div", null,
-                        YA.virtualNode("div", null,
-                            YA.virtualNode("input", { type: "text", placeholder: "\u6807\u9898", value: this.queries.title, onblur: this.changeTitle }),
-                            YA.virtualNode("button", { onclick: this.doFilter }, "\u8FC7\u6EE4")),
-                        YA.virtualNode("table", { border: "1", cellspacing: "0", style: { border: "1px" } },
-                            YA.virtualNode("thead", null,
-                                YA.virtualNode("tr", null,
-                                    YA.virtualNode("th", null, "\u6807\u9898"),
-                                    YA.virtualNode("th", null, "\u4F5C\u8005"))),
-                            YA.virtualNode("tbody", { for: [this.rows, this.item] },
-                                YA.virtualNode("tr", null,
-                                    YA.virtualNode("td", null, this.item.title),
-                                    YA.virtualNode("td", null, this.item.author.name)))));
-                };
-                MyComponent.prototype.changeTitle = function (e) {
-                    this.queries.title = e.target.value;
-                };
-                MyComponent.prototype.doFilter = function (e) {
-                    var rows = [];
-                    for (var _i = 0, _a = this.data; _i < _a.length; _i++) {
-                        var item = _a[_i];
-                        //let item = this.data[i];
-                        if (item.title.indexOf(this.queries.title) >= 0)
-                            rows.push(item);
-                    }
-                    this.rows = rows;
-                };
-                __decorate([
-                    YA.reactive()
-                ], MyComponent.prototype, "queries", void 0);
-                __decorate([
-                    YA.reactive()
-                ], MyComponent.prototype, "rows", void 0);
-                __decorate([
-                    YA.reactive(YA.ReactiveTypes.Iterator)
-                ], MyComponent.prototype, "item", void 0);
-                __decorate([
-                    YA.template()
-                ], MyComponent.prototype, "render", null);
-                MyComponent = __decorate([
-                    YA.component("My")
-                ], MyComponent);
-                return MyComponent;
-            }());
-            ;
-            var myComponent = new MyComponent();
-            myComponent.rows = myComponent.data;
-            myComponent.render(container);
-        };
-        componentTest.prototype.composite = function (assert_statement, container) {
-            var CompA = /** @class */ (function () {
-                function CompA() {
-                    this.name = "";
-                    this.signture = "";
-                }
-                //@YA.template()
-                CompA.prototype.render = function () {
-                    return YA.virtualNode("div", null,
-                        "  My name is ",
-                        this.name,
-                        ",my signture is here:",
-                        YA.virtualNode("input", { type: "text", value: this.signture, onblur: this.onblur }));
-                };
-                CompA.prototype.onblur = function (e) {
-                    this.signture = e.target.value;
-                };
-                __decorate([
-                    YA.IN
-                ], CompA.prototype, "name", void 0);
-                __decorate([
-                    YA.OUT
-                ], CompA.prototype, "signture", void 0);
-                CompA = __decorate([
-                    YA.component("CompA")
-                ], CompA);
-                return CompA;
-            }());
-            var CompB = /** @class */ (function () {
-                function CompB() {
-                    //@YA.reactive()
-                    this.myname = "yiy";
-                    //@YA.reactive()
-                    this.mysignture = "";
-                }
-                //@YA.template()
-                CompB.prototype.render = function (container) {
-                    return YA.virtualNode("div", null,
-                        YA.virtualNode("button", { onclick: this.changeMyName }, "\u70B9\u51FB\u8FD9\u91CC\u4FEE\u6539\u540D\u79F0"),
-                        YA.virtualNode("fieldset", null,
-                            YA.virtualNode("legend", null, "\u7B7E\u540D"),
-                            YA.virtualNode(CompA, { name: this.myname, signture: this.mysignture })),
-                        "\u4F60\u7684\u7B7E\u540D:",
-                        this.mysignture);
-                };
-                CompB.prototype.changeMyName = function () {
-                    var newName = prompt("修改我的名字", this.myname);
-                    this.myname = newName;
-                };
-                CompB = __decorate([
-                    YA.component("CompB")
-                ], CompB);
-                return CompB;
-            }());
-            var b = new CompB();
-            b.render(container);
+        ComponentTest.prototype.deteching = function (assert_statement, demoElement) {
+            var disposable = new YA_core_1.default.Disposable();
+            var deteching1Sender, deteching1ReturnValue = false;
+            //注册一个释放前检查函数
+            disposable.deteching(function (sender) { deteching1Sender = sender; return deteching1ReturnValue; });
+            var deteching2Sender;
+            //注册另一个释放前检查函数
+            disposable.deteching(function (sender) { deteching2Sender = sender; return true; });
+            var check = disposable.deteching();
+            assert_statement(function (assert) {
+                assert(deteching1Sender === disposable, "第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
+                assert(check === false, "deteching()的结果为false,因为有一个检查函数返回了false");
+                assert(deteching2Sender === undefined, "第二个回调函数不会运行 ,因为它前面的检查函数没通过检查:deteching2Sender===undefined");
+            });
+            //清空测试变量
+            deteching1Sender = deteching2Sender = undefined;
+            //改变第一个检查函数的返回值
+            deteching1ReturnValue = true;
+            //做检查
+            check = disposable.deteching();
+            assert_statement(function (assert) {
+                assert(check === true, "deteching()的结果为true,因为所有的检查函数都没有返回false：check===true");
+                assert(deteching1Sender === disposable, "第一个释放前检查函数被调用，检查函数的参数传入的是disposable对象，deteching1Sender===disposable");
+                assert(deteching2Sender === disposable, "第二个回调函数也被调用:deteching2Sender===disposable");
+            });
         };
         __decorate([
             doct_1.doct({
-                title: "js原生"
+                title: "基本用法",
+                descriptions: [
+                    "用dispose(callback)注册释放时的回调",
+                    "用dispose(any)来释放资源"
+                ]
             })
-        ], componentTest.prototype, "jsRaw", null);
-        __decorate([
-            doct_1.doct({ title: "TS类带装饰器" })
-        ], componentTest.prototype, "ts", null);
+        ], ComponentTest.prototype, "base", null);
         __decorate([
             doct_1.doct({
-                title: "模板函数中的IF"
+                title: "释放前检查",
+                descriptions: [
+                    "用deteching(callback)注册释放前的的检查方法",
+                    "用deteching()来做检查，只有所有的检查方法都不返回false，才会认为检查通过"
+                ]
             })
-        ], componentTest.prototype, "IF", null);
-        __decorate([
-            doct_1.doct({ title: "模板函数中的for" })
-        ], componentTest.prototype, "For", null);
-        __decorate([
+        ], ComponentTest.prototype, "deteching", null);
+        ComponentTest = __decorate([
             doct_1.doct({
-                title: "控件组合使用"
+                title: "YA.component",
+                descriptions: [
+                    "某些对象在运行中引用了外部的资源，当这些对象被系统/框架释放时，需要同时释放他们引用的资源。",
+                    "该类为这些可释放对象的基类。提供2个函数,dispose跟deteching。",
+                    "dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true",
+                    "该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
+                ]
             })
-        ], componentTest.prototype, "composite", null);
-        componentTest = __decorate([
-            doct_1.doct({ title: "YA.component" })
-        ], componentTest);
-        return componentTest;
+        ], ComponentTest);
+        return ComponentTest;
     }());
-    exports.componentTest = componentTest;
+    exports.ComponentTest = ComponentTest;
 });
 //# sourceMappingURL=YA.component.doct.js.map

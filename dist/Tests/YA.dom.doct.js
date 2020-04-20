@@ -33,9 +33,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         this.maskText = false;
                     }
                     Comp.prototype.render = function (container) {
-                        return YA.virtualNode("div", null,
-                            YA.virtualNode("div", { style: "width:200px;height:200px;padding:10px;background-color:#ffffff;border:2px solid black;color:black;font-size:24px;font-weight:bold;", mask: this.maskText }, "\u88AB\u906E\u6321\u7684\u5185\u5BB9"),
-                            YA.virtualNode("a", { onclick: this.changeMask }, "\u70B9\u51FB\u6211\u53EF\u4EE5\u4EA4\u66FF\u906E\u7F69\u6548\u679C"));
+                        return YA.createElement("div", null,
+                            YA.createElement("div", { style: "width:200px;height:200px;padding:10px;background-color:#ffffff;border:2px solid black;color:black;font-size:24px;font-weight:bold;", mask: this.maskText }, "\u88AB\u906E\u6321\u7684\u5185\u5BB9"),
+                            YA.createElement("a", { onclick: this.changeMask }, "\u70B9\u51FB\u6211\u53EF\u4EE5\u4EA4\u66FF\u906E\u7F69\u6548\u679C"));
                     };
                     Comp.prototype.changeMask = function (e) {
                         if (this.maskText)
@@ -59,9 +59,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         this.message = "点击后面的按键会弹出一个消息框";
                     }
                     Comp.prototype.render = function (container) {
-                        return YA.virtualNode("div", null,
-                            YA.virtualNode("input", { type: 'text', "b-value": this.message }),
-                            YA.virtualNode("button", { onclick: this.showMessageBox }, "\u6D88\u606F\u6846"));
+                        return YA.createElement("div", null,
+                            YA.createElement("input", { type: 'text', "b-value": this.message }),
+                            YA.createElement("button", { onclick: this.showMessageBox }, "\u6D88\u606F\u6846"));
                     };
                     Comp.prototype.showMessageBox = function (e) {
                         YA_dom_1.messageBox(this.message).then(function (val) { return console.log("message box return:" + val); });

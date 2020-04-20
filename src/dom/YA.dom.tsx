@@ -672,7 +672,7 @@ styleConvertors.left = styleConvertors.right =styleConvertors.top=styleConvertor
     else parseFloat(val) + "px";
 }
 
-YA.attrBinders["b-value"] = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.VirtualNode) {
+YA.attrBinders["b-value"] = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.INodeDescriptor) {
     let dm = dom(elem);
     if(bindValue instanceof YA.ObservableSchema){
         let ob = bindValue.getFromRoot(component) as YA.IObservable<any>;
@@ -683,7 +683,7 @@ YA.attrBinders["b-value"] = function (elem:any,bindValue:any,component:YA.ICompo
         dm.val(bindValue);
     }
 }
-YA.attrBinders["value"] = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.VirtualNode) {
+YA.attrBinders["value"] = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.INodeDescriptor) {
     let dm = dom(elem);
     if(bindValue instanceof YA.ObservableSchema){
         let ob = bindValue.getFromRoot(component) as YA.IObservable<any>;
@@ -827,7 +827,7 @@ Dom.define("mask",function(opts:IMaskOpts|boolean|string) {
     }
 });
 
-YA.attrBinders.mask = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.VirtualNode) {
+YA.attrBinders.mask = function (elem:any,bindValue:any,component:YA.IComponent,vnode:YA.INodeDescriptor) {
     if(bindValue instanceof YA.ObservableSchema){
         let ob = bindValue.getFromRoot(component);
         let val = ob.$get(YA.ObservableModes.Value);
@@ -1010,40 +1010,40 @@ export class MessageBox extends YA.Promise{
     
 }
 
-export function messageBox(msg:string|IMessageBoxOpts){
-    return new MessageBox((typeof msg==="string"?{content:msg,dragable:true}:msg )as IMessageBoxOpts).open();
-}
-@YA.component("Button",false)
-export class Button{
+//export function messageBox(msg:string|IMessageBoxOpts){
+//    return new MessageBox((typeof msg==="string"?{content:msg,dragable:true}:msg )as IMessageBoxOpts).open();
+// }
+// @YA.component("Button",false)
+// export class Button{
    
-    onclick=null;
-    @YA.reactive(YA.ReactiveTypes.In)
-    text="";
-    @YA.reactive(YA.ReactiveTypes.In)
-    confirm=undefined;
+//     onclick=null;
+//     @YA.reactive(YA.ReactiveTypes.In)
+//     text="";
+//     @YA.reactive(YA.ReactiveTypes.In)
+//     confirm=undefined;
 
-    @YA.reactive(YA.ReactiveTypes.In)
-    className=undefined;
+//     @YA.reactive(YA.ReactiveTypes.In)
+//     className=undefined;
 
-    private _comfirmed:boolean;
-    private _comfirmElem:Dom;
+//     private _comfirmed:boolean;
+//     private _comfirmElem:Dom;
 
 
-    render(p){
-        return <button class="" onclick={this._onclick}>{this.text}</button>;
-    }
-    private _onclick(evt){
-        if(this._comfirmed || !this.confirm){
-            this._comfirmed=false;
-            if(this.onclick){
-                this.onclick(evt);
-            } 
-        }else {
+//     render(p){
+//         return <button class="" onclick={this._onclick}>{this.text}</button>;
+//     }
+//     private _onclick(evt){
+//         if(this._comfirmed || !this.confirm){
+//             this._comfirmed=false;
+//             if(this.onclick){
+//                 this.onclick(evt);
+//             } 
+//         }else {
 
-        }
-        return cancelEvent(evt);
-    }
-}
+//         }
+//         return cancelEvent(evt);
+//     }
+// }
 
 export function cancelEvent(evt:Event):boolean{
     evt||(evt===event);
