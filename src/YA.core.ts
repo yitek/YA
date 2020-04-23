@@ -969,8 +969,6 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
             this.$schema = new ObservableSchema<TData>(this.$target);
             this.$schema.initObject(this);
         }
-        
-        
     }
 
     $prop(name:string):any{
@@ -1036,6 +1034,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     length:number;
     $_changes:IChangeEventArgs<TItem[]>[];
     $_length:number;
+    $__length__:Observable<number>;
     $_itemSchema:ObservableSchema<TItem>;
     
     constructor(init:IObservableIndexable<TItem[]>|{(val?:TItem[]):any}|TItem[],index?:any,itemSchemaOrExtras?:any,extras?:any){
@@ -1063,10 +1062,25 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         for(let i =0,j=target.length;i<j;i++) makeArrayItem(this,item_index++);
         
         implicit(this,{
-            $_changes:undefined,$_length:target.length,$_itemSchema:this.$_itemSchema
+            $_changes:undefined,$_length:target.length,$__length__:undefined,$_itemSchema:this.$_itemSchema
         });
         Object.defineProperty(this,"length",{
-            enumerable:false,configurable:false,get:()=>this.$_length,set:(val)=>{}
+            enumerable:false,configurable:false,get:()=>{
+                if(Observable.accessMode===ObservableModes.Proxy || Observable.accessMode===ObservableModes.Observable){
+                    if(!this.$__length__) {
+                        let len = new Observable((val)=>{
+                            if(val===undefined) return this.$_length;
+                            throw "not implemeent";
+                        });
+                        len.$__obIndex__ = "$__length__";
+                        len.$__obOwner__ = this;
+                        Object.defineProperty(this,"$__length__",{enumerable:false,writable:false,configurable:false,value:len});
+                        
+                    }
+                    return this.$__length__;
+                    
+                }
+            },set:(val)=>{throw "not implemeent";}
         });
     }
 
@@ -1167,6 +1181,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         if(!super.update()) return true;
         //查看子项变更
         for(let n in this){
+            if(n==="constructor"){ debugger; continue;}
             let item = this[n];
             item.update();
         }
@@ -1398,7 +1413,8 @@ export class ObservableSchema<TData>{
         if(!this.$itemSchema) this.$itemSchema = new ObservableSchema(undefined,-1,this);
         _ObservableArray.prototype.$schema= this as any;
         this.$obCtor=_ObservableArray;
-
+        let lengthSchema = new ObservableSchema(0,"length",this);
+        Object.defineProperty(this,"length",{enumerable:false,configurable:false,get:()=>lengthSchema});
     }
 
     
@@ -1455,16 +1471,16 @@ export class ObservableProxy implements IObservable<any> {
     $rootOb:IObservable<any>;
     constructor(param:ObservableSchema<any>|Observable<any>|any,parent?:ObservableProxy){
         let schema:ObservableSchema<any>;
-        let ob :IObservable<any>;
+        let rootOb :IObservable<any>;
         if(param instanceof ObservableSchema) schema = param;
         else if(param instanceof Observable) {
-            ob = param;
+            rootOb = param;
             schema = param.$schema;
         }else{
             schema = new ObservableSchema(param);
         }
         implicit(this,{
-            $parent:parent,$schema:schema,$__rootOb__:ob
+            $parent:parent,$schema:schema,$__rootOb__:rootOb
         });
         
         Object.defineProperty(this,"$rootOb",{enumerable:false,get:function(){
@@ -1473,10 +1489,16 @@ export class ObservableProxy implements IObservable<any> {
             }
         });
         Object.defineProperty(this,"$root",{enumerable:false,get:function(){
-            ob = this.$schema.getFromRoot(this.$rootOb,ObservableModes.Observable);
-            return ob.$root;
+                let ob = this.$schema.getFromRoot(this.$rootOb,ObservableModes.Observable);
+                return ob.$root;
+            }
+        });
+        if(this.$schema.$itemSchema){
+            let lenSchema = this.$schema.length;
+            let lenProxy = new ObservableProxy(lenSchema,this);
+            Object.defineProperty(this,"length",{enumerable:false,configurable:false,writable:false,value:lenProxy});
         }
-    });
+        
         for(let n in schema){
             let sub = schema[n];
             Object.defineProperty(this,n,{enumerable:true,writable:false,configurable:false,value:new ObservableProxy(sub,this)});
@@ -1544,6 +1566,8 @@ export function observable(initData:any,index?:string,subject?:any){
         ob = schema.createObservable(initData);
     }
     if(subject){
+        let privateName = "$__" + index + "__";
+        Object.defineProperty(subject,privateName,{enumerable:true,configurable:false,writable:false,value:ob});
         Object.defineProperty(subject,index,{enumerable:true,configurable:false,
             get:function(){
                 return ob.get();
@@ -1558,12 +1582,13 @@ export function observable(initData:any,index?:string,subject?:any){
 export function enumerator(initData:any,index?:string,subject?:any):ObservableProxy{
     let proxy = new ObservableProxy(initData);
     if(subject){
+        let privateName = "$__" + index + "__";
+        Object.defineProperty(subject,privateName,{enumerable:true,configurable:false,writable:false,value:proxy});
         Object.defineProperty(subject,index,{enumerable:true,configurable:false,
             get:function(){
-                
-                return proxy.get();
+                return proxy;
             },
-            set:(val:any)=> proxy.set(val)
+            set:function(val:any){ proxy.set(val);}
         });
     }
     return proxy;
@@ -1613,7 +1638,9 @@ export interface IDomUtility{
     addClass(node:IDomNode,cls:string):IDomUtility;
     removeClass(node:IDomNode,cls:string):IDomUtility;
     replaceClass(node:IDomNode,oldCls:string,newCls:string,alwaysAdd?:boolean):IDomUtility;
-
+    getValue(node:IDomNode):any;
+    setValue(node:IDomNode,value:any);
+    change(elem:IDomNode,handler:(value:any)=>void):boolean;
     
     attach(elem:IDomNode,evtname:string,handler:Function);
     detech(elem:IDomNode,evtname:string,handler:Function);
@@ -1732,6 +1759,148 @@ DomUtility.is_inDocument = (elem:any):boolean=>{
     if(!elem) return false;
     return true;
 }
+DomUtility.getValue = (elem:IDomNode):any=>{
+    if(typeof (elem as any).get ==="function") return (elem as any).get();
+    let tag = elem.tagName;
+    if(!tag) return (elem as any).nodeValue;
+    if(tag==="INPUT"){
+        let type = (elem as any).type;
+        if(type==="radio"){
+            if((elem as any).checked) return (elem as any).value;
+            else return undefined;
+        }else if(type==="checkbox"){
+            let p = (elem as any).parentNode;
+            if(p){
+                let name = (elem as any).name;
+                let vals = [];
+                let c = 0;
+                for(let i =0,j=p.childNodes.length;i<j;i++){
+                    let child = p.childNodes[i];
+                    if(child.tagName==="INPUT" && child.type=="checkbox" && child.name===name){
+                        c++;
+                        if(child.checked) vals.push(child.value);
+                    }
+                }
+                if(c===0) return undefined;
+                else if(c===1) return vals[0];
+                else return vals;
+            }else{
+                return (elem as any).checked?(elem as any).value:undefined;
+            }
+        }else{
+            return (elem as any).value;
+        }
+    }else if(tag==="SELECT"){
+        let opt = (elem as any).options[(elem as any).selectedIndex];
+        if(opt) return opt.value;
+    }else if(tag==="TEXTAREA") return (elem as any).value;
+    else return (elem as any).innerHTML;
+}
+DomUtility.setValue = (elem:IDomNode,value:any)=>{
+    if(typeof (elem as any).set ==="function") return (elem as any).set(value);
+    let tag = elem.tagName;
+    if(!tag) return (elem as any).nodeValue=value;
+    if(tag==="INPUT"){
+        let type = (elem as any).type;
+        if(type==="radio"){
+            if(value===true || value==="On" || value==="ON" || value===(elem as any).value){
+                (elem as any).checked = true;
+            }else {
+                (elem as any).checked = false;
+                DomUtility.removeAttribute(elem,"checked");
+            }
+        }else if(type==="checkbox"){
+            let p = (elem as any).parentNode;
+            if(p){
+                let name = (elem as any).name;
+                let isArr = is_array(value);
+                let c = 0;
+                for(let i =0,j=p.childNodes.length;i<j;i++){
+                    let child = p.childNodes[i];
+                    if(child.tagName==="INPUT" && child.type=="checkbox" && child.name===name){
+                        if(isArr) child.checked = array_index(value,child.value)>=0; 
+                        else if(value===true || value==="On" || value==="ON" || value===(elem as any).value){
+                            (child as any).checked = true;
+                        }else {
+                            (child as any).checked = false;
+                            DomUtility.removeAttribute(child,"checked");
+                        }
+                    }
+                }
+            }else{
+                if(value===true || value==="On" || value==="ON" || value===(elem as any).value){
+                    (elem as any).checked = true;
+                }else {
+                    (elem as any).checked = false;
+                    DomUtility.removeAttribute(elem,"checked");
+                }
+            }
+            return;
+        }else{
+            (elem as any).value=value;
+            return;
+        }
+    }else if(tag==="SELECT"){
+        for(let i =0,j=(elem as any).options.length;i<j;i++){
+            let opt = (elem as any).options[i];
+            if(opt.value===value) opt.selected =true;
+            else {
+                opt.selected = false;
+                DomUtility.removeAttribute(opt,"selected");
+            }
+        }
+    }else if(tag==="TEXTAREA") return (elem as any).value=value;
+    else if(tag==="OPTION") return (elem as any).value=value;
+    else return  (elem as any).innerHTML=value;
+};
+DomUtility.change = (elem:IDomNode,handler:(value:any)=>void):boolean=>{
+    let tag = elem.tagName;
+    if(!tag) return false;
+    let onchange:Function;
+    let isInput = false;
+    if(tag==="INPUT"){
+        let type = (elem as any).type;
+        if(type==="radio"){
+            onchange = ()=>handler.call(elem,(elem as any).checked?(elem as any).value:undefined);
+            DomUtility.attach(elem,"click",onchange);
+            DomUtility.attach(elem,"blur",onchange);
+            return true;
+
+        }else if(type==="checkbox"){
+            onchange = ()=>handler.call(elem,DomUtility.getValue(elem));
+            DomUtility.attach(elem,"click",onchange);
+            DomUtility.attach(elem,"blur",onchange);
+            return true;
+        }
+        isInput = true;
+    }else if(tag==="SELECT"){
+        onchange = ()=>handler.call(elem,DomUtility.getValue(elem));
+        DomUtility.attach(elem,"change",onchange);
+        DomUtility.attach(elem,"blur",onchange);
+        return true;
+    }else if(tag==="TEXTAREA"){
+        isInput= true;
+    }
+    if(!isInput) return false;
+    let onkeydown = ()=>{
+        let tick = (elem as any).$__YA_inputTick__;
+        if(tick) clearTimeout(tick);
+        (elem as any).$__YA_inputTick__ =setTimeout(()=>{
+            delete (elem as any)["$__YA_inputTick__"];
+            handler.call(elem,DomUtility.getValue(elem));
+        },100);
+    };
+    let onblur = ()=>{
+        let tick = (elem as any).$__YA_inputTick__;
+        if(tick) {
+            clearTimeout(tick);
+            delete (elem as any)["$__YA_inputTick__"];
+        }
+        handler.call(elem,DomUtility.getValue(elem));
+    };
+    DomUtility.attach(elem,"keydown",onkeydown);
+    DomUtility.attach(elem,"blur",onblur);
+}
 
 
 
@@ -1804,6 +1973,8 @@ DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd
     
     return DomUtility;
 }   
+
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // vnode操作/JSX 与绑定
@@ -2054,7 +2225,7 @@ function createDomElement(descriptor:INodeDescriptor,parent?:IDomNode,compInstan
 }
 //把属性绑定到element上
 export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent){
-    
+    if(attrValue instanceof ObservableProxy) attrValue = attrValue.get(ObservableModes.Observable);
     let binder:Function = attrBinders[attrName];
     let bindResult:any;
     //计算表达式
@@ -2067,7 +2238,7 @@ export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode
         
     } else{
         if(binder) bindResult= binder.call(compInstance,element,attrValue,vnode,compInstance);
-        else if(Observable.isObservable(attrValue)){
+        else if(attrValue instanceof Observable){
             DomUtility.setAttribute(element,attrName,attrValue.get(ObservableModes.Value));
             attrValue.subscribe((e)=>DomUtility.setAttribute(element,attrName,e.value),compInstance);
         }
@@ -2130,7 +2301,7 @@ function createComponentElements(componentType:any,descriptor:INodeDescriptor,co
     let omode = Observable.accessMode;
     try{
         _jsxMode = JSXModes.vnode;
-        Observable.accessMode = ObservableModes.Observable;
+        Observable.accessMode = ObservableModes.Proxy;
         compInstance = new componentType(descriptor,container);
         // object-component
         if(typeof compInstance.render==='function'){
@@ -2250,7 +2421,7 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
         if(isArray){
             let result :IDomNode[] =[];
             for(const vnode of renderNode){
-                let elem = createElement(vnode,container) as IDomNode;
+                let elem = createElement(vnode,container,instance) as IDomNode;
                 //if(container) DomUtility.appendChild(container,elem);
                 result.push(elem);
             }
@@ -2632,6 +2803,33 @@ attrBinders.for = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,com
     return RenderDirectives.IgnoreChildren;
 }
 
+attrBinders.value = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+    if(Observable.isObservable(bindValue)){
+        DomUtility.setValue(elem,bindValue.get(ObservableModes.Value));
+        bindValue.subscribe((e:IChangeEventArgs<any>)=>{
+            DomUtility.setValue(elem,e.value);
+        },compInstance);
+    }else{
+        DomUtility.setValue(elem,bindValue);
+    }
+}
+
+attrBinders["b-value"] = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+    if(Observable.isObservable(bindValue)){
+        DomUtility.setValue(elem,bindValue.get(ObservableModes.Value));
+        bindValue.subscribe((e:IChangeEventArgs<any>)=>{
+            DomUtility.setValue(elem,e.value);
+        },compInstance);
+        DomUtility.change(elem,(value)=>{
+            bindValue.set(value);
+            bindValue.update();
+        });
+    }else{
+        DomUtility.setValue(elem,bindValue);
+    }
+}
+
+
 export let styleConvertors :any= {};
 
 let unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
@@ -2641,34 +2839,7 @@ styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConver
         return value + "px";
     }else return value;
 }
-/////////////////////////////////////////
-//
 
-
-
-
-export interface IInputCompoent{
-    
-    /**
-     * 有个bind属性，可以做双向绑定
-     *
-     * @type {*}
-     * @memberof IInputCompoent
-     */
-    bind:any;
-
-    /**
-     * 有一个readonly属性
-     *
-     * @type {boolean}
-     * @memberof IInputCompoent
-     */
-    readonly?:boolean;
-
-    //数据变化时的事件
-    onchange?:Function;
-
-}
 
 
 //======================================================================
@@ -2706,6 +2877,11 @@ export function queryString(str:string){
     return rs;
 }
 
+export function toJson(obj:any){
+    if(Observable.isObservable(obj)) obj = obj.get(ObservableModes.Value);
+    return JSON.stringify(obj);
+}
+
 
 
 
@@ -2717,7 +2893,7 @@ let YA={
     ,attrBinders,componentInfos: componentTypes
     ,NOT,EXP
     ,DomUtility: DomUtility,styleConvertors
-    ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty
+    ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,toJson,queryString
     
 };
 if(typeof window!=='undefined') (window as any).YA = YA;

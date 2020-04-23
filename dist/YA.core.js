@@ -962,10 +962,24 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var i = 0, j = target.length; i < j; i++)
                 makeArrayItem(_this, item_index++);
             implicit(_this, {
-                $_changes: undefined, $_length: target.length, $_itemSchema: _this.$_itemSchema
+                $_changes: undefined, $_length: target.length, $__length__: undefined, $_itemSchema: _this.$_itemSchema
             });
             Object.defineProperty(_this, "length", {
-                enumerable: false, configurable: false, get: function () { return _this.$_length; }, set: function (val) { }
+                enumerable: false, configurable: false, get: function () {
+                    if (Observable.accessMode === ObservableModes.Proxy || Observable.accessMode === ObservableModes.Observable) {
+                        if (!_this.$__length__) {
+                            var len = new Observable(function (val) {
+                                if (val === undefined)
+                                    return _this.$_length;
+                                throw "not implemeent";
+                            });
+                            len.$__obIndex__ = "$__length__";
+                            len.$__obOwner__ = _this;
+                            Object.defineProperty(_this, "$__length__", { enumerable: false, writable: false, configurable: false, value: len });
+                        }
+                        return _this.$__length__;
+                    }
+                }, set: function (val) { throw "not implemeent"; }
             });
             return _this;
         }
@@ -1072,6 +1086,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return true;
             //查看子项变更
             for (var n in this) {
+                if (n === "constructor") {
+                    debugger;
+                    continue;
+                }
                 var item = this[n];
                 item.update();
             }
@@ -1307,6 +1325,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 this.$itemSchema = new ObservableSchema_1(undefined, -1, this);
             _ObservableArray.prototype.$schema = this;
             this.$obCtor = _ObservableArray;
+            var lengthSchema = new ObservableSchema_1(0, "length", this);
+            Object.defineProperty(this, "length", { enumerable: false, configurable: false, get: function () { return lengthSchema; } });
         };
         ObservableSchema.prototype.initObject = function (ob) {
             for (var n in this) {
@@ -1351,18 +1371,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     var ObservableProxy = /** @class */ (function () {
         function ObservableProxy(param, parent) {
             var schema;
-            var ob;
+            var rootOb;
             if (param instanceof ObservableSchema)
                 schema = param;
             else if (param instanceof Observable) {
-                ob = param;
+                rootOb = param;
                 schema = param.$schema;
             }
             else {
                 schema = new ObservableSchema(param);
             }
             implicit(this, {
-                $parent: parent, $schema: schema, $__rootOb__: ob
+                $parent: parent, $schema: schema, $__rootOb__: rootOb
             });
             Object.defineProperty(this, "$rootOb", { enumerable: false, get: function () {
                     if (this.$__rootOb__)
@@ -1371,10 +1391,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             });
             Object.defineProperty(this, "$root", { enumerable: false, get: function () {
-                    ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
+                    var ob = this.$schema.getFromRoot(this.$rootOb, ObservableModes.Observable);
                     return ob.$root;
                 }
             });
+            if (this.$schema.$itemSchema) {
+                var lenSchema = this.$schema.length;
+                var lenProxy = new ObservableProxy_1(lenSchema, this);
+                Object.defineProperty(this, "length", { enumerable: false, configurable: false, writable: false, value: lenProxy });
+            }
             for (var n in schema) {
                 var sub = schema[n];
                 Object.defineProperty(this, n, { enumerable: true, writable: false, configurable: false, value: new ObservableProxy_1(sub, this) });
@@ -1455,6 +1480,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             ob = schema.createObservable(initData);
         }
         if (subject) {
+            var privateName = "$__" + index + "__";
+            Object.defineProperty(subject, privateName, { enumerable: true, configurable: false, writable: false, value: ob });
             Object.defineProperty(subject, index, { enumerable: true, configurable: false,
                 get: function () {
                     return ob.get();
@@ -1469,11 +1496,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function enumerator(initData, index, subject) {
         var proxy = new ObservableProxy(initData);
         if (subject) {
+            var privateName = "$__" + index + "__";
+            Object.defineProperty(subject, privateName, { enumerable: true, configurable: false, writable: false, value: proxy });
             Object.defineProperty(subject, index, { enumerable: true, configurable: false,
                 get: function () {
-                    return proxy.get();
+                    return proxy;
                 },
-                set: function (val) { return proxy.set(val); }
+                set: function (val) { proxy.set(val); }
             });
         }
         return proxy;
@@ -1599,6 +1628,184 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (!elem)
             return false;
         return true;
+    };
+    exports.DomUtility.getValue = function (elem) {
+        if (typeof elem.get === "function")
+            return elem.get();
+        var tag = elem.tagName;
+        if (!tag)
+            return elem.nodeValue;
+        if (tag === "INPUT") {
+            var type = elem.type;
+            if (type === "radio") {
+                if (elem.checked)
+                    return elem.value;
+                else
+                    return undefined;
+            }
+            else if (type === "checkbox") {
+                var p = elem.parentNode;
+                if (p) {
+                    var name_1 = elem.name;
+                    var vals = [];
+                    var c = 0;
+                    for (var i = 0, j = p.childNodes.length; i < j; i++) {
+                        var child = p.childNodes[i];
+                        if (child.tagName === "INPUT" && child.type == "checkbox" && child.name === name_1) {
+                            c++;
+                            if (child.checked)
+                                vals.push(child.value);
+                        }
+                    }
+                    if (c === 0)
+                        return undefined;
+                    else if (c === 1)
+                        return vals[0];
+                    else
+                        return vals;
+                }
+                else {
+                    return elem.checked ? elem.value : undefined;
+                }
+            }
+            else {
+                return elem.value;
+            }
+        }
+        else if (tag === "SELECT") {
+            var opt = elem.options[elem.selectedIndex];
+            if (opt)
+                return opt.value;
+        }
+        else if (tag === "TEXTAREA")
+            return elem.value;
+        else
+            return elem.innerHTML;
+    };
+    exports.DomUtility.setValue = function (elem, value) {
+        if (typeof elem.set === "function")
+            return elem.set(value);
+        var tag = elem.tagName;
+        if (!tag)
+            return elem.nodeValue = value;
+        if (tag === "INPUT") {
+            var type = elem.type;
+            if (type === "radio") {
+                if (value === true || value === "On" || value === "ON" || value === elem.value) {
+                    elem.checked = true;
+                }
+                else {
+                    elem.checked = false;
+                    exports.DomUtility.removeAttribute(elem, "checked");
+                }
+            }
+            else if (type === "checkbox") {
+                var p = elem.parentNode;
+                if (p) {
+                    var name_2 = elem.name;
+                    var isArr = is_array(value);
+                    var c = 0;
+                    for (var i = 0, j = p.childNodes.length; i < j; i++) {
+                        var child = p.childNodes[i];
+                        if (child.tagName === "INPUT" && child.type == "checkbox" && child.name === name_2) {
+                            if (isArr)
+                                child.checked = array_index(value, child.value) >= 0;
+                            else if (value === true || value === "On" || value === "ON" || value === elem.value) {
+                                child.checked = true;
+                            }
+                            else {
+                                child.checked = false;
+                                exports.DomUtility.removeAttribute(child, "checked");
+                            }
+                        }
+                    }
+                }
+                else {
+                    if (value === true || value === "On" || value === "ON" || value === elem.value) {
+                        elem.checked = true;
+                    }
+                    else {
+                        elem.checked = false;
+                        exports.DomUtility.removeAttribute(elem, "checked");
+                    }
+                }
+                return;
+            }
+            else {
+                elem.value = value;
+                return;
+            }
+        }
+        else if (tag === "SELECT") {
+            for (var i = 0, j = elem.options.length; i < j; i++) {
+                var opt = elem.options[i];
+                if (opt.value === value)
+                    opt.selected = true;
+                else {
+                    opt.selected = false;
+                    exports.DomUtility.removeAttribute(opt, "selected");
+                }
+            }
+        }
+        else if (tag === "TEXTAREA")
+            return elem.value = value;
+        else if (tag === "OPTION")
+            return elem.value = value;
+        else
+            return elem.innerHTML = value;
+    };
+    exports.DomUtility.change = function (elem, handler) {
+        var tag = elem.tagName;
+        if (!tag)
+            return false;
+        var onchange;
+        var isInput = false;
+        if (tag === "INPUT") {
+            var type = elem.type;
+            if (type === "radio") {
+                onchange = function () { return handler.call(elem, elem.checked ? elem.value : undefined); };
+                exports.DomUtility.attach(elem, "click", onchange);
+                exports.DomUtility.attach(elem, "blur", onchange);
+                return true;
+            }
+            else if (type === "checkbox") {
+                onchange = function () { return handler.call(elem, exports.DomUtility.getValue(elem)); };
+                exports.DomUtility.attach(elem, "click", onchange);
+                exports.DomUtility.attach(elem, "blur", onchange);
+                return true;
+            }
+            isInput = true;
+        }
+        else if (tag === "SELECT") {
+            onchange = function () { return handler.call(elem, exports.DomUtility.getValue(elem)); };
+            exports.DomUtility.attach(elem, "change", onchange);
+            exports.DomUtility.attach(elem, "blur", onchange);
+            return true;
+        }
+        else if (tag === "TEXTAREA") {
+            isInput = true;
+        }
+        if (!isInput)
+            return false;
+        var onkeydown = function () {
+            var tick = elem.$__YA_inputTick__;
+            if (tick)
+                clearTimeout(tick);
+            elem.$__YA_inputTick__ = setTimeout(function () {
+                delete elem["$__YA_inputTick__"];
+                handler.call(elem, exports.DomUtility.getValue(elem));
+            }, 100);
+        };
+        var onblur = function () {
+            var tick = elem.$__YA_inputTick__;
+            if (tick) {
+                clearTimeout(tick);
+                delete elem["$__YA_inputTick__"];
+            }
+            handler.call(elem, exports.DomUtility.getValue(elem));
+        };
+        exports.DomUtility.attach(elem, "keydown", onkeydown);
+        exports.DomUtility.attach(elem, "blur", onblur);
     };
     try {
         var element_wrapper_1 = exports.DomUtility.createElement("div");
@@ -1911,6 +2118,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     //把属性绑定到element上
     function bindDomAttr(element, attrName, attrValue, vnode, compInstance) {
+        if (attrValue instanceof ObservableProxy)
+            attrValue = attrValue.get(ObservableModes.Observable);
         var binder = exports.attrBinders[attrName];
         var bindResult;
         //计算表达式
@@ -1925,7 +2134,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else {
             if (binder)
                 bindResult = binder.call(compInstance, element, attrValue, vnode, compInstance);
-            else if (Observable.isObservable(attrValue)) {
+            else if (attrValue instanceof Observable) {
                 exports.DomUtility.setAttribute(element, attrName, attrValue.get(ObservableModes.Value));
                 attrValue.subscribe(function (e) { return exports.DomUtility.setAttribute(element, attrName, e.value); }, compInstance);
             }
@@ -1998,7 +2207,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var omode = Observable.accessMode;
         try {
             _jsxMode = JSXModes.vnode;
-            Observable.accessMode = ObservableModes.Observable;
+            Observable.accessMode = ObservableModes.Proxy;
             compInstance = new componentType(descriptor, container);
             // object-component
             if (typeof compInstance.render === 'function') {
@@ -2129,7 +2338,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var result = [];
                 for (var _b = 0, renderNode_1 = renderNode; _b < renderNode_1.length; _b++) {
                     var vnode = renderNode_1[_b];
-                    var elem = exports.createElement(vnode, container);
+                    var elem = exports.createElement(vnode, container, instance);
                     //if(container) DomUtility.appendChild(container,elem);
                     result.push(elem);
                 }
@@ -2451,6 +2660,32 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             })(key, arr[key]);
         return RenderDirectives.IgnoreChildren;
     };
+    exports.attrBinders.value = function (elem, bindValue, vnode, compInstance) {
+        if (Observable.isObservable(bindValue)) {
+            exports.DomUtility.setValue(elem, bindValue.get(ObservableModes.Value));
+            bindValue.subscribe(function (e) {
+                exports.DomUtility.setValue(elem, e.value);
+            }, compInstance);
+        }
+        else {
+            exports.DomUtility.setValue(elem, bindValue);
+        }
+    };
+    exports.attrBinders["b-value"] = function (elem, bindValue, vnode, compInstance) {
+        if (Observable.isObservable(bindValue)) {
+            exports.DomUtility.setValue(elem, bindValue.get(ObservableModes.Value));
+            bindValue.subscribe(function (e) {
+                exports.DomUtility.setValue(elem, e.value);
+            }, compInstance);
+            exports.DomUtility.change(elem, function (value) {
+                bindValue.set(value);
+                bindValue.update();
+            });
+        }
+        else {
+            exports.DomUtility.setValue(elem, bindValue);
+        }
+    };
     exports.styleConvertors = {};
     var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
     exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = function (value) {
@@ -2491,6 +2726,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return rs;
     }
     exports.queryString = queryString;
+    function toJson(obj) {
+        if (Observable.isObservable(obj))
+            obj = obj.get(ObservableModes.Value);
+        return JSON.stringify(obj);
+    }
+    exports.toJson = toJson;
     //=======================================================================
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
@@ -2499,7 +2740,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         NOT: NOT, EXP: exports.EXP,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
-        intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty
+        intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, toJson: toJson, queryString: queryString
     };
     if (typeof window !== 'undefined')
         window.YA = YA;

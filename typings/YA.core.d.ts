@@ -332,6 +332,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     length: number;
     $_changes: IChangeEventArgs<TItem[]>[];
     $_length: number;
+    $__length__: Observable<number>;
     $_itemSchema: ObservableSchema<TItem>;
     constructor(init: IObservableIndexable<TItem[]> | {
         (val?: TItem[]): any;
@@ -439,6 +440,9 @@ export interface IDomUtility {
     addClass(node: IDomNode, cls: string): IDomUtility;
     removeClass(node: IDomNode, cls: string): IDomUtility;
     replaceClass(node: IDomNode, oldCls: string, newCls: string, alwaysAdd?: boolean): IDomUtility;
+    getValue(node: IDomNode): any;
+    setValue(node: IDomNode, value: any): any;
+    change(elem: IDomNode, handler: (value: any) => void): boolean;
     attach(elem: IDomNode, evtname: string, handler: Function): any;
     detech(elem: IDomNode, evtname: string, handler: Function): any;
     parse(domString: string): IDomNode[];
@@ -576,25 +580,9 @@ export declare let attrBinders: {
     [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
 };
 export declare let styleConvertors: any;
-export interface IInputCompoent {
-    /**
-     * 有个bind属性，可以做双向绑定
-     *
-     * @type {*}
-     * @memberof IInputCompoent
-     */
-    bind: any;
-    /**
-     * 有一个readonly属性
-     *
-     * @type {boolean}
-     * @memberof IInputCompoent
-     */
-    readonly?: boolean;
-    onchange?: Function;
-}
 export declare function THIS(obj: any, name: string | Function): () => any;
 export declare function queryString(str: string): {};
+export declare function toJson(obj: any): string;
 declare let YA: {
     Subject: typeof Subject;
     Disposable: typeof Disposable;
@@ -631,5 +619,7 @@ declare let YA: {
     is_array: typeof is_array;
     is_assoc: typeof is_assoc;
     is_empty: typeof is_empty;
+    toJson: typeof toJson;
+    queryString: typeof queryString;
 };
 export default YA;

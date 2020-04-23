@@ -1,5 +1,5 @@
 import {doct,TAssertStatement,TAssert} from '../doct';
-import YA, { ObservableModes } from '../YA.core';
+import YA from '../YA.core';
 
 @doct({
     title:"YA.createElement.for"
@@ -9,7 +9,7 @@ import YA, { ObservableModes } from '../YA.core';
         ,"dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true"
         ,"该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
     ]
-    ,debugging:"item"
+    //,debugging:"complex"
 })
 export class createElementAttrsTest {
     constructor(){
@@ -100,7 +100,7 @@ export class createElementAttrsTest {
                 item.name = name;
             };
             this.showData = function(){
-                let json = JSON.stringify(this.items.get(ObservableModes.Value));
+                let json = JSON.stringify(this.items.get(YA.ObservableModes.Value));
                 console.log(json);
                 alert(json);
             }
@@ -134,14 +134,49 @@ export class createElementAttrsTest {
         ]
     })
     complex(assert_statement:TAssertStatement,demoElement?:any){
-        function comp1(){
-            let provinces = [{key:"cq",value:"重庆"},{key:"sc",value:"四川"},{key:"bj",value:"北京"}];
+        function ComplexComp(){
+            let provinces = [{key:"",value:"--"},{key:"cq",value:"重庆"},{key:"sc",value:"四川"},{key:"bj",value:"北京"}];
             let interests = [{key:"football",value:"足球"},{key:"basketball",value:"篮球"},{key:"swimming",value:"游泳"}];
             let data = [
-                {id:1,name:"yiy11"},{id:2,name:"yiy12"},{id:3,name:"yiy23"}];
+                {id:1,name:"yiy11",interests:["football","swimming"],province:"cq"}
+                ,{id:2,name:"yiy12",interests:["basketball","swmming"],province:"sc"}
+                ,{id:3,name:"yiy23",interests:["basketball","football"],province:"bj"}
+            ];
+            YA.enumerator(data[0],"item",this);
+            YA.enumerator(interests[0],"interest",this);
+            YA.enumerator(provinces[0],"province",this);
+
+            YA.observable(data,"items",this);
+            
+            YA.observable(provinces,"provinces",this);
+            this.showData = function(){
+                let json = JSON.stringify(this.items.get(YA.ObservableModes.Value));
+                console.log(json);
+                alert(json);
+            };
+            this.render= function(){
+                return <div><input type="button" value="点击查看数据" onclick={this.showData}/><table border="1"><tbody for={[this.items,this.item]}>
+                    <tr>
+                        <td>{this.item.id}</td>
+                        <td>{this.item.name}</td>
+                        <td>
+                            {this.item.interests.length}
+                            <ul for={[this.item.interests,this.interest]}>
+                                <li>{this.interest.value}</li>
+                            </ul>
+                        </td>
+                        <td>
+                            {this.item.province}
+                            <select for={[this.provinces,this.province]} b-value={this.item.province}>
+                                <option value={this.province.key}>{this.province.value}</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody></table></div>;
+            };
             
         };
-        
+        YA.createComponentElements(ComplexComp,null,demoElement);
     }
 
 }
