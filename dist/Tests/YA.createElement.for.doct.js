@@ -24,15 +24,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             function comp1() {
                 var data = [{ id: 1, name: "yiy1" }, { id: 2, name: "yiy2" }, { id: 3, name: "yiy3" }];
                 YA_core_1.default.observable(data, "items", this);
-                YA_core_1.default.enumerator({ id: 0, name: "yiy" }, "item", this);
+                var item = YA_core_1.default.enumerator({ id: 0, name: "yiy" });
                 this.render = function (container, descriptor) {
-                    return YA_core_1.default.createElement("ul", { for: [this.items, this.item] },
-                        YA_core_1.default.createElement("li", null, this.item.name));
+                    return YA_core_1.default.createElement("ul", { for: [this.items, item] },
+                        YA_core_1.default.createElement("li", null, item.name));
                 };
             }
             ;
             var t = new Date();
-            YA_core_1.default.createComponentElements(comp1, null, demoElement);
+            YA_core_1.default.createComponent(comp1, null, demoElement);
             assert_statement(function (assert) {
                 var t1 = new Date();
                 var ellapse = t1.valueOf() - t1.valueOf();
@@ -67,7 +67,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             ;
             var t = new Date();
-            YA_core_1.default.createComponentElements(comp1, null, demoElement);
+            YA_core_1.default.createComponent(comp1, null, demoElement);
             assert_statement(function (assert) {
                 var t1 = new Date();
                 console.log(t1.valueOf() - t1.valueOf());
@@ -102,7 +102,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             ;
             var t = new Date();
-            YA_core_1.default.createComponentElements(comp1, null, demoElement);
+            YA_core_1.default.createComponent(comp1, null, demoElement);
             assert_statement(function (assert) {
                 var t1 = new Date();
                 console.log(t1.valueOf() - t1.valueOf());
@@ -147,7 +147,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
             }
             ;
-            YA_core_1.default.createComponentElements(ComplexComp, null, demoElement);
+            YA_core_1.default.createComponent(ComplexComp, null, demoElement);
         };
         __decorate([
             doct_1.doct({

@@ -25,16 +25,16 @@ export class createElementAttrsTest {
         function comp1(){
             let data = [{id:1,name:"yiy1"},{id:2,name:"yiy2"},{id:3,name:"yiy3"}];
             YA.observable(data,"items",this);
-            YA.enumerator({id:0,name:"yiy"},"item",this);
+            let item = YA.enumerator({id:0,name:"yiy"}) as any;
             this.render= function(container,descriptor){
                 
-                return <ul for={[this.items,this.item]}>
-                    <li>{this. item.name}</li>
+                return <ul for={[this.items,item]}>
+                    <li>{item.name}</li>
                 </ul>;
             }
         };
         let t = new Date();
-        YA.createComponentElements(comp1,null,demoElement);
+        YA.createComponent(comp1,null,demoElement);
         
         assert_statement((assert:TAssert)=>{
             let t1 = new Date();
@@ -75,7 +75,7 @@ export class createElementAttrsTest {
             }
         };
         let t = new Date();
-        YA.createComponentElements(comp1,null,demoElement);
+        YA.createComponent(comp1,null,demoElement);
         
         assert_statement((assert:TAssert)=>{
             let t1 = new Date();
@@ -118,7 +118,7 @@ export class createElementAttrsTest {
             }
         };
         let t = new Date();
-        YA.createComponentElements(comp1,null,demoElement);
+        YA.createComponent(comp1,null,demoElement);
         
         assert_statement((assert:TAssert)=>{
             let t1 = new Date();
@@ -176,7 +176,7 @@ export class createElementAttrsTest {
             };
             
         };
-        YA.createComponentElements(ComplexComp,null,demoElement);
+        YA.createComponent(ComplexComp,null,demoElement);
     }
 
 }

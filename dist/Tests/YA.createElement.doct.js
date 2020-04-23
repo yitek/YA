@@ -107,7 +107,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     descriptor.text);
             };
             function Comp2() {
-                this.render = function (container, descriptor) {
+                this.render = function (descriptor) {
                     /*return <div class={descriptor.css}>
                         这是COMP2:{descriptor.text}
                         {descriptor.children}
@@ -122,7 +122,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var _this = this;
                 this.comp2 = "green-block";
                 this.comp1 = "red-block";
-                this.render = function (container, descriptor) {
+                this.render = function (descriptor) {
                     /* return <div class={descriptor.css}>
                         这是Comp3
                         <Comp2 css ={this.comp2}>
@@ -165,7 +165,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 YA.observable("blue-block", "css", this);
                 YA.observable("", "text", this);
                 YA.observable("这是comp2自己赋值的文本", "innerText", this);
-                this.render = function (container, descriptor) {
+                this.render = function (descriptor, container) {
                     /*return <div class={this.css}>
                         this.text =  {this.text}<br />
                         this.innerText={this.innerText}
@@ -193,7 +193,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 YA.observable("blue-block", "css", this);
                 YA.observable("", "text", this);
                 YA.observable("这是comp2自己赋值的文本", "innerText", this);
-                this.render = function (container, descriptor) {
+                this.render = function (descriptor) {
                     /*return <div class={this.css}>
                         COMP2.text:{this.text}
                         <div>COMP2.innerText:{this.innerText}</div>
@@ -217,7 +217,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 YA.observable("red-block", "comp1", this);
                 YA.observable("blue-block", "comp2", this);
                 YA.observable("yellow-block", "comp3", this);
-                this.render = function (container, descriptor) {
+                this.render = function (descriptor) {
                     /* return <div class={this.comp3}>
                         这是Comp3
                         <Comp2 css ={this.comp2}>

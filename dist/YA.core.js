@@ -1087,7 +1087,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             //查看子项变更
             for (var n in this) {
                 if (n === "constructor") {
-                    debugger;
                     continue;
                 }
                 var item = this[n];
@@ -1912,7 +1911,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     }
     exports.jsxMode = jsxMode;
-    function internalCreateElement(tag, attrs, compInst) {
+    function _createElement(tag, attrs, compInst) {
         if (tag === undefined || tag === null || tag === "")
             return;
         var t = typeof tag;
@@ -1935,7 +1934,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     return descriptor;
                 }
                 //如果直接调用createElement来生成控件，要求vnode里面不能延迟绑(descriptor里面不能有schema,因为它不知道viewmodel到底是那一个)。
-                var elems = createComponentElements(componentType, descriptor, null);
+                var elems = createComponent(componentType, descriptor, null);
                 return elems;
             }
             else {
@@ -1955,69 +1954,73 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             descriptor.children = children;
             if (_jsxMode === JSXModes.vnode)
                 return descriptor;
-            return createComponentElements(descriptor.tag, descriptor, null);
+            return createComponent(descriptor.tag, descriptor, null);
         }
         else if (t === "object") {
             var container = void 0;
             var comp = compInst;
-            if (exports.DomUtility.isElement(attrs)) {
+            if (exports.DomUtility.isElement(parent)) {
                 container = attrs;
             }
             if (is_array(tag)) {
                 return createElements(tag, container, comp);
             }
-            descriptor = tag;
-            var elem_1;
-            //没有tag，就是文本
-            if (!descriptor.tag) {
-                if (Observable.isObservable(descriptor.content)) {
-                    var ob = descriptor.content;
-                    elem_1 = exports.DomUtility.createText(ob.get(ObservableModes.Value));
-                    descriptor.content.subscribe(function (e) { return exports.DomUtility.setContent(elem_1, e.value); }, ob.$root.$extras);
-                }
-                else {
-                    elem_1 = exports.DomUtility.createText(descriptor.content);
-                }
-                if (container)
-                    exports.DomUtility.appendChild(container, elem_1);
-                return elem_1;
-            }
             else {
-                var t_1 = typeof descriptor.tag;
-                if (t_1 === "string") {
-                    var componentType = exports.componentTypes[descriptor.tag];
-                    if (componentType) {
-                        descriptor.tag = componentType;
-                        t_1 = "function";
-                    }
-                    else {
-                        elem_1 = createDomElement(descriptor, container, comp);
-                        //if(container) DomUtility.appendChild(container,elem);
-                        return elem_1;
-                    }
-                }
-                if (t_1 === "function") {
-                    var elems = createComponentElements(descriptor.tag, descriptor, container);
-                    if (container) {
-                        if (exports.DomUtility.isElement(elems))
-                            exports.DomUtility.appendChild(container, elems);
-                        else {
-                            for (var _i = 0, _a = elems; _i < _a.length; _i++) {
-                                var elem_2 = _a[_i];
-                                exports.DomUtility.appendChild(container, elem_2);
-                            }
-                        }
-                    }
-                    return elems;
-                }
-                throw new Error("参数错误");
+                return createDescriptor(tag, container, comp);
             }
         }
         else {
             throw new Error("不正确的参数");
         }
     }
-    exports.createElement = internalCreateElement;
+    function createDescriptor(descriptor, container, comp) {
+        var elem;
+        //没有tag，就是文本
+        if (!descriptor.tag) {
+            if (Observable.isObservable(descriptor.content)) {
+                var ob = descriptor.content;
+                elem = exports.DomUtility.createText(ob.get(ObservableModes.Value));
+                descriptor.content.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, ob.$root.$extras);
+            }
+            else {
+                elem = exports.DomUtility.createText(descriptor.content);
+            }
+            if (container)
+                exports.DomUtility.appendChild(container, elem);
+            return elem;
+        }
+        else {
+            var t = typeof descriptor.tag;
+            if (t === "string") {
+                var componentType = exports.componentTypes[descriptor.tag];
+                if (componentType) {
+                    descriptor.tag = componentType;
+                    t = "function";
+                }
+                else {
+                    elem = createDomElement(descriptor, container, comp);
+                    //if(container) DomUtility.appendChild(container,elem);
+                    return elem;
+                }
+            }
+            if (t === "function") {
+                var elems = createComponent(descriptor.tag, descriptor, container);
+                if (container) {
+                    if (exports.DomUtility.isElement(elems))
+                        exports.DomUtility.appendChild(container, elems);
+                    else {
+                        for (var _i = 0, _a = elems; _i < _a.length; _i++) {
+                            var elem_1 = _a[_i];
+                            exports.DomUtility.appendChild(container, elem_1);
+                        }
+                    }
+                }
+                return elems;
+            }
+            throw new Error("参数错误");
+        }
+    }
+    exports.createElement = _createElement;
     function createElements(arr, container, compInstance) {
         var rs = [];
         for (var _i = 0, arr_1 = arr; _i < arr_1.length; _i++) {
@@ -2053,7 +2056,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     }
                 }
                 else {
-                    var sub = exports.createElement(child, container, compInstance);
+                    var sub = createDescriptor(child, container, compInstance);
                     if (exports.DomUtility.isElement(sub)) {
                         if (container)
                             exports.DomUtility.appendChild(container, sub);
@@ -2198,7 +2201,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return true;
     }
     exports.EVENT = {};
-    function createComponentElements(componentType, descriptor, container) {
+    function createComponent(componentType, descriptor, container) {
         //获取到vnode，attr-value得到的应该是schema
         var compInstance;
         var renderResult;
@@ -2221,7 +2224,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 renderFn = compInstance.render;
                 _jsxMode = JSXModes.vnode;
                 Observable.accessMode = ObservableModes.Proxy;
-                renderResult = renderFn.call(compInstance, container, descriptor);
+                renderResult = renderFn.call(compInstance, descriptor, container);
             }
             else {
                 renderResult = compInstance;
@@ -2234,10 +2237,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
     }
-    function mount(container, componentType, attrs) {
-        return createComponentElements(componentType, attrs, container);
-    }
-    exports.mount = mount;
+    exports.createComponent = createComponent;
     /**
      *
      *
@@ -2345,7 +2345,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 renderResult = result;
             }
             else {
-                renderResult = exports.createElement(renderNode, container, instance);
+                renderResult = createDescriptor(renderNode, container, instance);
             }
             return renderResult;
         }
@@ -2379,7 +2379,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             expr.parameters.push(arguments[i]);
         return expr;
     }
-    exports.EXP = makeExpr;
+    exports.EXPR = makeExpr;
     function NOT(param) {
         var expr = { lamda: function (val) { return !param; }, parameters: [] };
         expr.parameters.push(param);
@@ -2736,9 +2736,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         observable: observable, enumerator: enumerator,
-        createElement: exports.createElement, createElements: createElements, createComponentElements: createComponentElements, mount: mount, EVENT: exports.EVENT,
+        createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
-        NOT: NOT, EXP: exports.EXP,
+        NOT: NOT, EXPR: exports.EXPR,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
         intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, toJson: toJson, queryString: queryString
     };

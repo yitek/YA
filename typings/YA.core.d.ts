@@ -483,19 +483,19 @@ export declare enum JSXModes {
     dnode = 1
 }
 export declare function jsxMode(mode: JSXModes, statement: () => any): any;
+declare function createDescriptor(descriptor: INodeDescriptor, container: IDomNode, comp: IComponent): IDomNode | IDomNode[];
 export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
 } | IViewModel | IDomNode, vmOrCtnrOrFirstChild?: IViewModel | IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
 export declare function createElements(arr: any[], container: IDomNode, compInstance: IComponent): IDomNode[];
 export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
 export declare let EVENT: any;
-declare function createComponentElements(componentType: any, descriptor: INodeDescriptor, container?: IDomNode): IDomNode[] | IDomNode;
-export declare function mount(container: IDomNode, componentType: any, attrs: any): IDomNode | IDomNode[];
+export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IDomNode): IDomNode[] | IDomNode;
 export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
 }
-export declare let EXP: (...args: any[]) => IComputedExpression;
+export declare let EXPR: (...args: any[]) => IComputedExpression;
 export declare function NOT(param: any): IComputedExpression;
 export interface IReactiveInfo {
     type: ReactiveTypes;
@@ -598,9 +598,9 @@ declare let YA: {
     createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IDomNode | IViewModel | {
         [name: string]: any;
     }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IDomNode | IDomNode[];
+    createDescriptor: typeof createDescriptor;
     createElements: typeof createElements;
-    createComponentElements: typeof createComponentElements;
-    mount: typeof mount;
+    createComponent: typeof createComponent;
     EVENT: any;
     attrBinders: {
         [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
@@ -609,7 +609,7 @@ declare let YA: {
         [tag: string]: TComponentType;
     };
     NOT: typeof NOT;
-    EXP: (...args: any[]) => IComputedExpression;
+    EXPR: (...args: any[]) => IComputedExpression;
     DomUtility: IDomUtility;
     styleConvertors: any;
     intimate: typeof implicit;
