@@ -164,7 +164,7 @@ export class CreateElementTest {
                 </div>;
             };
         }
-        let elem = YA.createElement(Comp3) as YA.IDomNode;
+        let elem = YA.createElement(Comp3,{css:"blue-block"}) as YA.IDomNode;
         YA.DomUtility.appendChild(demoElement,elem);
         
     }

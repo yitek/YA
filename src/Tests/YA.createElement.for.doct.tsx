@@ -11,7 +11,7 @@ import YA from '../YA.core';
     ]
     //,debugging:"complex"
 })
-export class createElementAttrsTest {
+export class createElementForTest {
     constructor(){
     }
     

@@ -17,10 +17,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     Object.defineProperty(exports, "__esModule", { value: true });
     var doct_1 = require("../doct");
     var YA_core_1 = require("../YA.core");
-    var createElementForTest = /** @class */ (function () {
-        function createElementForTest() {
+    var createElementAttrsTest = /** @class */ (function () {
+        function createElementAttrsTest() {
         }
-        createElementForTest.prototype.base = function (assert_statement, demoElement) {
+        createElementAttrsTest.prototype.base = function (assert_statement, demoElement) {
             function comp1() {
                 var data = [{ id: 1, name: "yiy1" }, { id: 2, name: "yiy2" }, { id: 3, name: "yiy3" }];
                 YA_core_1.default.observable(data, "items", this);
@@ -40,7 +40,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
-        createElementForTest.prototype.filter = function (assert_statement, demoElement) {
+        createElementAttrsTest.prototype.filter = function (assert_statement, demoElement) {
             function comp1() {
                 var data = [{ id: 1, name: "yiy11" }, { id: 2, name: "yiy12" }, { id: 3, name: "yiy23" }];
                 YA_core_1.default.observable(data, "items", this);
@@ -74,7 +74,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
-        createElementForTest.prototype.item = function (assert_statement, demoElement) {
+        createElementAttrsTest.prototype.item = function (assert_statement, demoElement) {
             function comp1() {
                 var data = [{ id: 1, name: "yiy11" }, { id: 2, name: "yiy12" }, { id: 3, name: "yiy23" }];
                 YA_core_1.default.observable(data, "items", this);
@@ -109,7 +109,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
-        createElementForTest.prototype.complex = function (assert_statement, demoElement) {
+        createElementAttrsTest.prototype.complex = function (assert_statement, demoElement) {
             function ComplexComp() {
                 var provinces = [{ key: "", value: "--" }, { key: "cq", value: "重庆" }, { key: "sc", value: "四川" }, { key: "bj", value: "北京" }];
                 var interests = [{ key: "football", value: "足球" }, { key: "basketball", value: "篮球" }, { key: "swimming", value: "游泳" }];
@@ -156,7 +156,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "for"
                 ]
             })
-        ], createElementForTest.prototype, "base", null);
+        ], createElementAttrsTest.prototype, "base", null);
         __decorate([
             doct_1.doct({
                 title: "搜索",
@@ -164,7 +164,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "search"
                 ]
             })
-        ], createElementForTest.prototype, "filter", null);
+        ], createElementAttrsTest.prototype, "filter", null);
         __decorate([
             doct_1.doct({
                 title: "子项内容变更",
@@ -172,7 +172,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "search"
                 ]
             })
-        ], createElementForTest.prototype, "item", null);
+        ], createElementAttrsTest.prototype, "item", null);
         __decorate([
             doct_1.doct({
                 title: "复杂的循环",
@@ -180,8 +180,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "复杂的循环，嵌套，变更子项等"
                 ]
             })
-        ], createElementForTest.prototype, "complex", null);
-        createElementForTest = __decorate([
+        ], createElementAttrsTest.prototype, "complex", null);
+        createElementAttrsTest = __decorate([
             doct_1.doct({
                 title: "YA.createElement.for",
                 descriptions: [
@@ -192,9 +192,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ]
                 //,debugging:"complex"
             })
-        ], createElementForTest);
-        return createElementForTest;
+        ], createElementAttrsTest);
+        return createElementAttrsTest;
     }());
-    exports.createElementForTest = createElementForTest;
+    exports.createElementAttrsTest = createElementAttrsTest;
 });
-//# sourceMappingURL=YA.createElement.for.doct.js.map
+//# sourceMappingURL=YA.createElement.for.doct copy.js.map

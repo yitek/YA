@@ -448,23 +448,13 @@ export interface IDomUtility {
     parse(domString: string): IDomNode[];
 }
 export declare let DomUtility: IDomUtility;
-export declare enum ReactiveTypes {
-    None = 0,
-    Internal = -1,
-    Iterator = -2,
-    In = 1,
-    Out = 2,
-    Parameter = 3
-}
 export declare type TChildDescriptor = string | IDomNode | INodeDescriptor;
 export interface INodeDescriptor {
-    tag?: string | Function;
+    tag?: string;
+    Component?: Function;
     content?: any;
     children?: TChildDescriptor[];
     [attr: string]: any;
-}
-export interface IViewModel {
-    [name: string]: Observable<any> | ObservableSchema<any>;
 }
 /**
  * TRender render函数
@@ -486,7 +476,7 @@ export declare function jsxMode(mode: JSXModes, statement: () => any): any;
 declare function createDescriptor(descriptor: INodeDescriptor, container: IDomNode, comp: IComponent): IDomNode | IDomNode[];
 export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
-} | IViewModel | IDomNode, vmOrCtnrOrFirstChild?: IViewModel | IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
+} | IDomNode, vmOrCtnrOrFirstChild?: IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
 export declare function createElements(arr: any[], container: IDomNode, compInstance: IComponent): IDomNode[];
 export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
 export declare let EVENT: any;
@@ -495,11 +485,21 @@ export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
 }
-export declare let EXPR: (...args: any[]) => IComputedExpression;
+export declare let CALL: (...args: any[]) => IComputedExpression;
 export declare function NOT(param: any): IComputedExpression;
+export declare enum ReactiveTypes {
+    None = 0,
+    Internal = -1,
+    Iterator = -2,
+    In = 1,
+    Out = 2,
+    Parameter = 3
+}
 export interface IReactiveInfo {
-    type: ReactiveTypes;
-    schema: ObservableSchema<any>;
+    name?: string;
+    type?: ReactiveTypes;
+    schema?: ObservableSchema<any>;
+    initData?: any;
 }
 export interface IComponentInfo {
     reactives?: {
@@ -595,7 +595,7 @@ declare let YA: {
     ObservableSchema: typeof ObservableSchema;
     observable: typeof observable;
     enumerator: typeof enumerator;
-    createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IDomNode | IViewModel | {
+    createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IDomNode | {
         [name: string]: any;
     }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IDomNode | IDomNode[];
     createDescriptor: typeof createDescriptor;
@@ -609,7 +609,7 @@ declare let YA: {
         [tag: string]: TComponentType;
     };
     NOT: typeof NOT;
-    EXPR: (...args: any[]) => IComputedExpression;
+    CALL: (...args: any[]) => IComputedExpression;
     DomUtility: IDomUtility;
     styleConvertors: any;
     intimate: typeof implicit;

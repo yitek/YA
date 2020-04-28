@@ -1881,19 +1881,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         node.className = prev + new_cls + next;
         return exports.DomUtility;
     };
-    /////////////////////////////////////////////////////////////////////////////
-    //
-    // vnode操作/JSX 与绑定
-    //
-    var ReactiveTypes;
-    (function (ReactiveTypes) {
-        ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
-        ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
-        ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
-        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
-        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
-        ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
-    })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
     var JSXModes;
     (function (JSXModes) {
         JSXModes[JSXModes["vnode"] = 0] = "vnode";
@@ -1914,59 +1901,59 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function _createElement(tag, attrs, compInst) {
         if (tag === undefined || tag === null || tag === "")
             return;
-        var t = typeof tag;
         var descriptor;
+        var container;
+        var t = typeof tag;
         if (t === "string") {
+            if (exports.DomUtility.isElement(attrs)) {
+                //一:createElement("hello",container?,comp?);
+                return createText(tag, attrs, compInst);
+            }
+            //二:createElement("hello",{},...children);
             //构建descriptor
-            descriptor = attrs || {};
+            descriptor = {};
+            for (var n in attrs)
+                descriptor[n] = attrs[n];
             descriptor.tag = tag;
             var children = [];
             for (var i = 2, j = arguments.length; i < j; i++) {
                 children.push(arguments[i]);
             }
             descriptor.children = children;
-            //是否有注册的组件
-            var componentType = exports.componentTypes[tag];
-            if (componentType) {
-                descriptor.tag = componentType;
-                //如果要求返回vnode，就直接返回descriptor;
-                if (_jsxMode === JSXModes.vnode) {
-                    return descriptor;
-                }
-                //如果直接调用createElement来生成控件，要求vnode里面不能延迟绑(descriptor里面不能有schema,因为它不知道viewmodel到底是那一个)。
-                var elems = createComponent(componentType, descriptor, null);
-                return elems;
-            }
-            else {
-                if (_jsxMode === JSXModes.vnode) {
-                    return descriptor;
-                }
-                return createDomElement(descriptor, null, null);
-            }
+            return (_jsxMode === JSXModes.vnode) ? descriptor : createDescriptor(descriptor, null, null);
         }
         else if (t === "function") {
-            descriptor = attrs || {};
-            descriptor.tag = tag;
+            if (attrs === undefined || exports.DomUtility.isElement(attrs)) {
+                //三:createElement(Comp,container);
+                return createComponent(tag, null, attrs);
+            }
+            if (compInst && exports.DomUtility.isElement(compInst)) {
+                //四:createElement(Comp,attrs,container);
+                return createComponent(tag, attrs, compInst);
+            }
+            //五: createElement(Comp:Function,attrs:{},...children);
+            descriptor = {};
+            for (var n in attrs)
+                descriptor[n] = attrs[n];
+            descriptor.Component = tag;
             var children = [];
             for (var i = 2, j = arguments.length; i < j; i++) {
                 children.push(arguments[i]);
             }
             descriptor.children = children;
-            if (_jsxMode === JSXModes.vnode)
-                return descriptor;
-            return createComponent(descriptor.tag, descriptor, null);
+            return (_jsxMode === JSXModes.vnode) ? descriptor : createComponent(descriptor.Component, descriptor, null);
         }
         else if (t === "object") {
-            var container = void 0;
-            var comp = compInst;
-            if (exports.DomUtility.isElement(parent)) {
-                container = attrs;
-            }
             if (is_array(tag)) {
-                return createElements(tag, container, comp);
+                //六:createElement(descriptors:INodeDescriptors[],container,comp);
+                return createElements(tag, attrs, compInst);
+            }
+            else if (tag instanceof Observable || tag instanceof ObservableProxy || tag instanceof Computed) {
+                return createText(tag, attrs, compInst);
             }
             else {
-                return createDescriptor(tag, container, comp);
+                //八:createElement(descriptor:INodeDescriptor,container,comp);
+                return createDescriptor(tag, attrs, compInst);
             }
         }
         else {
@@ -1976,51 +1963,44 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function createDescriptor(descriptor, container, comp) {
         var elem;
         //没有tag，就是文本
-        if (!descriptor.tag) {
-            if (Observable.isObservable(descriptor.content)) {
-                var ob = descriptor.content;
-                elem = exports.DomUtility.createText(ob.get(ObservableModes.Value));
-                descriptor.content.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, ob.$root.$extras);
+        if (!descriptor.tag && !descriptor.Component) {
+            return createText(descriptor.content, container, comp);
+        }
+        if (descriptor.tag) {
+            var componentType = exports.componentTypes[descriptor.tag];
+            if (componentType) {
+                descriptor.Component = componentType;
             }
             else {
-                elem = exports.DomUtility.createText(descriptor.content);
+                elem = createDom(descriptor, container, comp);
+                //if(container) DomUtility.appendChild(container,elem);
+                return elem;
             }
-            if (container)
-                exports.DomUtility.appendChild(container, elem);
-            return elem;
         }
-        else {
-            var t = typeof descriptor.tag;
-            if (t === "string") {
-                var componentType = exports.componentTypes[descriptor.tag];
-                if (componentType) {
-                    descriptor.tag = componentType;
-                    t = "function";
-                }
-                else {
-                    elem = createDomElement(descriptor, container, comp);
-                    //if(container) DomUtility.appendChild(container,elem);
-                    return elem;
-                }
-            }
-            if (t === "function") {
-                var elems = createComponent(descriptor.tag, descriptor, container);
-                if (container) {
-                    if (exports.DomUtility.isElement(elems))
-                        exports.DomUtility.appendChild(container, elems);
-                    else {
-                        for (var _i = 0, _a = elems; _i < _a.length; _i++) {
-                            var elem_1 = _a[_i];
-                            exports.DomUtility.appendChild(container, elem_1);
-                        }
-                    }
-                }
-                return elems;
-            }
-            throw new Error("参数错误");
-        }
+        var elems = createComponent(descriptor.Component, descriptor, container);
+        return elems;
     }
     exports.createElement = _createElement;
+    function createText(value, container, compInstance) {
+        var elem;
+        if (Observable.isObservable(value)) {
+            var ob = value;
+            elem = exports.DomUtility.createText(ob.get(ObservableModes.Value));
+            value.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, ob.$root.$extras);
+        }
+        else if (value instanceof Computed) {
+            var txtElem_1 = exports.DomUtility.createText(value.getValue(compInstance), elem);
+            value.bindValue(function (val) {
+                exports.DomUtility.setContent(txtElem_1, val);
+            }, compInstance);
+        }
+        else {
+            elem = exports.DomUtility.createText(value);
+        }
+        if (container)
+            exports.DomUtility.appendChild(container, elem);
+        return elem;
+    }
     function createElements(arr, container, compInstance) {
         var rs = [];
         for (var _i = 0, arr_1 = arr; _i < arr_1.length; _i++) {
@@ -2079,7 +2059,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return rs;
     }
     exports.createElements = createElements;
-    function createDomElement(descriptor, parent, compInstance) {
+    function createDom(descriptor, parent, compInstance) {
         var elem = exports.DomUtility.createElement(descriptor.tag);
         if (parent)
             exports.DomUtility.appendChild(parent, elem);
@@ -2104,10 +2084,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (ignoreChildren)
             return elem;
         if (descriptor.content) {
+            if (descriptor.content instanceof Computed) {
+                var txtElem_2 = exports.DomUtility.createText(descriptor.content.getValue(compInstance), elem);
+                descriptor.content.bindValue(function (val) {
+                    exports.DomUtility.setContent(txtElem_2, val);
+                }, compInstance);
+            }
             if (Observable.isObservable(descriptor.content)) {
                 var ob = descriptor.content;
-                var txtElem_1 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
-                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_1, e.value); }, ob.$root.$extras);
+                var txtElem_3 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
+                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_3, e.value); }, compInstance);
             }
             else {
                 var txtElem = exports.DomUtility.createText(descriptor.content, elem);
@@ -2126,12 +2112,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var binder = exports.attrBinders[attrName];
         var bindResult;
         //计算表达式
-        if (attrValue && attrValue.lamda && typeof attrValue.lamda === "function") {
+        if (attrValue instanceof Computed) {
             if (binder) {
-                bindComputedExpression(attrValue, compInstance, function (val) { return binder.call(compInstance, element, val, compInstance); });
+                attrValue.bindValue(function (val) { return binder.call(compInstance, element, val, compInstance); }, compInstance);
             }
             else {
-                bindComputedExpression(attrValue, compInstance, function (val) { return exports.DomUtility.setAttribute(element, attrName, val); });
+                attrValue.bindValue(function (val) { return exports.DomUtility.setAttribute(element, attrName, val); }, compInstance);
             }
         }
         else {
@@ -2350,36 +2336,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return renderResult;
         }
     }
-    function getComputedValue(expr, compInstance) {
-        var args = [];
-        for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
-            var dep = _a[_i];
-            var ob = void 0;
-            if (Observable.isObservable(dep))
-                ob = dep;
-            if (ob)
-                args.push(ob.get(ObservableModes.Value));
-            else
-                args.push(dep);
+    var Computed = /** @class */ (function () {
+        function Computed(lamda, parameters) {
+            this.lamda = lamda;
+            this.parameters = parameters;
+            if (!this.parameters)
+                this.parameters = [];
         }
-        return expr.lamda.apply(compInstance, args);
+        Computed.prototype.getValue = function (compInstance) {
+            var args = [];
+            for (var _i = 0, _a = this.parameters; _i < _a.length; _i++) {
+                var dep = _a[_i];
+                var ob = void 0;
+                if (Observable.isObservable(dep))
+                    ob = dep;
+                if (ob)
+                    args.push(ob.get(ObservableModes.Value));
+                else
+                    args.push(dep);
+            }
+            return this.lamda.apply(compInstance, args);
+        };
+        Computed.prototype.bindValue = function (setter, compInstance) {
+            var _this = this;
+            for (var _i = 0, _a = this.parameters; _i < _a.length; _i++) {
+                var ob = _a[_i];
+                if (Observable.isObservable(ob))
+                    ob.subscribe(function (e) {
+                        setter(_this.getValue(compInstance));
+                    }, compInstance);
+            }
+        };
+        return Computed;
+    }());
+    function createComputed() {
+        var pars = [];
+        for (var i = 1, j = arguments.length; i < j; i++)
+            pars.push(arguments[i]);
+        return new Computed(arguments[0], pars);
     }
-    function bindComputedExpression(expr, instance, setter) {
-        for (var _i = 0, _a = expr.parameters; _i < _a.length; _i++) {
-            var ob = _a[_i];
-            if (ob)
-                ob.subscribe(function (e) {
-                    setter(getComputedValue(expr, instance));
-                }, instance);
-        }
-    }
-    function makeExpr() {
-        var expr = { lamda: arguments[arguments.length - 1], parameters: [] };
-        for (var i = 0, j = arguments.length - 2; i < j; i++)
-            expr.parameters.push(arguments[i]);
-        return expr;
-    }
-    exports.EXPR = makeExpr;
+    exports.CALL = createComputed;
     function NOT(param) {
         var expr = { lamda: function (val) { return !param; }, parameters: [] };
         expr.parameters.push(param);
@@ -2410,82 +2406,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Object.defineProperty(rawRender, "$__renderRawFn__", des);
         return renderWapper;
     }
-    function initReactives(instance, ctor) {
-    }
-    function makeReactive(subject, propName, schema, type) {
-        var privateName = "$__" + propName + "__";
-        Object.defineProperty(subject, propName, {
-            get: function () {
-                var ob = this[privateName];
-                if (!ob) {
-                    ob = schema.createObservable();
-                    implicit(subject, privateName, ob);
-                    ob.$index = propName;
-                    ob.$extras = this;
-                    Object.defineProperty(ob, "$__reactive__", { enumerable: false, writable: false, configurable: false, value: type });
-                }
-                return ob.get();
-            },
-            set: function (val) {
-                var ob = this[privateName];
-                if (!ob) {
-                    ob = schema.create();
-                    implicit(subject, privateName, ob);
-                    ob.$index = propName;
-                    ob.$extras = this;
-                    Object.defineProperty(ob, "$__reactive__", { enumerable: false, writable: false, configurable: false, value: type });
-                }
-                if (Observable.isObservable(val))
-                    val = val.get(ObservableModes.Value);
-                return ob.set(val);
-            }
-        });
-    }
-    function initReactive(instance, ctor, propName) {
-        var prop = instance[propName];
-        var ob;
-        var reactiveInfo;
-        if (Observable.isObservable(prop)) {
-            ob = prop;
-            reactiveInfo = instance.$_meta.reactives[propName];
-            if (!reactiveInfo)
-                instance.$_meta.reactives[propName] = {
-                    type: ReactiveTypes.In,
-                    schema: prop.$schema
-                };
-        }
-        else {
-            reactiveInfo = instance.$_meta.reactives[propName];
-            if (!reactiveInfo && !instance.$_meta.explicit) {
-                var schema = new ObservableSchema(prop);
-                schema.$index = propName;
-                reactiveInfo = { type: ReactiveTypes.In, schema: schema };
-                instance.$_meta.reactives[propName] = reactiveInfo;
-            }
-            if (!reactiveInfo)
-                return;
-        }
-    }
-    function makeAction(component, method) {
-        return function () {
-            var rs = method.apply(component, arguments);
-            var amode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Observable;
-            var reactives = [];
-            try {
-                for (var n in component) {
-                    var prop = component[n];
-                    if (Observable.isObservable(prop)) {
-                        prop.update();
-                    }
-                }
-            }
-            finally {
-                Observable.accessMode = amode;
-            }
-            return rs;
-        };
-    }
+    var ReactiveTypes;
+    (function (ReactiveTypes) {
+        ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
+        ReactiveTypes[ReactiveTypes["Internal"] = -1] = "Internal";
+        ReactiveTypes[ReactiveTypes["Iterator"] = -2] = "Iterator";
+        ReactiveTypes[ReactiveTypes["In"] = 1] = "In";
+        ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
+        ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
+    })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
     exports.componentTypes = {};
     function inherits(extendCls, basCls) {
         function __() { this.constructor = extendCls; }
@@ -2613,6 +2542,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.attrBinders.for = function (elem, bindValue, vnode, compInstance) {
         //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
         var arr = bindValue[0];
+        if (arr instanceof ObservableProxy)
+            arr = arr.get(ObservableModes.Observable);
         var valVar = bindValue[1];
         var keyVar = bindValue[2];
         var each;
@@ -2738,7 +2669,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         observable: observable, enumerator: enumerator,
         createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
-        NOT: NOT, EXPR: exports.EXPR,
+        NOT: NOT, CALL: exports.CALL,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
         intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, toJson: toJson, queryString: queryString
     };

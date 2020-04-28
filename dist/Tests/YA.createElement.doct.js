@@ -139,7 +139,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                             YA.createElement(Comp1, { css: _this.comp1, text: "\u8FD9\u662Fcomp1.text\u7684\u5185\u5BB9" })));
                 };
             }
-            var elem = YA.createElement(Comp3);
+            var elem = YA.createElement(Comp3, { css: "blue-block" });
             YA.DomUtility.appendChild(demoElement, elem);
         };
         CreateElementTest.prototype.vnode = function (assert_statement, demoElement) {
