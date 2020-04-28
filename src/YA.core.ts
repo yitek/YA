@@ -1521,9 +1521,7 @@ export class ObservableProxy implements IObservable<any> {
             //if(newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
             ob.set(newValue,updateImmediately);
         }else {
-            if(newValue instanceof ObservableProxy){
-                this.$__rootOb__ = newValue;
-            }else if(newValue instanceof Observable){
+            if(Observable.isObservable(newValue)){
                 this.$__rootOb__ = newValue;
             }else {
                 newValue = new Observable<any>(newValue);
@@ -2143,42 +2141,10 @@ function createText(value:any,container:IDomNode,compInstance:IComponent){
 export function createElements(arr:any[],container:IDomNode,compInstance:IComponent):IDomNode[]{
     let rs = [];
     for(const child of arr){
-        let ct = typeof child;
-        if(ct==="string") {
-            let elem = DomUtility.createText(child);
-            if(container) DomUtility.appendChild(container,elem);
-            rs.push(elem);
-        }else if(ct==="object"){
-            if(Observable.isObservable(child) )((child,rs)=>{
-                let text :string= child.get(ObservableModes.Value);
-                let elem = DomUtility.createText(text,container);
-                child.subscribe((e)=>DomUtility.setContent(elem,e.value),child.$root.$extras);
-                if(container) DomUtility.appendChild(container,elem);
-                rs.push(elem);
-            })(child,rs);
-            else if(DomUtility.isElement(child,true)){
-                let elem = child;
-                if(container) DomUtility.appendChild(container,elem);
-                rs.push(elem);
-            }else if(is_array(child)){
-                let arr = createElements(child,container,compInstance) as IDomNode[];
-                for(let arrItem of arr) rs.push(arrItem);
-            }else{
-                let sub = createDescriptor(child as INodeDescriptor,container,compInstance) as any;
-                if(DomUtility.isElement(sub)){
-                    if(container) DomUtility.appendChild(container,sub);
-                    rs.push(sub);
-                }else {
-                    for(let item of sub){
-                        if(container) DomUtility.appendChild(container,item);
-                        rs.push(item);
-                    } 
-                }
-            }
-        } else {
-            console.warn(`不恰当的参数，忽略`,child);    
-        }
-        
+        let node = _createElement(child,container,compInstance); 
+        if(is_array(node)){
+            for(const cn of node as any) rs.push(cn);
+        }else rs.push(node);
     }
     return rs;
 }
@@ -2709,6 +2675,7 @@ attrBinders.for = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,com
             DomUtility.removeAllChildren(elem);
             
             for(let key in arr)((key,value)=>{
+                if(key==="constructor") return;
                 if(keyVar) keyVar.set(key);
                 if(valVar) valVar.set(value);
                 
@@ -2726,6 +2693,7 @@ attrBinders.for = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,com
         });
     }
     for(let key in arr)((key,value)=>{
+        if(key==="constructor") return;
         if(keyVar) keyVar.set(key);
         if(valVar) valVar.set(value);
         let renderRs = createElements(vnode.children,elem,compInstance);

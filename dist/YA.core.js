@@ -1424,10 +1424,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ob.set(newValue, updateImmediately);
             }
             else {
-                if (newValue instanceof ObservableProxy_1) {
-                    this.$__rootOb__ = newValue;
-                }
-                else if (newValue instanceof Observable) {
+                if (Observable.isObservable(newValue)) {
                     this.$__rootOb__ = newValue;
                 }
                 else {
@@ -2005,56 +2002,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var rs = [];
         for (var _i = 0, arr_1 = arr; _i < arr_1.length; _i++) {
             var child = arr_1[_i];
-            var ct = typeof child;
-            if (ct === "string") {
-                var elem = exports.DomUtility.createText(child);
-                if (container)
-                    exports.DomUtility.appendChild(container, elem);
-                rs.push(elem);
-            }
-            else if (ct === "object") {
-                if (Observable.isObservable(child))
-                    (function (child, rs) {
-                        var text = child.get(ObservableModes.Value);
-                        var elem = exports.DomUtility.createText(text, container);
-                        child.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, child.$root.$extras);
-                        if (container)
-                            exports.DomUtility.appendChild(container, elem);
-                        rs.push(elem);
-                    })(child, rs);
-                else if (exports.DomUtility.isElement(child, true)) {
-                    var elem = child;
-                    if (container)
-                        exports.DomUtility.appendChild(container, elem);
-                    rs.push(elem);
-                }
-                else if (is_array(child)) {
-                    var arr_3 = createElements(child, container, compInstance);
-                    for (var _a = 0, arr_2 = arr_3; _a < arr_2.length; _a++) {
-                        var arrItem = arr_2[_a];
-                        rs.push(arrItem);
-                    }
-                }
-                else {
-                    var sub = createDescriptor(child, container, compInstance);
-                    if (exports.DomUtility.isElement(sub)) {
-                        if (container)
-                            exports.DomUtility.appendChild(container, sub);
-                        rs.push(sub);
-                    }
-                    else {
-                        for (var _b = 0, sub_1 = sub; _b < sub_1.length; _b++) {
-                            var item = sub_1[_b];
-                            if (container)
-                                exports.DomUtility.appendChild(container, item);
-                            rs.push(item);
-                        }
-                    }
+            var node = _createElement(child, container, compInstance);
+            if (is_array(node)) {
+                for (var _a = 0, _b = node; _a < _b.length; _a++) {
+                    var cn = _b[_a];
+                    rs.push(cn);
                 }
             }
-            else {
-                console.warn("\u4E0D\u6070\u5F53\u7684\u53C2\u6570\uFF0C\u5FFD\u7565", child);
-            }
+            else
+                rs.push(node);
         }
         return rs;
     }
@@ -2553,6 +2509,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 exports.DomUtility.removeAllChildren(elem);
                 for (var key in arr)
                     (function (key, value) {
+                        if (key === "constructor")
+                            return;
                         if (keyVar)
                             keyVar.set(key);
                         if (valVar)
@@ -2573,6 +2531,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         for (var key in arr)
             (function (key, value) {
+                if (key === "constructor")
+                    return;
                 if (keyVar)
                     keyVar.set(key);
                 if (valVar)

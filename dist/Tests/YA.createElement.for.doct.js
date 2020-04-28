@@ -119,7 +119,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     { id: 3, name: "yiy23", interests: ["basketball", "football"], province: "bj" }
                 ];
                 YA_core_1.default.enumerator(data[0], "item", this);
-                YA_core_1.default.enumerator(interests[0], "interest", this);
+                YA_core_1.default.enumerator("", "interest", this);
                 YA_core_1.default.enumerator(provinces[0], "province", this);
                 YA_core_1.default.observable(data, "items", this);
                 YA_core_1.default.observable(provinces, "provinces", this);
@@ -139,7 +139,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                                     YA_core_1.default.createElement("td", null,
                                         this.item.interests.length,
                                         YA_core_1.default.createElement("ul", { for: [this.item.interests, this.interest] },
-                                            YA_core_1.default.createElement("li", null, this.interest.value))),
+                                            YA_core_1.default.createElement("li", null, this.interest))),
                                     YA_core_1.default.createElement("td", null,
                                         this.item.province,
                                         YA_core_1.default.createElement("select", { for: [this.provinces, this.province], "b-value": this.item.province },
@@ -189,8 +189,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "该类为这些可释放对象的基类。提供2个函数,dispose跟deteching。",
                     "dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true",
                     "该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
-                ]
-                //,debugging:"complex"
+                ],
+                debugging: "complex"
             })
         ], createElementForTest);
         return createElementForTest;

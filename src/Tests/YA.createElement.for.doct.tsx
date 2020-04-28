@@ -9,7 +9,7 @@ import YA from '../YA.core';
         ,"dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true"
         ,"该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
     ]
-    //,debugging:"complex"
+    ,debugging:"complex"
 })
 export class createElementForTest {
     constructor(){
@@ -143,7 +143,7 @@ export class createElementForTest {
                 ,{id:3,name:"yiy23",interests:["basketball","football"],province:"bj"}
             ];
             YA.enumerator(data[0],"item",this);
-            YA.enumerator(interests[0],"interest",this);
+            YA.enumerator("","interest",this);
             YA.enumerator(provinces[0],"province",this);
 
             YA.observable(data,"items",this);
@@ -162,7 +162,7 @@ export class createElementForTest {
                         <td>
                             {this.item.interests.length}
                             <ul for={[this.item.interests,this.interest]}>
-                                <li>{this.interest.value}</li>
+                                <li>{this.interest}</li>
                             </ul>
                         </td>
                         <td>
