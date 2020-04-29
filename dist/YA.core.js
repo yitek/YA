@@ -1173,6 +1173,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         });
     }
     function defineObservableProperty(target, name, factory) {
+        var schema = factory instanceof ObservableSchema ? factory : undefined;
         var private_name = "$__" + name + "__";
         Object.defineProperty(target, name, {
             enumerable: true,
@@ -1180,7 +1181,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             get: function () {
                 var ob = this[private_name];
                 if (!ob) {
-                    ob = factory();
+                    if (schema) {
+                        if (this instanceof Observable) {
+                            ob = new schema.$obCtor(this, name);
+                        }
+                        else
+                            ob = schema.createObservable(exports.Default);
+                    }
+                    else {
+                        ob = factory.call(this);
+                    }
                     Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
                 }
                 return ob.get();
@@ -1188,7 +1198,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             set: function (val) {
                 var ob = this[private_name];
                 if (!ob) {
-                    ob = factory(val);
+                    if (schema) {
+                        if (this instanceof Observable) {
+                            ob = new schema.$obCtor(this, name);
+                        }
+                        else
+                            ob = schema.createObservable(exports.Default);
+                    }
+                    else {
+                        ob = factory.call(this);
+                    }
                     Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
                 }
                 else
@@ -1196,7 +1215,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         });
     }
-    function defineProp(target, propname, propSchema, private_prop_name) {
+    function defineProp1(target, propname, propSchema, private_prop_name) {
         if (!private_prop_name)
             private_prop_name = "$__" + propname + "__";
         Object.defineProperty(target, propname, {
@@ -1321,17 +1340,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var private_prop_name = "$__" + propname + "__";
             var self = this;
             Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
-            defineProp(this.$obCtor.prototype, propname, propSchema, private_prop_name);
-            Object.defineProperty(this.$proxyCtor.prototype, propname, {
-                enumerable: true, configurable: false,
-                get: function () {
-                    var proxy = this[private_prop_name];
-                    if (!proxy)
-                        Object.defineProperty(this, private_prop_name, {
-                            enumerable: false, configurable: false, writable: false, value: proxy = new propSchema.$proxyCtor(self, this)
-                        });
-                    return proxy.get();
-                }
+            defineObservableProperty(this.$obCtor.prototype, propname, propSchema);
+            defineObservableProperty(this.$proxyCtor.prototype, propname, function (initData) {
+                return new propSchema.$proxyCtor(self, this);
             });
             return propSchema;
         };
@@ -1341,6 +1352,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (this.$type === DataTypes.Object)
                 throw new Error("无法将ObservableSchema从Object转化成Array.");
             this.$type = DataTypes.Array;
+            var schema = this;
             var _ObservableArray = /** @class */ (function (_super) {
                 __extends(_ObservableArray, _super);
                 function _ObservableArray(init, index, extras, initValue) {
@@ -1369,10 +1381,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 if (n === "constructor" || n[0] === "$" || n === ObservableSchema_1.schemaToken)
                     continue;
                 var propSchema = this[n];
-                defineProp(ob, n, propSchema);
+                defineObservableProperty(ob, n, propSchema);
             }
         };
         ObservableSchema.prototype.createObservable = function (val) {
+            debugger;
             return new this.$obCtor(val === exports.Default ? this.$initData : val);
         };
         ObservableSchema.prototype.createProxy = function () {
@@ -1502,9 +1515,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             schema = new ObservableSchema(schema);
         }
         if (subject) {
-            defineObservableProperty(subject, index, function (initData) {
-                return schema.createObservable(initData === undefined ? exports.Default : initData);
-            });
+            defineObservableProperty(subject, index, schema);
         }
         else {
             return schema.createObservable(exports.Default);
