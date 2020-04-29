@@ -1,5 +1,6 @@
 import { Dom, IDom, dom } from "./dom/YA.dom";
 import { IView, Renderer } from "./YA.modeling";
+import { component } from "./YA.core-00.02";
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -1261,6 +1262,31 @@ function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
     });
 }
 
+function defineObservableProperty(target:any,name:string,factory:(initData?:any)=>IObservable<any>){
+
+    let private_name = "$__" + name + "__";
+    Object.defineProperty(target,name,{
+        enumerable:true,
+        configurable:false,
+        get:function(){
+            let ob = this[private_name];
+            if(!ob){
+                ob = factory();
+                Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
+            } 
+            
+            return ob.get();
+        },
+        set:function(val){
+            let ob = this[private_name];
+            if(!ob){
+                ob = factory(val);
+                Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
+            } else return ob.set(val);
+        }
+    });
+}
+
 function defineProp<TObject>(target:any,propname:string,propSchema:ObservableSchema<any>,private_prop_name?:string){
     if(!private_prop_name) private_prop_name = "$__" + propname + "__";
     Object.defineProperty(target,propname,{
@@ -1282,6 +1308,15 @@ function defineProp<TObject>(target:any,propname:string,propSchema:ObservableSch
             return ob.set(val);
         }
     });
+}
+
+function getExtra(ob:IObservable<any>,name:string):any{
+   let extra = ob.$extras;
+   if(extra)return extra[name]; 
+}
+function setExtra(ob:IObservable<any>,name:string,value:any){
+    let extra = ob.$extras || (ob.$extras={});
+    extra[name]=value;
 }
 
 
@@ -1431,7 +1466,7 @@ export class ObservableSchema<TData>{
     
 
     createObservable(val?:any):Observable<TData>{
-        return new this.$obCtor(val);
+        return new this.$obCtor(val===Default?this.$initData:val);
     }
     createProxy():ObservableProxy{
         return new this.$proxyCtor(this,undefined);
@@ -1439,6 +1474,8 @@ export class ObservableSchema<TData>{
 
     static schemaToken:string = "$__ONLY_USED_BY_SCHEMA__";
 }
+
+export let Default:any={};
 
 export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData>>{
     get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
@@ -1500,6 +1537,7 @@ export class ObservableProxy implements IObservable<any> {
             let lenSchema = this.$schema.length;
             let lenProxy = new ObservableProxy(lenSchema,this);
             Object.defineProperty(this,"length",{enumerable:false,configurable:false,writable:false,value:lenProxy});
+            Object.defineProperty(this,"$itemSchema",{enumerable:false,configurable:false,writable:false,value:this.$schema.$itemSchema});
         }
         
         for(let n in schema){
@@ -1508,7 +1546,8 @@ export class ObservableProxy implements IObservable<any> {
         }
     }
     get(accessMode?:ObservableModes):any{
-        if(accessMode===ObservableModes.Proxy|| Observable.accessMode===ObservableModes.Proxy) return this;
+        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode===ObservableModes.Proxy) return this;
         let ob :IObservable<any>;
         if(this.$parent){
             ob = this.$schema.getFromRoot(this.$rootOb,ObservableModes.Observable);
@@ -1549,50 +1588,36 @@ defineProxyProto(ObservableProxy.prototype,["update","subscribe","unsubscribe","
 
 
 
-export function observable(initData:any,index?:string,subject?:any){
-    if(Observable.isObservable(initData)) throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
-    let t = typeof initData;
-    let ob :Observable<any>;
-    if(t==="object"){
-        if(is_array(initData)){
-            ob = new ObservableArray<any>(initData);
-        }else ob = new ObservableObject<any>(initData);
-        if(index){
-            ob.$__obIndex__ = index;
-            ob.$target = initData;
-        }
-    }else {
-        let schema = new ObservableSchema<any>(initData);
-        schema.$index = index;
-        ob = schema.createObservable(initData);
-    }
+export function observable(schema:any,index?:string,subject?:any){
+    if(Observable.isObservable(schema)) throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
+    if(!(schema instanceof ObservableSchema)){
+        schema = new ObservableSchema(schema);
+    }    
     if(subject){
-        let privateName = "$__" + index + "__";
-        Object.defineProperty(subject,privateName,{enumerable:true,configurable:false,writable:false,value:ob});
-        Object.defineProperty(subject,index,{enumerable:true,configurable:false,
-            get:function(){
-                return ob.get();
-            },
-            set:(val:any)=> ob.set(val)
+        defineObservableProperty(subject,index,(initData?:any)=>{
+            return schema.createObservable(initData===undefined?Default:initData);
         });
+    }else{
+        return schema.createObservable(Default);
     }
-    ob.$extras = subject;
-    return ob;
 }
 
-export function enumerator(initData:any,index?:string,subject?:any):ObservableProxy{
-    let proxy = new ObservableProxy(initData);
-    if(subject){
-        let privateName = "$__" + index + "__";
-        Object.defineProperty(subject,privateName,{enumerable:true,configurable:false,writable:false,value:proxy});
-        Object.defineProperty(subject,index,{enumerable:true,configurable:false,
-            get:function(){
-                return proxy;
-            },
-            set:function(val:any){ proxy.set(val);}
-        });
+export function enumerator(schema:any,index?:string,subject?:any):ObservableProxy{
+    
+    if(!(schema instanceof ObservableSchema)){
+        schema = new ObservableSchema(schema);
     }
-    return proxy;
+    if(subject){
+        defineObservableProperty(subject,index,(initData?:any)=>{
+            let proxy = new ObservableProxy(schema);
+            if(initData!==undefined) proxy.set(initData);
+            return proxy;
+        });
+    }else{
+        let proxy = new ObservableProxy(schema);
+        return proxy;
+    }
+    
 }
 
 
@@ -1992,10 +2017,7 @@ DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd
 //
 
 
-/////////////////////////////////////////////////////////////////////////////
-//
-// vnode操作/JSX 与绑定
-//
+
 export type TChildDescriptor = string | IDomNode | INodeDescriptor;
 export interface INodeDescriptor{
     tag?:string;
@@ -2137,7 +2159,7 @@ function createText(value:any,container:IDomNode,compInstance:IComponent){
     let elem:IDomNode;
     if(Observable.isObservable(value)){
         elem = DomUtility.createText(value.get(ObservableModes.Value));
-        value.subscribe(e=>DomUtility.setContent(elem,e.value),compInstance);
+        value.subscribe(e=>{DomUtility.setContent(elem,e.value);},compInstance);
     }else{
         elem = DomUtility.createText(value);
     }
@@ -2329,9 +2351,14 @@ function bindDomEvent(element:IDomNode,evtName:string,params:any,vnode:INodeDesc
             }
             handler.apply(self,args);
         } 
-        if(compInstance)for(let n in compInstance){
-            let member = compInstance[n];
-            if(member instanceof Observable) member.update();
+        if(compInstance){
+            observableMode(ObservableModes.Proxy,()=>{
+                for(let n in compInstance){
+                    let member = compInstance[n];
+                    if(member instanceof Observable) member.update();
+                }
+            });
+            
         }
     };
     DomUtility.attach(element,evtName,finalHandler);
@@ -2653,15 +2680,7 @@ export function not(param:any,strong?:boolean) {
     return strong?new Computed((val)=>is_empty(val),[param]):new Computed((val)=>!val,[param]);
 }
 
-
 let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
-
-
-
-
-
-
-
 
 export enum ReactiveTypes{
     None=0,
@@ -2695,7 +2714,7 @@ export interface IComponent extends IDisposable{
     
     render(container?:IDomNode,descriptor?:INodeDescriptor):IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[];
     $__elements__:IDomNode | IDomNode[];
-    $__placeholder__:IDomNode;
+    
 
 }
 export type TComponentCtor = {new (...args:any[]):IComponent};
@@ -2705,6 +2724,91 @@ export interface IDisposeInfo{
     inactiveTime?:Date;
     checkTime?:Date;
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// ts 装饰器支持
+//
+
+export function reactive(type?:ReactiveTypes,schema?:ObservableSchema<any>|any,name?:string,obj?:any){
+    if(type===undefined) type = ReactiveTypes.In;
+    if(schema!==undefined){
+        if(!(schema instanceof ObservableSchema)){
+            schema = new ObservableSchema(schema);
+        }
+        if(name===undefined) return (schema as ObservableSchema<any>).createObservable(Default);
+        if(!obj) throw new Error("指定了name就必须要指定obj参数");
+        
+        makeReactive(type,obj,name,schema);
+        return obj[name];
+    }
+    let decorator = function(proto:any,propname:string){
+        makeReactive(type,proto,propname);
+    };
+    return decorator;
+}
+function reactiveInfo(obj:any,name?:string,value?:any){
+    let meta :IComponentInfo = (obj.$_meta) as IComponentInfo;
+    if(!meta) Object.defineProperty(obj,"$_meta",{enumerable:false,configurable:false,writable:false,value:meta={}});
+    let reactiveInfos = meta.reactives || (meta.reactives={});
+    if(!name)return reactiveInfos;
+    if(value===undefined)return reactiveInfos[name];
+    return reactiveInfos[name]=value;
+}
+
+function makeReactive(rtype:ReactiveTypes,obj:any,name:string,schema?:ObservableSchema<any>){
+    let info = reactiveInfo(obj,name,{type:rtype,schema:schema});
+    let private_name = "$__"+name+"__";
+    Object.defineProperty(obj,name,{enumerable:true,configurable:false,
+        get:function(){
+            let ob = this[private_name];
+            
+            if(!ob) {
+                if(!info || !info.schema){
+                    console.warn(`没找到${name}的元数据,默认数据为Observable<string>`);
+                    info.schema = new ObservableSchema("");
+                    ob = new Observable(null);
+                }
+                ob = info.schema.createObservable(Default);
+                setExtra(ob,"reactiveType",rtype);
+                Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
+            }
+            return ob.get();
+        },
+        set:function(value:any){
+            let ob = this[private_name];
+            if(!ob) {
+                if(!info.schema){
+                    console.warn(`没找到${name}的元数据,默认是按照第一次赋值作为数据结构`,value);
+                    info.schema  = new ObservableSchema(value);
+                }
+                ob = info.schema.createObservable();
+                setExtra(ob,"reactiveType",rtype);
+                Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
+            }
+            return ob.set(value);
+        }
+    });
+}
+
+export function in_parameter(schema?:ObservableSchema<any>|any,name?:string,obj?:any){ 
+    return reactive(ReactiveTypes.In,schema,name,obj);
+}
+
+export function out_parameter(schema?:ObservableSchema<any>|any,name?:string,obj?:any){
+    return reactive(ReactiveTypes.Out,schema,name,obj);
+}
+
+export function parameter(schema?:ObservableSchema<any>|any,name?:string,obj?:any){
+    return reactive(ReactiveTypes.Parameter,schema,name,obj);
+}
+
+export function internal(schema?:ObservableSchema<any>|any,name?:string,obj?:any){
+    return reactive(ReactiveTypes.Internal,schema,name,obj);
+}
+
+
 
 
 
@@ -2931,7 +3035,8 @@ let YA={
     ,attrBinders,componentInfos: componentTypes
     ,not,computed
     ,DomUtility: DomUtility,styleConvertors
-    ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,toJson,queryString
+    ,reactive,ReactiveTypes
+    ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,Default,toJson,queryString
     
 };
 if(typeof window!=='undefined') (window as any).YA = YA;

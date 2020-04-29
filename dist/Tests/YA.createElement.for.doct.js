@@ -189,8 +189,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "该类为这些可释放对象的基类。提供2个函数,dispose跟deteching。",
                     "dispose(callback:Function)表示注册一个回调函数监听资源释放，一旦发生释放，这些回调函数就会被挨个调用;dispose(obj)表示释放资源，该函数完成后，$isDisposed就会变成true",
                     "该类在框架中被应用于Component。框架会定期检查component是否还在alive状态，如果不在，就会自动释放Component"
-                ],
-                debugging: "complex"
+                ]
+                //,debugging:"filter"
             })
         ], createElementForTest);
         return createElementForTest;

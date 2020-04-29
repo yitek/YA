@@ -1172,6 +1172,30 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         });
     }
+    function defineObservableProperty(target, name, factory) {
+        var private_name = "$__" + name + "__";
+        Object.defineProperty(target, name, {
+            enumerable: true,
+            configurable: false,
+            get: function () {
+                var ob = this[private_name];
+                if (!ob) {
+                    ob = factory();
+                    Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
+                }
+                return ob.get();
+            },
+            set: function (val) {
+                var ob = this[private_name];
+                if (!ob) {
+                    ob = factory(val);
+                    Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
+                }
+                else
+                    return ob.set(val);
+            }
+        });
+    }
     function defineProp(target, propname, propSchema, private_prop_name) {
         if (!private_prop_name)
             private_prop_name = "$__" + propname + "__";
@@ -1195,6 +1219,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return ob.set(val);
             }
         });
+    }
+    function getExtra(ob, name) {
+        var extra = ob.$extras;
+        if (extra)
+            return extra[name];
+    }
+    function setExtra(ob, name, value) {
+        var extra = ob.$extras || (ob.$extras = {});
+        extra[name] = value;
     }
     //=======================================================================
     var ObservableSchema = /** @class */ (function () {
@@ -1340,7 +1373,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         };
         ObservableSchema.prototype.createObservable = function (val) {
-            return new this.$obCtor(val);
+            return new this.$obCtor(val === exports.Default ? this.$initData : val);
         };
         ObservableSchema.prototype.createProxy = function () {
             return new this.$proxyCtor(this, undefined);
@@ -1353,6 +1386,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return ObservableSchema;
     }());
     exports.ObservableSchema = ObservableSchema;
+    exports.Default = {};
     function defineProxyProto(proto, memberNames) {
         for (var _i = 0, memberNames_1 = memberNames; _i < memberNames_1.length; _i++) {
             var n = memberNames_1[_i];
@@ -1402,6 +1436,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var lenSchema = this.$schema.length;
                 var lenProxy = new ObservableProxy_1(lenSchema, this);
                 Object.defineProperty(this, "length", { enumerable: false, configurable: false, writable: false, value: lenProxy });
+                Object.defineProperty(this, "$itemSchema", { enumerable: false, configurable: false, writable: false, value: this.$schema.$itemSchema });
             }
             for (var n in schema) {
                 var sub = schema[n];
@@ -1410,7 +1445,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         ObservableProxy_1 = ObservableProxy;
         ObservableProxy.prototype.get = function (accessMode) {
-            if (accessMode === ObservableModes.Proxy || Observable.accessMode === ObservableModes.Proxy)
+            if (accessMode === undefined)
+                accessMode = Observable.accessMode;
+            if (accessMode === ObservableModes.Proxy)
                 return this;
             var ob;
             if (this.$parent) {
@@ -1458,54 +1495,38 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.ObservableProxy = ObservableProxy;
     defineProxyProto(ObservableProxy.prototype, ["update", "subscribe", "unsubscribe", "notify", "fulfill", "push", "pop", "shift", "unshift", "clear"]);
-    function observable(initData, index, subject) {
-        if (Observable.isObservable(initData))
+    function observable(schema, index, subject) {
+        if (Observable.isObservable(schema))
             throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
-        var t = typeof initData;
-        var ob;
-        if (t === "object") {
-            if (is_array(initData)) {
-                ob = new ObservableArray(initData);
-            }
-            else
-                ob = new ObservableObject(initData);
-            if (index) {
-                ob.$__obIndex__ = index;
-                ob.$target = initData;
-            }
+        if (!(schema instanceof ObservableSchema)) {
+            schema = new ObservableSchema(schema);
+        }
+        if (subject) {
+            defineObservableProperty(subject, index, function (initData) {
+                return schema.createObservable(initData === undefined ? exports.Default : initData);
+            });
         }
         else {
-            var schema = new ObservableSchema(initData);
-            schema.$index = index;
-            ob = schema.createObservable(initData);
+            return schema.createObservable(exports.Default);
         }
-        if (subject) {
-            var privateName = "$__" + index + "__";
-            Object.defineProperty(subject, privateName, { enumerable: true, configurable: false, writable: false, value: ob });
-            Object.defineProperty(subject, index, { enumerable: true, configurable: false,
-                get: function () {
-                    return ob.get();
-                },
-                set: function (val) { return ob.set(val); }
-            });
-        }
-        ob.$extras = subject;
-        return ob;
     }
     exports.observable = observable;
-    function enumerator(initData, index, subject) {
-        var proxy = new ObservableProxy(initData);
+    function enumerator(schema, index, subject) {
+        if (!(schema instanceof ObservableSchema)) {
+            schema = new ObservableSchema(schema);
+        }
         if (subject) {
-            var privateName = "$__" + index + "__";
-            Object.defineProperty(subject, privateName, { enumerable: true, configurable: false, writable: false, value: proxy });
-            Object.defineProperty(subject, index, { enumerable: true, configurable: false,
-                get: function () {
-                    return proxy;
-                },
-                set: function (val) { proxy.set(val); }
+            defineObservableProperty(subject, index, function (initData) {
+                var proxy = new ObservableProxy(schema);
+                if (initData !== undefined)
+                    proxy.set(initData);
+                return proxy;
             });
         }
-        return proxy;
+        else {
+            var proxy = new ObservableProxy(schema);
+            return proxy;
+        }
     }
     exports.enumerator = enumerator;
     exports.DomUtility = {};
@@ -1993,7 +2014,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var elem;
         if (Observable.isObservable(value)) {
             elem = exports.DomUtility.createText(value.get(ObservableModes.Value));
-            value.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, compInstance);
+            value.subscribe(function (e) { exports.DomUtility.setContent(elem, e.value); }, compInstance);
         }
         else {
             elem = exports.DomUtility.createText(value);
@@ -2219,12 +2240,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 handler.apply(self, args);
             }
-            if (compInstance)
-                for (var n in compInstance) {
-                    var member = compInstance[n];
-                    if (member instanceof Observable)
-                        member.update();
-                }
+            if (compInstance) {
+                observableMode(ObservableModes.Proxy, function () {
+                    for (var n in compInstance) {
+                        var member = compInstance[n];
+                        if (member instanceof Observable)
+                            member.update();
+                    }
+                });
+            }
         };
         exports.DomUtility.attach(element, evtName, finalHandler);
         return true;
@@ -2589,6 +2613,90 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
         ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
     })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
+    /////////////////////////////////////////////////////////////////////////////
+    //
+    // ts 装饰器支持
+    //
+    function reactive(type, schema, name, obj) {
+        if (type === undefined)
+            type = ReactiveTypes.In;
+        if (schema !== undefined) {
+            if (!(schema instanceof ObservableSchema)) {
+                schema = new ObservableSchema(schema);
+            }
+            if (name === undefined)
+                return schema.createObservable(exports.Default);
+            if (!obj)
+                throw new Error("指定了name就必须要指定obj参数");
+            makeReactive(type, obj, name, schema);
+            return obj[name];
+        }
+        var decorator = function (proto, propname) {
+            makeReactive(type, proto, propname);
+        };
+        return decorator;
+    }
+    exports.reactive = reactive;
+    function reactiveInfo(obj, name, value) {
+        var meta = (obj.$_meta);
+        if (!meta)
+            Object.defineProperty(obj, "$_meta", { enumerable: false, configurable: false, writable: false, value: meta = {} });
+        var reactiveInfos = meta.reactives || (meta.reactives = {});
+        if (!name)
+            return reactiveInfos;
+        if (value === undefined)
+            return reactiveInfos[name];
+        return reactiveInfos[name] = value;
+    }
+    function makeReactive(rtype, obj, name, schema) {
+        var info = reactiveInfo(obj, name, { type: rtype, schema: schema });
+        var private_name = "$__" + name + "__";
+        Object.defineProperty(obj, name, { enumerable: true, configurable: false,
+            get: function () {
+                var ob = this[private_name];
+                if (!ob) {
+                    if (!info || !info.schema) {
+                        console.warn("\u6CA1\u627E\u5230" + name + "\u7684\u5143\u6570\u636E,\u9ED8\u8BA4\u6570\u636E\u4E3AObservable<string>");
+                        info.schema = new ObservableSchema("");
+                        ob = new Observable(null);
+                    }
+                    ob = info.schema.createObservable(exports.Default);
+                    setExtra(ob, "reactiveType", rtype);
+                    Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
+                }
+                return ob.get();
+            },
+            set: function (value) {
+                var ob = this[private_name];
+                if (!ob) {
+                    if (!info.schema) {
+                        console.warn("\u6CA1\u627E\u5230" + name + "\u7684\u5143\u6570\u636E,\u9ED8\u8BA4\u662F\u6309\u7167\u7B2C\u4E00\u6B21\u8D4B\u503C\u4F5C\u4E3A\u6570\u636E\u7ED3\u6784", value);
+                        info.schema = new ObservableSchema(value);
+                    }
+                    ob = info.schema.createObservable();
+                    setExtra(ob, "reactiveType", rtype);
+                    Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
+                }
+                return ob.set(value);
+            }
+        });
+    }
+    function in_parameter(schema, name, obj) {
+        return reactive(ReactiveTypes.In, schema, name, obj);
+    }
+    exports.in_parameter = in_parameter;
+    function out_parameter(schema, name, obj) {
+        return reactive(ReactiveTypes.Out, schema, name, obj);
+    }
+    exports.out_parameter = out_parameter;
+    function parameter(schema, name, obj) {
+        return reactive(ReactiveTypes.Parameter, schema, name, obj);
+    }
+    exports.parameter = parameter;
+    function internal(schema, name, obj) {
+        return reactive(ReactiveTypes.Internal, schema, name, obj);
+    }
+    exports.internal = internal;
     exports.componentTypes = {};
     function inherits(extendCls, basCls) {
         function __() { this.constructor = extendCls; }
@@ -2795,7 +2903,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         not: not, computed: exports.computed,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
-        intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, toJson: toJson, queryString: queryString
+        reactive: reactive, ReactiveTypes: ReactiveTypes,
+        intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, Default: exports.Default, toJson: toJson, queryString: queryString
     };
     if (typeof window !== 'undefined')
         window.YA = YA;

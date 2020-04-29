@@ -370,6 +370,7 @@ export declare class ObservableSchema<TData> {
     createProxy(): ObservableProxy;
     static schemaToken: string;
 }
+export declare let Default: any;
 export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData>> {
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
@@ -399,8 +400,8 @@ export declare class ObservableProxy implements IObservable<any> {
     shift(): any;
     unshift(): any;
 }
-export declare function observable(initData: any, index?: string, subject?: any): Observable<any>;
-export declare function enumerator(initData: any, index?: string, subject?: any): ObservableProxy;
+export declare function observable(schema: any, index?: string, subject?: any): any;
+export declare function enumerator(schema: any, index?: string, subject?: any): ObservableProxy;
 export interface IDomNode {
     nodeType: number;
     nodeValue: any;
@@ -540,7 +541,6 @@ export interface IComponent extends IDisposable {
     $_meta: IComponentInfo;
     render(container?: IDomNode, descriptor?: INodeDescriptor): IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
     $__elements__: IDomNode | IDomNode[];
-    $__placeholder__: IDomNode;
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
@@ -556,6 +556,11 @@ export interface IDisposeInfo {
     inactiveTime?: Date;
     checkTime?: Date;
 }
+export declare function reactive(type?: ReactiveTypes, schema?: ObservableSchema<any> | any, name?: string, obj?: any): any;
+export declare function in_parameter(schema?: ObservableSchema<any> | any, name?: string, obj?: any): any;
+export declare function out_parameter(schema?: ObservableSchema<any> | any, name?: string, obj?: any): any;
+export declare function parameter(schema?: ObservableSchema<any> | any, name?: string, obj?: any): any;
+export declare function internal(schema?: ObservableSchema<any> | any, name?: string, obj?: any): any;
 export declare let componentTypes: {
     [tag: string]: TComponentType;
 };
@@ -636,6 +641,8 @@ declare let YA: {
     computed: (...args: any[]) => IComputedExpression;
     DomUtility: IDomUtility;
     styleConvertors: any;
+    reactive: typeof reactive;
+    ReactiveTypes: typeof ReactiveTypes;
     intimate: typeof implicit;
     clone: typeof clone;
     Promise: typeof Promise;
@@ -643,6 +650,7 @@ declare let YA: {
     is_array: typeof is_array;
     is_assoc: typeof is_assoc;
     is_empty: typeof is_empty;
+    Default: any;
     toJson: typeof toJson;
     queryString: typeof queryString;
 };
