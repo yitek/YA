@@ -46,6 +46,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             assert_statement(function (assert) {
             });
         };
+        createElementExprTest.prototype.inComp = function (assert_statement, demoElement) {
+            function InnerComp() {
+                var n2 = YA_core_1.default.observable(1, "number2", this);
+                var n3 = YA_core_1.default.observable(2, "number3", this);
+                this.changeN3 = function () {
+                    this.number3 = parseInt(prompt("修改number3:", this.number3));
+                };
+                this.render = function (descriptor) {
+                    return YA_core_1.default.createElement("div", { class: "yellow-block" },
+                        "\u63A7\u4EF6InnerComp:",
+                        YA_core_1.default.createElement("button", { onclick: this.changeN3 }, "\u4FEE\u6539InnerComp.number3"),
+                        YA_core_1.default.createElement("div", null,
+                            "number2(",
+                            this.number2,
+                            ") + number3(",
+                            this.number3,
+                            ") = ",
+                            YA_core_1.default.computed(function (n1, n2) { return n1 + n2; }, this.number2, this.number3)));
+                };
+            }
+            function OuterComp() {
+                var n1 = YA_core_1.default.observable(7, "number1", this);
+                this.changeN1 = function () {
+                    this.number1 = parseInt(prompt("修改number1:", this.number1));
+                };
+                this.render = function () {
+                    return YA_core_1.default.createElement("div", { class: "red-block" },
+                        YA_core_1.default.createElement("button", { onclick: this.changeN1 }, "\u4FEE\u6539OuterComp.number1"),
+                        YA_core_1.default.createElement("div", null,
+                            "InnerComp.number2 = OuterComp.number1(",
+                            this.number1,
+                            ") + 100"),
+                        YA_core_1.default.createElement(InnerComp, { number2: YA_core_1.default.computed(function (n) { return n + 100; }, this.number1) }));
+                };
+            }
+            ;
+            YA_core_1.default.createComponent(OuterComp, null, demoElement);
+            assert_statement(function (assert) {
+            });
+        };
         __decorate([
             doct_1.doct({
                 title: "基本用法",
@@ -54,6 +94,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ]
             })
         ], createElementExprTest.prototype, "base", null);
+        __decorate([
+            doct_1.doct({
+                title: "控件值的computed绑定",
+                descriptions: [
+                    "模板中使用表达式"
+                ]
+            })
+        ], createElementExprTest.prototype, "inComp", null);
         createElementExprTest = __decorate([
             doct_1.doct({
                 title: "YA.createElement.expr",
@@ -67,4 +115,4 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.createElementExprTest = createElementExprTest;
 });
-//# sourceMappingURL=YA.createElement.expr.doct.js.map
+//# sourceMappingURL=YA.createElement.computed.doct.js.map

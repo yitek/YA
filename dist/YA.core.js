@@ -92,11 +92,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.is_array = is_array;
     function is_empty(obj) {
-        if (obj === undefined || obj === null || obj === "" || obj === 0)
+        if (!obj)
             return true;
+        var t = typeof obj;
+        if (t === "function" || t === "number" || t === "boolean")
+            return false;
         for (var n in obj)
-            return true;
-        return false;
+            return false;
+        return true;
     }
     exports.is_empty = is_empty;
     ////////////////////////////////////////////////////////
@@ -712,6 +715,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ChangeTypes[ChangeTypes["Shift"] = 5] = "Shift";
         ChangeTypes[ChangeTypes["Unshift"] = 6] = "Unshift";
         ChangeTypes[ChangeTypes["Remove"] = 7] = "Remove";
+        ChangeTypes[ChangeTypes["Computed"] = 8] = "Computed";
     })(ChangeTypes = exports.ChangeTypes || (exports.ChangeTypes = {}));
     var Undefined = {};
     var Observable = /** @class */ (function (_super) {
@@ -1678,6 +1682,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return elem.innerHTML;
     };
+    exports.DomUtility.replaceNode = function (old, newNode) {
+        var pa = old.parentNode;
+        if (pa) {
+            pa.insertBefore(newNode, old);
+            pa.removeChild(old);
+        }
+    };
     exports.DomUtility.setValue = function (elem, value) {
         if (typeof elem.set === "function")
             return elem.set(value);
@@ -1981,15 +1992,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function createText(value, container, compInstance) {
         var elem;
         if (Observable.isObservable(value)) {
-            var ob = value;
-            elem = exports.DomUtility.createText(ob.get(ObservableModes.Value));
-            value.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, ob.$root.$extras);
-        }
-        else if (value instanceof Computed) {
-            var txtElem_1 = exports.DomUtility.createText(value.getValue(compInstance), elem);
-            value.bindValue(function (val) {
-                exports.DomUtility.setContent(txtElem_1, val);
-            }, compInstance);
+            elem = exports.DomUtility.createText(value.get(ObservableModes.Value));
+            value.subscribe(function (e) { return exports.DomUtility.setContent(elem, e.value); }, compInstance);
         }
         else {
             elem = exports.DomUtility.createText(value);
@@ -2026,6 +2030,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (attrName === "tag" || attrName === "children" || attrName === "content")
                 continue;
             var attrValue = descriptor[attrName];
+            if (attrName === "if") {
+                bindDomIf(elem, attrValue, descriptor, compInstance);
+                continue;
+            }
+            if (attrName === "for") {
+                bindDomFor(elem, attrValue, descriptor, compInstance);
+                ignoreChildren = true;
+                continue;
+            }
             var match = attrName.match(evtnameRegx);
             if (match && elem[attrName] !== undefined && attrValue) {
                 var evtName = match[1];
@@ -2041,15 +2054,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return elem;
         if (descriptor.content) {
             if (descriptor.content instanceof Computed) {
-                var txtElem_2 = exports.DomUtility.createText(descriptor.content.getValue(compInstance), elem);
+                var txtElem_1 = exports.DomUtility.createText(descriptor.content.getValue(compInstance), elem);
                 descriptor.content.bindValue(function (val) {
-                    exports.DomUtility.setContent(txtElem_2, val);
+                    exports.DomUtility.setContent(txtElem_1, val);
                 }, compInstance);
             }
             if (Observable.isObservable(descriptor.content)) {
                 var ob = descriptor.content;
-                var txtElem_3 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
-                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_3, e.value); }, compInstance);
+                var txtElem_2 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
+                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_2, e.value); }, compInstance);
             }
             else {
                 var txtElem = exports.DomUtility.createText(descriptor.content, elem);
@@ -2060,6 +2073,80 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return elem;
         createElements(children, elem, compInstance);
         return elem;
+    }
+    function bindDomFor(elem, bindValue, vnode, compInstance) {
+        //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
+        var arr = bindValue[0];
+        if (arr instanceof ObservableProxy)
+            arr = arr.get(ObservableModes.Observable);
+        var valVar = bindValue[1];
+        var keyVar = bindValue[2];
+        var each;
+        if (Observable.isObservable(arr)) {
+            arr.subscribe(function (e) {
+                var arr = e.sender;
+                exports.DomUtility.removeAllChildren(elem);
+                for (var key in arr)
+                    (function (key, value) {
+                        if (key === "constructor")
+                            return;
+                        if (keyVar)
+                            keyVar.set(key);
+                        if (valVar)
+                            valVar.set(value);
+                        var renderRs = createElements(vnode.children, elem, compInstance);
+                        if (value instanceof Observable) {
+                            value.subscribe(function (e) {
+                                if (e.type === ChangeTypes.Remove) {
+                                    for (var _i = 0, renderRs_1 = renderRs; _i < renderRs_1.length; _i++) {
+                                        var subElem = renderRs_1[_i];
+                                        exports.DomUtility.remove(subElem);
+                                    }
+                                }
+                            }, compInstance);
+                        }
+                    })(key, arr[key]);
+            });
+        }
+        for (var key in arr)
+            (function (key, value) {
+                if (key === "constructor")
+                    return;
+                if (keyVar)
+                    keyVar.set(key);
+                if (valVar)
+                    valVar.set(value);
+                var renderRs = createElements(vnode.children, elem, compInstance);
+                if (value instanceof Observable) {
+                    value.subscribe(function (e) {
+                        if (e.type === ChangeTypes.Remove) {
+                            for (var _i = 0, renderRs_2 = renderRs; _i < renderRs_2.length; _i++) {
+                                var subElem = renderRs_2[_i];
+                                exports.DomUtility.remove(subElem);
+                            }
+                        }
+                    }, compInstance);
+                }
+            })(key, arr[key]);
+        return RenderDirectives.IgnoreChildren;
+    }
+    function bindDomIf(elem, bindValue, vnode, compInstance) {
+        var placeholder = exports.DomUtility.createPlaceholder();
+        Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
+        if (Observable.isObservable(bindValue)) {
+            bindValue.subscribe(function (e) {
+                if (e.value) {
+                    exports.DomUtility.replaceNode(placeholder, elem);
+                }
+                else
+                    exports.DomUtility.replaceNode(elem, placeholder);
+            }, compInstance);
+            bindValue = bindValue.get(ObservableModes.Default);
+        }
+        if (!bindValue) {
+            exports.DomUtility.replaceNode(elem, placeholder);
+        }
+        ;
     }
     //把属性绑定到element上
     function bindDomAttr(element, attrName, attrValue, vnode, compInstance) {
@@ -2150,21 +2237,29 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var renderFn = componentType;
         var xmode = _jsxMode;
         var omode = Observable.accessMode;
+        var ifAttrValue;
         try {
             _jsxMode = JSXModes.vnode;
             Observable.accessMode = ObservableModes.Proxy;
             compInstance = new componentType(descriptor, container);
             // object-component
             if (typeof compInstance.render === 'function') {
+                //确定component有dispose函数
+                if (typeof compInstance.dispose !== "function") {
+                    disposable(compInstance);
+                }
                 //绑定属性
                 for (var propname in descriptor) {
                     if (propname === "tag" || propname === "children")
                         continue;
+                    if (propname === "if") {
+                        ifAttrValue = descriptor[propname];
+                        continue;
+                    }
                     bindComponentAttr(compInstance, propname, descriptor[propname]);
                 }
                 ;
                 renderFn = compInstance.render;
-                _jsxMode = JSXModes.vnode;
                 Observable.accessMode = ObservableModes.Proxy;
                 renderResult = renderFn.call(compInstance, descriptor, container);
             }
@@ -2177,9 +2272,84 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _jsxMode = xmode;
             Observable.accessMode = omode;
         }
-        return handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
+        var elems = handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
+        if (compInstance)
+            Object.defineProperty(compInstance, "$__elements__", { enumerable: false, configurable: false, writable: false, value: elems });
+        //绑定if属性
+        if (ifAttrValue)
+            bindComponentIf(compInstance, ifAttrValue, elems, container);
+        //每个创建的控件都要定期做垃圾检查
+        if (compInstance)
+            ComponentGarbage.singleon.attech(compInstance);
+        return elems;
     }
     exports.createComponent = createComponent;
+    function bindComponentIf(compInstance, bindValue, elems, container) {
+        var placeholder = exports.DomUtility.createPlaceholder();
+        var isArr = is_array(elems);
+        if (isArr) {
+            for (var _i = 0, elems_1 = elems; _i < elems_1.length; _i++) {
+                var elem = elems_1[_i];
+                Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
+            }
+        }
+        else {
+            Object.defineProperty(elems, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
+        }
+        if (Observable.isObservable(bindValue)) {
+            bindValue.subscribe(function (e) {
+                if (e.value) {
+                    var p = exports.DomUtility.getParent(placeholder);
+                    if (p) {
+                        if (isArr) {
+                            for (var _i = 0, elems_3 = elems; _i < elems_3.length; _i++) {
+                                var elem = elems_3[_i];
+                                exports.DomUtility.insertBefore(elem, placeholder);
+                                exports.DomUtility.remove(placeholder);
+                            }
+                        }
+                        else {
+                            exports.DomUtility.replaceNode(elems, placeholder);
+                        }
+                    }
+                }
+                else {
+                    if (isArr) {
+                        var inserted = false;
+                        for (var _a = 0, elems_4 = elems; _a < elems_4.length; _a++) {
+                            var elem = elems_4[_a];
+                            if (!inserted) {
+                                exports.DomUtility.insertAfter(placeholder, elem);
+                                inserted = true;
+                            }
+                            exports.DomUtility.remove(elem);
+                        }
+                    }
+                    else {
+                        exports.DomUtility.replaceNode(elems, placeholder);
+                    }
+                }
+            }, compInstance);
+            bindValue = bindValue.get(ObservableModes.Default);
+        }
+        if (!bindValue) {
+            if (isArr) {
+                var inserted = false;
+                for (var _a = 0, elems_2 = elems; _a < elems_2.length; _a++) {
+                    var elem = elems_2[_a];
+                    if (!inserted) {
+                        exports.DomUtility.insertAfter(placeholder, elem);
+                        inserted = true;
+                    }
+                    exports.DomUtility.remove(elem);
+                }
+            }
+            else {
+                exports.DomUtility.replaceNode(elems, placeholder);
+            }
+        }
+        ;
+    }
     /**
      *
      *
@@ -2292,13 +2462,86 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return renderResult;
         }
     }
-    var Computed = /** @class */ (function () {
+    var Computed = /** @class */ (function (_super) {
+        __extends(Computed, _super);
         function Computed(lamda, parameters) {
-            this.lamda = lamda;
-            this.parameters = parameters;
-            if (!this.parameters)
-                this.parameters = [];
+            var _this = _super.call(this) || this;
+            _this.lamda = lamda;
+            _this.parameters = parameters;
+            if (!_this.parameters)
+                _this.parameters = [];
+            return _this;
         }
+        Computed.prototype.get = function (mode) {
+            if (mode === undefined)
+                mode = Observable.accessMode;
+            if (mode === ObservableModes.Proxy || mode === ObservableModes.Observable)
+                return this;
+            var args = [];
+            for (var _i = 0, _a = this.parameters; _i < _a.length; _i++) {
+                var dep = _a[_i];
+                var ob = void 0;
+                if (Observable.isObservable(dep))
+                    ob = dep;
+                if (ob)
+                    args.push(ob.get(ObservableModes.Value));
+                else
+                    args.push(dep);
+            }
+            return this.lamda.apply(undefined, args);
+        };
+        Computed.prototype.set = function (value) {
+            return this;
+        };
+        Computed.prototype.update = function () { return true; };
+        Computed.prototype.subscribe = function (topic, listener, disposible) {
+            var _this = this;
+            //let args = [];
+            var fn;
+            var handler;
+            for (var _i = 0, _a = this.parameters; _i < _a.length; _i++) {
+                var dep = _a[_i];
+                if (Observable.isObservable(dep)) {
+                    if (!fn) {
+                        fn = function (e) {
+                            var value = _this.get(ObservableModes.Default);
+                            var evt = { value: value, sender: e.sender, type: ChangeTypes.Computed };
+                            handler.call(_this, evt);
+                        };
+                        if (typeof topic === "function") {
+                            handler = topic;
+                            topic = fn;
+                        }
+                        else {
+                            handler = listener;
+                            listener = fn;
+                        }
+                        Object.defineProperty(fn, "$__computed_raw__", { enumerable: false, writable: false, configurable: false, value: handler });
+                    }
+                    dep.subscribe.call(dep, topic, listener, disposable);
+                }
+            }
+            return this;
+        };
+        Computed.prototype.unsubscribe = function (topic, listener) {
+            if (listener === undefined) {
+                listener = topic;
+                topic = "";
+            }
+            var topics = this.$__topics__, handlers = topics[topic];
+            if (!handlers)
+                return this;
+            for (var i = 0, j = handlers.length; i < j; i++) {
+                var existed = handlers.shift();
+                if (existed.$__computed_raw__ !== listener)
+                    handlers.push(existed);
+            }
+            return this;
+        };
+        Computed.prototype.fulfill = function (topic, evtArgs) {
+            throw "not implement";
+            return this;
+        };
         Computed.prototype.getValue = function (compInstance) {
             var args = [];
             for (var _i = 0, _a = this.parameters; _i < _a.length; _i++) {
@@ -2324,44 +2567,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         };
         return Computed;
-    }());
+    }(Subject));
     function createComputed() {
         var pars = [];
         for (var i = 1, j = arguments.length; i < j; i++)
             pars.push(arguments[i]);
         return new Computed(arguments[0], pars);
     }
-    exports.CALL = createComputed;
-    function NOT(param) {
-        var expr = { lamda: function (val) { return !param; }, parameters: [] };
-        expr.parameters.push(param);
-        return expr;
+    exports.computed = createComputed;
+    function not(param, strong) {
+        return strong ? new Computed(function (val) { return is_empty(val); }, [param]) : new Computed(function (val) { return !val; }, [param]);
     }
-    exports.NOT = NOT;
+    exports.not = not;
     var evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
-    function componential(instance, ctor) {
-        if (!instance.$_meta)
-            Object.defineProperty(ctor.prototype, "$_meta", { enumerable: false, writable: false, configurable: false, value: { reactives: {} } });
-        //已经有组件信息，且组件信息已经初始化
-        if (instance.$_meta.inited)
-            return instance;
-        //分成以下几步组件化
-        makeRender(instance, instance.render, "render");
-    }
-    function makeRender(compInstance, rawRender, fnName) {
-        var renderWapper;
-        renderWapper = function (container, descriptor) {
-            var nodes = rawRender.call(this, container, descriptor);
-            return (is_array(nodes) ? createElements(nodes, container, compInstance) : exports.createElement(nodes));
-        };
-        var des = { enumerable: false, writable: true, configurable: false, value: renderWapper };
-        Object.defineProperty(rawRender, "$__renderWrappedFn__", des);
-        compInstance[fnName] = renderWapper;
-        compInstance.constructor.prototype[fnName] = renderWapper;
-        des.value = rawRender;
-        Object.defineProperty(rawRender, "$__renderRawFn__", des);
-        return renderWapper;
-    }
     var ReactiveTypes;
     (function (ReactiveTypes) {
         ReactiveTypes[ReactiveTypes["None"] = 0] = "None";
@@ -2397,11 +2615,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
          * @type {IComponent[]}
          * @memberof ComponentGarbageDisposer
          */
-        ComponentGarbage.prototype.attech = function (compoent) {
+        ComponentGarbage.prototype.attech = function (component) {
             //没有dispose函数的进到垃圾释放器里面来也没用，反而占内存
             //已经释放掉的也不用进来了
-            if (compoent.dispose && !compoent.$isDisposed)
-                this._toBeChecks.push(compoent);
+            if (component.dispose && !component.$isDisposed)
+                this._toBeChecks.push(component);
             return this;
         };
         /**
@@ -2463,17 +2681,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (!comp || !comp.$__elements__)
             return true;
         if (exports.DomUtility.isElement(comp.$__elements__, true)) {
-            if (exports.DomUtility.is_inDocument(comp.$__elements__))
+            var elem = comp.$__elements__;
+            if (exports.DomUtility.is_inDocument(elem))
                 return false;
-            else if (comp.$__placeholder__ && exports.DomUtility.is_inDocument(comp.$__placeholder__))
+            else if (elem.$__placeholder__ && exports.DomUtility.is_inDocument(elem.$__placeholder__))
                 return false;
             return true;
         }
         else if (comp.$__elements__.length) {
             for (var i = 0, j = comp.$__elements__.length; i < j; i++) {
-                if (exports.DomUtility.is_inDocument(comp.$__elements__[i]))
+                var elem = comp.$__elements__[i];
+                if (exports.DomUtility.is_inDocument(elem))
                     return false;
-                else if (comp.$__placeholder__ && exports.DomUtility.is_inDocument(comp.$__placeholder__))
+                else if (elem.$__placeholder__ && exports.DomUtility.is_inDocument(elem.$__placeholder__))
                     return false;
             }
             return true;
@@ -2495,62 +2715,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.Placeholder = Placeholder;
     exports.attrBinders = {};
-    exports.attrBinders.for = function (elem, bindValue, vnode, compInstance) {
-        //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
-        var arr = bindValue[0];
-        if (arr instanceof ObservableProxy)
-            arr = arr.get(ObservableModes.Observable);
-        var valVar = bindValue[1];
-        var keyVar = bindValue[2];
-        var each;
-        if (Observable.isObservable(arr)) {
-            arr.subscribe(function (e) {
-                var arr = e.sender;
-                exports.DomUtility.removeAllChildren(elem);
-                for (var key in arr)
-                    (function (key, value) {
-                        if (key === "constructor")
-                            return;
-                        if (keyVar)
-                            keyVar.set(key);
-                        if (valVar)
-                            valVar.set(value);
-                        var renderRs = createElements(vnode.children, elem, compInstance);
-                        if (value instanceof Observable) {
-                            value.subscribe(function (e) {
-                                if (e.type === ChangeTypes.Remove) {
-                                    for (var _i = 0, renderRs_1 = renderRs; _i < renderRs_1.length; _i++) {
-                                        var subElem = renderRs_1[_i];
-                                        exports.DomUtility.remove(subElem);
-                                    }
-                                }
-                            }, compInstance);
-                        }
-                    })(key, arr[key]);
-            });
-        }
-        for (var key in arr)
-            (function (key, value) {
-                if (key === "constructor")
-                    return;
-                if (keyVar)
-                    keyVar.set(key);
-                if (valVar)
-                    valVar.set(value);
-                var renderRs = createElements(vnode.children, elem, compInstance);
-                if (value instanceof Observable) {
-                    value.subscribe(function (e) {
-                        if (e.type === ChangeTypes.Remove) {
-                            for (var _i = 0, renderRs_2 = renderRs; _i < renderRs_2.length; _i++) {
-                                var subElem = renderRs_2[_i];
-                                exports.DomUtility.remove(subElem);
-                            }
-                        }
-                    }, compInstance);
-                }
-            })(key, arr[key]);
-        return RenderDirectives.IgnoreChildren;
-    };
     exports.attrBinders.value = function (elem, bindValue, vnode, compInstance) {
         if (Observable.isObservable(bindValue)) {
             exports.DomUtility.setValue(elem, bindValue.get(ObservableModes.Value));
@@ -2629,7 +2793,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         observable: observable, enumerator: enumerator,
         createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
-        NOT: NOT, CALL: exports.CALL,
+        not: not, computed: exports.computed,
         DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
         intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, toJson: toJson, queryString: queryString
     };

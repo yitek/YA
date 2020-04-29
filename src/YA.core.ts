@@ -61,9 +61,11 @@ export function is_array(obj:any):boolean {
 }
 
 export function is_empty(obj:any):boolean{
-    if(obj===undefined || obj ===null || obj==="" || obj===0) return true;
-    for(let n in obj) return true;
-    return false;
+    if(!obj) return true;
+    let t = typeof obj;
+    if(t==="function" || t==="number" || t==="boolean")return false;
+    for(let n in obj) return false;
+    return true;
 }
 ////////////////////////////////////////////////////////
 // 字符串处理
@@ -788,7 +790,8 @@ export enum ChangeTypes{
     Pop,
     Shift,
     Unshift,
-    Remove
+    Remove,
+    Computed
 }
 
 
@@ -1625,6 +1628,7 @@ export interface IDomUtility{
     insertBefore(insert:IDomNode,rel:IDomNode):IDomUtility;
     insertAfter(insert:IDomNode,rel:IDomNode):IDomUtility;
     remove(node:IDomNode):IDomUtility;
+    replaceNode(oldNode:IDomNode,newNode:IDomNode);
     getParent(node:IDomNode):IDomNode;
     hide(node:any,immeditately?:boolean):IDomUtility;
     show(node:any,immeditately?:boolean):IDomUtility;
@@ -1793,6 +1797,15 @@ DomUtility.getValue = (elem:IDomNode):any=>{
         if(opt) return opt.value;
     }else if(tag==="TEXTAREA") return (elem as any).value;
     else return (elem as any).innerHTML;
+}
+
+DomUtility.replaceNode = (old:IDomNode,newNode:IDomNode)=>{
+    let pa = (old as any).parentNode;
+    if(pa){
+        (pa as HTMLElement).insertBefore(newNode as any,old as any);
+        pa.removeChild(old);
+    } 
+
 }
 DomUtility.setValue = (elem:IDomNode,value:any)=>{
     if(typeof (elem as any).set ==="function") return (elem as any).set(value);
@@ -2123,14 +2136,8 @@ export let createElement:(
 function createText(value:any,container:IDomNode,compInstance:IComponent){
     let elem:IDomNode;
     if(Observable.isObservable(value)){
-        let ob = value as Observable<any>;
-        elem = DomUtility.createText(ob.get(ObservableModes.Value));
-        value.subscribe(e=>DomUtility.setContent(elem,e.value),ob.$root.$extras);
-    }else if(value instanceof Computed){
-        let txtElem = DomUtility.createText(value.getValue(compInstance),elem);
-        value.bindValue((val)=>{
-            DomUtility.setContent(txtElem,val)
-        },compInstance);
+        elem = DomUtility.createText(value.get(ObservableModes.Value));
+        value.subscribe(e=>DomUtility.setContent(elem,e.value),compInstance);
     }else{
         elem = DomUtility.createText(value);
     }
@@ -2160,6 +2167,16 @@ function createDom(descriptor:INodeDescriptor,parent?:IDomNode,compInstance?:ICo
         if(attrName==="tag" || attrName==="children" || attrName ==="content") continue;
         
         let attrValue= descriptor[attrName];
+        if(attrName==="if"){
+            bindDomIf(elem,attrValue,descriptor,compInstance);
+            continue;
+        }
+        if(attrName==="for"){
+            bindDomFor(elem,attrValue,descriptor,compInstance);
+            ignoreChildren=true;
+            continue;
+        }
+
         let match = attrName.match(evtnameRegx);
         if(match && elem[attrName]!==undefined && attrValue){
             let evtName = match[1];
@@ -2189,6 +2206,70 @@ function createDom(descriptor:INodeDescriptor,parent?:IDomNode,compInstance?:ICo
     if(!children || children.length===0) return elem;
     createElements(children,elem,compInstance);
     return elem;
+}
+
+function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+    //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
+    let arr = bindValue[0];
+    if(arr instanceof ObservableProxy) arr = arr.get(ObservableModes.Observable);
+    let valVar = bindValue[1];
+    let keyVar = bindValue[2];
+    let each :Function;
+    if(Observable.isObservable(arr)){
+        
+        arr.subscribe((e:IChangeEventArgs<any>)=>{
+            let arr = e.sender;
+            DomUtility.removeAllChildren(elem);
+            
+            for(let key in arr)((key,value)=>{
+                if(key==="constructor") return;
+                if(keyVar) keyVar.set(key);
+                if(valVar) valVar.set(value);
+                
+                let renderRs = createElements(vnode.children,elem,compInstance);
+                if(value instanceof Observable){
+                    value.subscribe((e:IChangeEventArgs<any>)=>{
+                        if(e.type=== ChangeTypes.Remove){
+                            for(let subElem of renderRs) {
+                                DomUtility.remove(subElem);
+                            }
+                        }
+                    },compInstance);
+                }
+            })(key,arr[key]);
+        });
+    }
+    for(let key in arr)((key,value)=>{
+        if(key==="constructor") return;
+        if(keyVar) keyVar.set(key);
+        if(valVar) valVar.set(value);
+        let renderRs = createElements(vnode.children,elem,compInstance);
+        if(value instanceof Observable){
+            value.subscribe((e:IChangeEventArgs<any>)=>{
+                if(e.type=== ChangeTypes.Remove){
+                    for(let subElem of renderRs) {
+                        DomUtility.remove(subElem);
+                    }
+                }
+            },compInstance);
+        }
+    })(key,arr[key]);
+    return RenderDirectives.IgnoreChildren;
+}
+
+function bindDomIf(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+    let placeholder = DomUtility.createPlaceholder();
+    Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
+
+    if(Observable.isObservable(bindValue)){
+        bindValue.subscribe((e)=>{
+            if(e.value){
+                DomUtility.replaceNode(placeholder,elem);
+            }else DomUtility.replaceNode(elem,placeholder);
+        },compInstance);
+        bindValue = bindValue.get(ObservableModes.Default);
+    }
+    if(!bindValue){DomUtility.replaceNode(elem,placeholder);};
 }
 //把属性绑定到element上
 export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent){
@@ -2266,21 +2347,28 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
     let renderFn:any = componentType;
     let xmode = _jsxMode;
     let omode = Observable.accessMode;
+    let ifAttrValue;
     try{
         _jsxMode = JSXModes.vnode;
         Observable.accessMode = ObservableModes.Proxy;
         compInstance = new componentType(descriptor,container);
         // object-component
         if(typeof compInstance.render==='function'){
+            //确定component有dispose函数
+            if(typeof compInstance.dispose!=="function"){
+                disposable(compInstance);
+            }
+
             //绑定属性
             for(const propname in descriptor){
                 if(propname==="tag" || propname==="children") continue;
+                if(propname==="if") {
+                    ifAttrValue = descriptor[propname];
+                    continue;
+                }
                 bindComponentAttr(compInstance,propname,descriptor[propname]);
             };
             renderFn = compInstance.render;
-        
-        
-            _jsxMode = JSXModes.vnode;
             Observable.accessMode = ObservableModes.Proxy;
             renderResult = renderFn.call(compInstance,descriptor,container);
         }else {
@@ -2293,9 +2381,64 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
     }
 
 
-    return handleRenderResult(renderResult,compInstance,renderFn,descriptor,container);
+    let elems = handleRenderResult(renderResult,compInstance,renderFn,descriptor,container);
+    if(compInstance) Object.defineProperty(compInstance,"$__elements__",{enumerable:false,configurable:false,writable:false,value:elems});
+    //绑定if属性
+    if(ifAttrValue) bindComponentIf(compInstance,ifAttrValue,elems,container);
+    //每个创建的控件都要定期做垃圾检查
+    if(compInstance) ComponentGarbage.singleon.attech(compInstance);
+    return elems;
 }
 
+function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,container:IDomNode){
+    let placeholder = DomUtility.createPlaceholder();
+    let isArr = is_array(elems);
+    if(isArr){
+        for(const elem of elems) Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
+    }else{
+        Object.defineProperty(elems,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
+    }
+    
+    if(Observable.isObservable(bindValue)){
+        bindValue.subscribe((e)=>{
+            if(e.value){
+                let p = DomUtility.getParent(placeholder);
+                if(p){
+                    if(isArr){
+                        for(const elem of elems){
+                            DomUtility.insertBefore(elem,placeholder);
+                            DomUtility.remove(placeholder);
+                        }
+                    }else{
+                        DomUtility.replaceNode(elems,placeholder);
+                    }
+                }
+            }else {
+                if(isArr){
+                    let inserted = false;
+                    for(const elem of elems){
+                        if(!inserted){ DomUtility.insertAfter(placeholder,elem);inserted =true;}
+                        DomUtility.remove(elem);
+                    }
+                }else{
+                    DomUtility.replaceNode(elems,placeholder);
+                }
+            }
+        },compInstance);
+        bindValue = bindValue.get(ObservableModes.Default);
+    }
+    if(!bindValue){
+        if(isArr){
+            let inserted = false;
+            for(const elem of elems){
+                if(!inserted){ DomUtility.insertAfter(placeholder,elem);inserted =true;}
+                DomUtility.remove(elem);
+            }
+        }else{
+            DomUtility.replaceNode(elems,placeholder);
+        }
+    };
+}
 
 
 
@@ -2360,6 +2503,8 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
     }
 }
 
+
+
 function handleRenderResult(renderResult:any,instance:any,renderFn:any,descriptor:INodeDescriptor,container:IDomNode){
     
     let isArray = is_array(renderResult);
@@ -2407,10 +2552,73 @@ export interface IComputedExpression{
     parameters:any[];
 }
 
-class Computed{
-    
+class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any>{
+    $type:any;
     constructor(public lamda:Function,public parameters:any[]){
+        super();
         if(!this.parameters) this.parameters = [];
+    }
+    get(mode?:ObservableModes){
+        if(mode===undefined) mode = Observable.accessMode;
+        if(mode===ObservableModes.Proxy || mode===ObservableModes.Observable)return this;
+        let args = [];
+        for(let dep of this.parameters){
+            let ob:Observable<any>;
+            if(Observable.isObservable(dep)) ob = dep;
+
+            if(ob) args.push(ob.get(ObservableModes.Value));
+            else args.push(dep);
+        }
+        return this.lamda.apply(undefined,args);
+    }
+    set(value:any):any{
+        return this;
+    }
+    update():boolean{return true;}
+    subscribe(topic:string|{(evt:IChangeEventArgs<any>):any},listener?:{(evt:any):any}|IDisposable,disposible?:IDisposable):ISubject<any>{
+        //let args = [];
+        let fn:Function;
+        let handler:Function;
+       
+        for(let dep of this.parameters){
+            if(Observable.isObservable(dep)){
+                
+                if(!fn){
+                    fn = (e:IChangeEventArgs<any>)=>{
+                        let value = this.get(ObservableModes.Default);
+                        let evt = {value:value,sender:e.sender,type:ChangeTypes.Computed};
+                        handler.call(this,evt);
+                    };
+                    if(typeof topic ==="function"){
+                        handler = topic;
+                        topic = fn as any;
+                    }else{
+                        handler = listener as any;
+                        listener = fn as any;
+                    }
+                    Object.defineProperty(fn,"$__computed_raw__",{enumerable:false,writable:false,configurable:false,value:handler});
+                }
+                dep.subscribe.call(dep,topic,listener,disposable);
+            }
+        }
+        return this;
+    }
+    unsubscribe(topic:string|{(evt:IChangeEventArgs<any>):any},listener?:{(evt:IChangeEventArgs<any>):any}):ISubject<any>{
+        if(listener===undefined) {
+            listener = topic as {(evt:IChangeEventArgs<any>):any};
+            topic="";
+        }
+        let topics = this.$__topics__,handlers = topics[topic as string];
+        if(!handlers) return this;
+        for(let i =0,j=handlers.length;i<j;i++){
+            let existed = handlers.shift();
+            if(existed.$__computed_raw__!==listener) handlers.push(existed);
+        }
+        return this;
+    }
+    fulfill(topic:string|any,evtArgs?:any):ISubject<any>{
+        throw "not implement";
+        return this;
     }
     getValue(compInstance:IComponent){
         let args = [];
@@ -2439,12 +2647,10 @@ function createComputed(){
     return new Computed(arguments[0],pars);
 }
 
-export let CALL:(...args:any[])=>IComputedExpression = createComputed as any;
+export let computed:(...args:any[])=>IComputedExpression = createComputed as any;
 
-export function NOT(param:any) {
-    let expr:IComputedExpression ={lamda:(val)=>!param,parameters:[]};
-    expr.parameters.push(param);
-    return expr;   
+export function not(param:any,strong?:boolean) {
+    return strong?new Computed((val)=>is_empty(val),[param]):new Computed((val)=>!val,[param]);
 }
 
 
@@ -2452,33 +2658,6 @@ let evtnameRegx = /on([a-zA-Z_][a-zA-Z0-9_]*)/;
 
 
 
-
-
-function componential(instance:IComponent,ctor:any){
-    if(!instance.$_meta) Object.defineProperty(ctor.prototype,"$_meta",{enumerable:false,writable:false,configurable:false,value:{reactives:{}}});
-    //已经有组件信息，且组件信息已经初始化
-    if(instance.$_meta.inited)  return instance;
-    
-    //分成以下几步组件化
-    makeRender(instance,instance.render,"render");
-}
-
-
-function makeRender(compInstance:IComponent,rawRender:Function,fnName:string){
-    let renderWapper:(container:IDomNode,descriptor:INodeDescriptor)=>IDomNode|IDomNode[];
-    renderWapper = function(container:IDomNode,descriptor:INodeDescriptor):IDomNode[]{
-        let nodes = rawRender.call(this,container,descriptor) as any;
-        return (is_array(nodes)?createElements(nodes,container,compInstance):createElement(nodes)) as any;
-    };
-
-    let des = {enumerable:false,writable:true,configurable:false,value:renderWapper as any};
-    Object.defineProperty(rawRender,"$__renderWrappedFn__",des);
-    compInstance[fnName] = renderWapper;
-    (compInstance as any).constructor.prototype[fnName] = renderWapper;
-    des.value = rawRender;
-    Object.defineProperty(rawRender,"$__renderRawFn__",des);
-    return renderWapper;
-}
 
 
 
@@ -2564,10 +2743,10 @@ export class ComponentGarbage{
      * @memberof ComponentGarbageDisposer
      */
     
-    attech(compoent:IComponent):ComponentGarbage{
+    attech(component:IComponent):ComponentGarbage{
         //没有dispose函数的进到垃圾释放器里面来也没用，反而占内存
         //已经释放掉的也不用进来了
-        if(compoent.dispose && !compoent.$isDisposed) this._toBeChecks.push(compoent);
+        if(component.dispose && !component.$isDisposed) this._toBeChecks.push(component);
         return this;
     }
 
@@ -2631,14 +2810,15 @@ function checkGarbage(comp:IComponent){
     
     if(!comp || !comp.$__elements__) return true;
     if(DomUtility.isElement(comp.$__elements__,true)){
-        
-        if(DomUtility.is_inDocument(comp.$__elements__)) return false;
-        else if(comp.$__placeholder__ && DomUtility.is_inDocument(comp.$__placeholder__)) return false;
+        let elem = comp.$__elements__ as any;
+        if(DomUtility.is_inDocument(elem)) return false;
+        else if((elem as any).$__placeholder__ && DomUtility.is_inDocument(elem.$__placeholder__)) return false;
         return true;
     }else if((comp.$__elements__ as IDomNode[]).length){
         for(let i =0,j=(comp.$__elements__ as IDomNode[]).length;i<j;i++){
-            if(DomUtility.is_inDocument(comp.$__elements__[i])) return false;
-            else if(comp.$__placeholder__ && DomUtility.is_inDocument(comp.$__placeholder__)) return false;
+            let elem = comp.$__elements__[i];
+            if(DomUtility.is_inDocument(elem)) return false;
+            else if(elem.$__placeholder__ && DomUtility.is_inDocument(elem.$__placeholder__)) return false;
         }
         return true;
     }
@@ -2660,55 +2840,6 @@ export class Placeholder{
 
 
 export let attrBinders:{[name:string]:(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent)=>any}={};
-
-attrBinders.for = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
-    //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
-    let arr = bindValue[0];
-    if(arr instanceof ObservableProxy) arr = arr.get(ObservableModes.Observable);
-    let valVar = bindValue[1];
-    let keyVar = bindValue[2];
-    let each :Function;
-    if(Observable.isObservable(arr)){
-        
-        arr.subscribe((e:IChangeEventArgs<any>)=>{
-            let arr = e.sender;
-            DomUtility.removeAllChildren(elem);
-            
-            for(let key in arr)((key,value)=>{
-                if(key==="constructor") return;
-                if(keyVar) keyVar.set(key);
-                if(valVar) valVar.set(value);
-                
-                let renderRs = createElements(vnode.children,elem,compInstance);
-                if(value instanceof Observable){
-                    value.subscribe((e:IChangeEventArgs<any>)=>{
-                        if(e.type=== ChangeTypes.Remove){
-                            for(let subElem of renderRs) {
-                                DomUtility.remove(subElem);
-                            }
-                        }
-                    },compInstance);
-                }
-            })(key,arr[key]);
-        });
-    }
-    for(let key in arr)((key,value)=>{
-        if(key==="constructor") return;
-        if(keyVar) keyVar.set(key);
-        if(valVar) valVar.set(value);
-        let renderRs = createElements(vnode.children,elem,compInstance);
-        if(value instanceof Observable){
-            value.subscribe((e:IChangeEventArgs<any>)=>{
-                if(e.type=== ChangeTypes.Remove){
-                    for(let subElem of renderRs) {
-                        DomUtility.remove(subElem);
-                    }
-                }
-            },compInstance);
-        }
-    })(key,arr[key]);
-    return RenderDirectives.IgnoreChildren;
-}
 
 attrBinders.value = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     if(Observable.isObservable(bindValue)){
@@ -2798,7 +2929,7 @@ let YA={
     ,observable,enumerator
     ,createElement,createDescriptor,createElements,createComponent,EVENT
     ,attrBinders,componentInfos: componentTypes
-    ,NOT,CALL
+    ,not,computed
     ,DomUtility: DomUtility,styleConvertors
     ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,toJson,queryString
     

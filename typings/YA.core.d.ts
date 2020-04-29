@@ -271,7 +271,8 @@ export declare enum ChangeTypes {
     Pop = 4,
     Shift = 5,
     Unshift = 6,
-    Remove = 7
+    Remove = 7,
+    Computed = 8
 }
 export interface IObservableIndexable<TData extends {
     [index in keyof object]: any;
@@ -429,6 +430,7 @@ export interface IDomUtility {
     insertBefore(insert: IDomNode, rel: IDomNode): IDomUtility;
     insertAfter(insert: IDomNode, rel: IDomNode): IDomUtility;
     remove(node: IDomNode): IDomUtility;
+    replaceNode(oldNode: IDomNode, newNode: IDomNode): any;
     getParent(node: IDomNode): IDomNode;
     hide(node: any, immeditately?: boolean): IDomUtility;
     show(node: any, immeditately?: boolean): IDomUtility;
@@ -485,8 +487,30 @@ export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
 }
-export declare let CALL: (...args: any[]) => IComputedExpression;
-export declare function NOT(param: any): IComputedExpression;
+declare class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any> {
+    lamda: Function;
+    parameters: any[];
+    $type: any;
+    constructor(lamda: Function, parameters: any[]);
+    get(mode?: ObservableModes): any;
+    set(value: any): any;
+    update(): boolean;
+    subscribe(topic: string | {
+        (evt: IChangeEventArgs<any>): any;
+    }, listener?: {
+        (evt: any): any;
+    } | IDisposable, disposible?: IDisposable): ISubject<any>;
+    unsubscribe(topic: string | {
+        (evt: IChangeEventArgs<any>): any;
+    }, listener?: {
+        (evt: IChangeEventArgs<any>): any;
+    }): ISubject<any>;
+    fulfill(topic: string | any, evtArgs?: any): ISubject<any>;
+    getValue(compInstance: IComponent): any;
+    bindValue(setter: (val: any) => any, compInstance: IComponent): void;
+}
+export declare let computed: (...args: any[]) => IComputedExpression;
+export declare function not(param: any, strong?: boolean): Computed;
 export declare enum ReactiveTypes {
     None = 0,
     Internal = -1,
@@ -546,7 +570,7 @@ export declare class ComponentGarbage {
      * @type {IComponent[]}
      * @memberof ComponentGarbageDisposer
      */
-    attech(compoent: IComponent): ComponentGarbage;
+    attech(component: IComponent): ComponentGarbage;
     /**
      * 如果写了参数compoent,就是要手动把某个组件从垃圾回收中，要从垃圾释放器中移除掉
      * 如果不写参数，表示执行释放任务
@@ -608,8 +632,8 @@ declare let YA: {
     componentInfos: {
         [tag: string]: TComponentType;
     };
-    NOT: typeof NOT;
-    CALL: (...args: any[]) => IComputedExpression;
+    not: typeof not;
+    computed: (...args: any[]) => IComputedExpression;
     DomUtility: IDomUtility;
     styleConvertors: any;
     intimate: typeof implicit;

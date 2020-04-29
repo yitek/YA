@@ -21,28 +21,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         function createElementExprTest() {
         }
         createElementExprTest.prototype.base = function (assert_statement, demoElement) {
-            function CompBase() {
-                var n1 = YA_core_1.default.observable(1, "number1", this);
-                var n2 = YA_core_1.default.observable(2, "number2", this);
-                this.changeN1 = function () {
-                    this.number1 = parseInt(prompt("修改N1:", this.number1));
+            function Comp() {
+                var swicher = YA_core_1.default.observable(true, "swicher", this);
+                this.panel1Click = function () {
+                    this.swicher = true;
                 };
-                this.changeN2 = function () {
-                    this.number2 = parseInt(prompt("修改N2:", this.number2));
+                this.panel2Click = function () {
+                    this.swicher = false;
                 };
                 this.render = function (descriptor) {
                     return YA_core_1.default.createElement("div", null,
-                        YA_core_1.default.createElement("button", { onclick: this.changeN1 }, "\u4FEE\u6539n1"),
-                        YA_core_1.default.createElement("button", { onclick: this.changeN2 }, "\u4FEE\u6539n2"),
-                        this.number1,
-                        " + ",
-                        this.number2,
-                        " = ",
-                        YA_core_1.default.computed(function (n1, n2) { return n1 + n2; }, this.number1, this.number2));
+                        YA_core_1.default.createElement("div", null,
+                            YA_core_1.default.createElement("span", { onclick: this.panel1Click }, "Panel 1"),
+                            YA_core_1.default.createElement("span", { onclick: this.panel2Click }, "Panel 2")),
+                        YA_core_1.default.createElement("div", { class: "red-block", if: this.swicher }, "this is the content of Panel1"),
+                        YA_core_1.default.createElement("div", { class: "blue-block", if: YA_core_1.default.not(this.swicher) }, "this is the content of Panel2"));
                 };
             }
             ;
-            YA_core_1.default.createComponent(CompBase, null, demoElement);
+            YA_core_1.default.createComponent(Comp, null, demoElement);
             assert_statement(function (assert) {
             });
         };
@@ -56,9 +53,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ], createElementExprTest.prototype, "base", null);
         createElementExprTest = __decorate([
             doct_1.doct({
-                title: "YA.createElement.expr",
+                title: "YA.createElement.if",
                 descriptions: [
-                    "模板中的表达式"
+                    "模板中的if"
                 ]
                 //,debugging:"complex"
             })
@@ -67,4 +64,4 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.createElementExprTest = createElementExprTest;
 });
-//# sourceMappingURL=YA.createElement.expr.doct.js.map
+//# sourceMappingURL=YA.createElement.if.doct.js.map
