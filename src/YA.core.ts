@@ -827,7 +827,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
 
     $__obRaw__:(value?:TData)=>any;
 
-    constructor(init:IObservableIndexable<TData>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
+    constructor(init:IObservableIndexable<TData>|{(val?:TData):any}|TData,index?:any,initValue?:any){
         super();
         
         if(init instanceof ObservableObject || init instanceof ObservableArray){
@@ -844,7 +844,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
                     :(this.$__obOwner__.$__obModifiedValue__===Undefined?null:this.$__obOwner__.$__obModifiedValue__)
                 )as any)[this.$__obIndex__]=val as any);   
             
-            this.$__obExtras__ = extras;
+            //this.$__obExtras__ = extras;
             if(initValue!==undefined){
                 this.$__obRaw__(this.$target= initValue);
             }else{
@@ -852,7 +852,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             }
         }else if(typeof init==="function"){
             //ctor(TRaw,extras)
-            this.$__obExtras__ = index;
+            //this.$__obExtras__ = index;
             this.$__obRaw__ = init as {(val?:TData):any};
             if(initValue!==undefined){
                 this.$__obRaw__(this.$target= initValue);
@@ -862,14 +862,14 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         }else {
             //ctor(initValue,accessor,extras)
             if(typeof index==="function"){
-                this.$__obExtras__ = extras;
+                //this.$__obExtras__ = extras;
                 this.$__obRaw__ = index;
                 this.$target = init as TData;
                 index.call(this,init);
             }else {
-                //ctor(initValue,extras)
+                //ctor(initValue)
                 this.$target=init as TData;
-                this.$__obExtras__ = index;
+                //this.$__obExtras__ = index;
                 this.$__obRaw__ =(val:TData)=>val===undefined?init:init=val;
             }
         }
@@ -880,20 +880,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             $target:this.$target,$type:DataTypes.Value,$schema:this.$schema,$isset:false
             ,$__obRaw__:this.$__obRaw__,$__obIndex__:this.$__obIndex__,$__obModifiedValue__:undefined,$__obOwner__:this.$__obOwner__,$__obExtras__:this.$__obExtras__
         });
-        Object.defineProperty(this,"$extras",{enumerable:false,configurable:false,
-            get:()=>{
-                if(this.$__obExtras__!==undefined) return this.$__obExtras__;
-                if(this.$__obOwner__) return this.$__obOwner__.$extras;
-                return undefined;
-            },
-            set:(val)=>this.$__obExtras__ = val
-        });
-        Object.defineProperty(this,"$root",{enumerable:false,configurable:false,
-            get:()=>{
-                if(this.$__obOwner__) return this.$__obOwner__.$root;
-                return this;
-            }
-        });
+        
         
     }
     
@@ -947,7 +934,24 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         return ob.subscribe && ob.get && ob.set && ob.update;
     }
 }
-
+Object.defineProperty(Observable.prototype,"$extras",{enumerable:false,configurable:false,
+    get:function(){
+        if(this.$__obOwner__) return this.$__obOwner__.$extras;
+        else {
+            if(!this.$__obExtras__){
+                Object.defineProperty(this,"$__obExtras__",{enumerable:false,writable:false,configurable:false,value:{}});
+                return this.$__obExtras__;
+            }
+        }
+        
+    }
+});
+Object.defineProperty(Observable.prototype,"$root",{enumerable:false,configurable:false,
+    get:()=>{
+        if(this.$__obOwner__) return this.$__obOwner__.$root;
+        return this;
+    }
+});
 
 
 
@@ -965,8 +969,8 @@ export interface IObservableObject<TData extends {[index:string]:any}> extends I
 @implicit()
 export class ObservableObject<TData> extends Observable<TData> implements IObservableObject<TData>,IObservableIndexable<TData>{
     [index:string]:any;
-    constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
-        super(init,index,extras,initValue);
+    constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
+        super(init,index,initValue);
         this.$type = DataTypes.Object;
         if(!this.$target) this.$__obRaw__(this.$target={} as any);
         if(!this.$schema){
@@ -1019,10 +1023,11 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     update():boolean{
         let result = super.update();
         if(result===false) return false;
-        proxyMode(()=>{
+        observableMode(ObservableModes.Observable,()=>{
             for(const n in this){
                 let proxy :any= this[n];
-                if(Observable.isObservable(proxy)) proxy.update();
+                if(proxy instanceof Observable && proxy.$__obOwner__===this) 
+                    proxy.update();
             }
         });
         return true;
@@ -1041,9 +1046,10 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     $__length__:Observable<number>;
     $_itemSchema:ObservableSchema<TItem>;
     
-    constructor(init:IObservableIndexable<TItem[]>|{(val?:TItem[]):any}|TItem[],index?:any,itemSchemaOrExtras?:any,extras?:any){
+    constructor(init:IObservableIndexable<TItem[]>|{(val?:TItem[]):any}|TItem[],index?:any,itemSchemaOrInitData?:any){
         let target:any;
-        super(init,index,extras);
+        
+        super(init,index,itemSchemaOrInitData instanceof ObservableSchema?undefined:itemSchemaOrInitData);
         this.$type = DataTypes.Array;
         target = this.$target;
         if(Object.prototype.toString.call(target)!=="[object Array]") this.$__obRaw__.call(this,target=this.$target=[]);
@@ -1053,14 +1059,10 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         }
         let itemSchema :ObservableSchema<TItem>;
         if(index instanceof ObservableSchema){
-            extras = itemSchemaOrExtras;
             itemSchema = index;
         } 
-        else if(itemSchemaOrExtras instanceof ObservableSchema) itemSchema= itemSchemaOrExtras;
-        else if(extras instanceof ObservableSchema){
-            itemSchema = extras;
-            extras = itemSchemaOrExtras;
-        }
+        else if(itemSchemaOrInitData instanceof ObservableSchema) itemSchema= itemSchemaOrInitData;
+        
         this.$_itemSchema = itemSchema || this.$schema.$itemSchema as ObservableSchema<any>;
         let item_index:number=0;
         for(let i =0,j=target.length;i<j;i++) makeArrayItem(this,item_index++);
@@ -1068,24 +1070,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         implicit(this,{
             $_changes:undefined,$_length:target.length,$__length__:undefined,$_itemSchema:this.$_itemSchema
         });
-        Object.defineProperty(this,"length",{
-            enumerable:false,configurable:false,get:()=>{
-                if(Observable.accessMode===ObservableModes.Proxy || Observable.accessMode===ObservableModes.Observable){
-                    if(!this.$__length__) {
-                        let len = new Observable((val)=>{
-                            if(val===undefined) return this.$_length;
-                            throw "not implemeent";
-                        });
-                        len.$__obIndex__ = "$__length__";
-                        len.$__obOwner__ = this;
-                        Object.defineProperty(this,"$__length__",{enumerable:false,writable:false,configurable:false,value:len});
-                        
-                    }
-                    return this.$__length__;
-                    
-                }
-            },set:(val)=>{throw "not implemeent";}
-        });
+        
     }
 
     toString(){
@@ -1184,11 +1169,17 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         //新数组代替了旧数组，用super处理了。？？这里逻辑有问题，如果数组赋值后又push/pop了会怎么处理？
         if(!super.update()) return true;
         //查看子项变更
-        for(let n in this){
-            if(n==="constructor"){ continue;}
-            let item = this[n];
-            item.update();
-        }
+        //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
+        observableMode(ObservableModes.Observable,()=>{
+            for(let n in this){
+                let item = this[n];
+                //只有Observable，且所有者为自己的，才更新
+                //防止用户放别的东西在这个ObservableArray上面
+                if(item instanceof Observable && item.$__obOwner__===this)
+                    item.update();
+            }
+        });
+        
         //处理push/pop等数组操作
         let changes = this.$_changes;
         if(!changes || this.$_changes.length===0) return true;
@@ -1242,10 +1233,28 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     }
     
 }
+Object.defineProperty(ObservableArray.prototype,"length",{
+    enumerable:false,configurable:false,get:function(){
+        if(Observable.accessMode===ObservableModes.Proxy || Observable.accessMode===ObservableModes.Observable){
+            if(!this.$__length__) {
+                let len = new Observable((val)=>{
+                    if(val===undefined) return this.$_length;
+                    throw "not implemeent";
+                });
+                len.$__obIndex__ = "$__length__";
+                (len as any).$__obOwner__ = this;
+                Object.defineProperty(this,"$__length__",{enumerable:false,writable:false,configurable:false,value:len});
+                
+            }
+            return this.$__length__;
+            
+        }else return this.$_length;
+    },set:(val)=>{throw "not implemeent";}
+});
 
 function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
     obArray.$_itemSchema.$index = index;
-    let item = new obArray.$_itemSchema.$obCtor(obArray,index,undefined);
+    let item = new obArray.$_itemSchema.$obCtor(obArray,index);
     item.$__obIndex__ = index;
     Object.defineProperty(obArray,index as any as string,{enumerable:true,configurable:true
         ,get:(mode?:ObservableModes) => item.get(mode)
@@ -1299,28 +1308,6 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
     });
 }
 
-function defineProp1<TObject>(target:any,propname:string,propSchema:ObservableSchema<any>,private_prop_name?:string){
-    if(!private_prop_name) private_prop_name = "$__" + propname + "__";
-    Object.defineProperty(target,propname,{
-        enumerable:true,
-        configurable:false,
-        get:function(param?:any){
-            let ob = this[private_prop_name];
-            if(!ob) Object.defineProperty(this,private_prop_name,{
-                enumerable:false,configurable:false,writable:false,value:ob=new propSchema.$obCtor(this,propname)
-            });
-            
-            return ob.get(param);
-        },
-        set:function(val){
-            let ob = this[private_prop_name];
-            if(!ob) Object.defineProperty(this,private_prop_name,{
-                enumerable:false,configurable:false,writable:false,value:ob=new propSchema.$obCtor(this,propname)
-            });
-            return ob.set(val);
-        }
-    });
-}
 
 function getExtra(ob:IObservable<any>,name:string):any{
    let extra = ob.$extras;
@@ -1406,8 +1393,8 @@ export class ObservableSchema<TData>{
         let schema = this;
         
         class _ObservableObject extends ObservableObject<TData>{
-            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
-                super(init,index,extras,initValue);
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
+                super(init,index,initValue);
             }
         };
         _ObservableObject.prototype.$schema= this;
@@ -1442,8 +1429,8 @@ export class ObservableSchema<TData>{
         this.$type = DataTypes.Array;
         let schema = this;
         class _ObservableArray extends ObservableArray<any>{
-            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,extras?:any,initValue?:any){
-                super(init as any,index,extras,initValue);
+            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
+                super(init as any,index,initValue);
             }
         };
         if(this.$initData){
@@ -1471,7 +1458,6 @@ export class ObservableSchema<TData>{
     
 
     createObservable(val?:any):Observable<TData>{
-        debugger;
         return new this.$obCtor(val===Default?this.$initData:val);
     }
     createProxy():ObservableProxy{

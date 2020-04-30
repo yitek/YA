@@ -104,6 +104,8 @@ var __extends = (this && this.__extends) || (function () {
         __extends(ClassInfo, _super);
         function ClassInfo(ctor, info) {
             var _this = _super.call(this, info) || this;
+            _this.methodCount = 0;
+            _this.successCount = 0;
             _this.ctor = ctor;
             var existed = _this.ctor.prototype.$__meta__;
             if (existed) {
@@ -145,6 +147,8 @@ var __extends = (this && this.__extends) || (function () {
             if (typeof _this.method !== 'function')
                 throw new Error("\u65E0\u6CD5\u5728\u7C7B/\u5BF9\u8C61\u4E0A\u627E\u5230\u65B9\u6CD5" + name);
             _this.codes = _this._makeCodes(_this.method);
+            if (!clsInfo.methods[name])
+                clsInfo.methodCount++;
             return _this;
         }
         MethodInfo.prototype._makeCodes = function (func) {
@@ -239,7 +243,9 @@ var __extends = (this && this.__extends) || (function () {
             for (var n in clsInfo.methods) {
                 if (des.debugging && n.indexOf(des.debugging) < 0)
                     continue;
+                clsInfo.currentMethodName = n;
                 rs[n] = executeMethod(instance, clsInfo.methods[n], logger);
+                clsInfo.successCount++;
             }
             return rs;
         }
@@ -360,7 +366,11 @@ var __extends = (this && this.__extends) || (function () {
             this.container = container;
         }
         HtmlLogger.prototype.beginClass = function (clsInfo) {
-            var dlist = makeBas(clsInfo, "doct", this.container);
+            if (this._clsElement)
+                throw new Error("错误的使用了beginClass,class不能嵌套");
+            var rs = makeBas(clsInfo, "doct", this.container);
+            var dlist = rs.dlist;
+            this._clsElement = rs.element;
             var dt = createElement("dt", "usages", dlist, "用法说明");
             var dd = createElement("dd", "usages", dlist);
             this._usagesElement = createElement("ul", "usages", dd);
@@ -368,7 +378,7 @@ var __extends = (this && this.__extends) || (function () {
         };
         HtmlLogger.prototype.beginMethod = function (record) {
             var li = createElement("li", "usage", this._usagesElement);
-            this._usageElement = makeBas(record.methodInfo, "usage", li);
+            this._usageElement = makeBas(record.methodInfo, "usage", li).dlist;
             return this;
         };
         HtmlLogger.prototype.endMethod = function (record) {
@@ -408,6 +418,13 @@ var __extends = (this && this.__extends) || (function () {
         HtmlLogger.prototype.endClass = function (clsInfo) {
             if (!this._usagesElement.hasChildNodes())
                 this._usagesElement.parentNode.removeChild(this._usagesElement);
+            if (clsInfo.methodCount === clsInfo.successCount) {
+                this._clsElement.className += " successful";
+            }
+            else {
+                this._clsElement.className += " failed";
+            }
+            this._clsElement = undefined;
             return this;
         };
         return HtmlLogger;
@@ -443,7 +460,7 @@ var __extends = (this && this.__extends) || (function () {
                     createElement("li", "", ol).innerHTML = content;
             }
         }
-        return dlist;
+        return { dlist: dlist, element: fs };
     }
     function makeDescList(arr, p) {
         var ul;

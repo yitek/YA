@@ -68,6 +68,9 @@ export declare class ClassInfo extends BasInfo {
     methods: {
         [name: string]: MethodInfo;
     };
+    methodCount: number;
+    successCount: number;
+    currentMethodName: string;
     constructor(ctor: Function, info: IInfo);
     /**
      * 手动添加某些方法为测试方法
@@ -143,6 +146,7 @@ export declare class HtmlLogger implements ILogger {
     container: any;
     private _usagesElement;
     private _usageElement;
+    private _clsElement;
     constructor(container?: any);
     beginClass(clsInfo: ClassInfo): ILogger;
     beginMethod(record: IExecuteRecord): ILogger;

@@ -147,6 +147,14 @@ table tr {
   border-bottom: 1px dashed #999;
 }
 
+fieldset.doct.successful > legend {
+  background-color: green;
+}
+
+fieldset.doct.failed > legend {
+  background-color: red;
+}
+
 ul, dl {
   list-style: none inside;
 }

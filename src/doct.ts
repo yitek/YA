@@ -144,8 +144,13 @@ export class BasInfo{
 export class ClassInfo extends BasInfo{
     ctor:{new(...args):any};
     methods:{[name:string]:MethodInfo};
+    methodCount:number;
+    successCount:number;
+    currentMethodName:string;
     constructor(ctor:Function,info:IInfo){
         super(info);
+        this.methodCount=0;
+        this.successCount=0;
         this.ctor = ctor as any;
         let existed = this.ctor.prototype.$__meta__;
         if(existed){
@@ -172,6 +177,7 @@ export class ClassInfo extends BasInfo{
      */
     method(info:IInfo):ClassInfo{
         this.methods[info.name] = new MethodInfo(info.name,this,info);
+        
         return this;
     }
 }
@@ -188,6 +194,7 @@ export class MethodInfo extends BasInfo{
         this.method = clsInfo.ctor.prototype[name];
         if(typeof this.method!=='function') throw new Error(`无法在类/对象上找到方法${name}`);
         this.codes = this._makeCodes(this.method);
+        if(!clsInfo.methods[name])clsInfo.methodCount++;
     }    
 
     private _makeCodes(func:Function):string[]{
@@ -332,9 +339,12 @@ function executeClass(clsInfo:ClassInfo ,logger:ILogger,des:IInfo):{[name:string
     try{
         let instance = new clsInfo.ctor();
         let rs = {};
+        
         for(let n in clsInfo.methods){
             if(des.debugging && n.indexOf(des.debugging)<0) continue;
+            clsInfo.currentMethodName = n;
             rs[n] = executeMethod(instance,clsInfo.methods[n],logger);
+            clsInfo.successCount++;
         }
         return rs;
     }finally{
@@ -454,6 +464,7 @@ export class HtmlLogger implements ILogger{
     container:any;
     private _usagesElement;
     private _usageElement;
+    private _clsElement;
     constructor(container?:any){
         if(!container){
             try{
@@ -463,8 +474,10 @@ export class HtmlLogger implements ILogger{
         this.container = container;
     }
     beginClass(clsInfo:ClassInfo):ILogger{
-        
-        let dlist = makeBas(clsInfo,"doct",this.container);
+        if(this._clsElement)throw new Error("错误的使用了beginClass,class不能嵌套");
+        let rs = makeBas(clsInfo,"doct",this.container);
+        let dlist = rs.dlist;
+        this._clsElement = rs.element;
         let dt = createElement("dt","usages",dlist,"用法说明");
         let dd = createElement("dd","usages",dlist);
         this._usagesElement = createElement("ul","usages",dd);
@@ -472,7 +485,7 @@ export class HtmlLogger implements ILogger{
     }
     beginMethod(record:IExecuteRecord):ILogger{
         let li = createElement("li","usage",this._usagesElement);
-        this._usageElement = makeBas(record.methodInfo,"usage",li);
+        this._usageElement = makeBas(record.methodInfo,"usage",li).dlist;
         
         return this;
     }
@@ -517,6 +530,13 @@ export class HtmlLogger implements ILogger{
     }
     endClass(clsInfo:ClassInfo):ILogger{
         if(!this._usagesElement.hasChildNodes()) this._usagesElement.parentNode.removeChild(this._usagesElement);
+        
+        if(clsInfo.methodCount===clsInfo.successCount){
+            this._clsElement.className+= " successful";
+        }else {
+            this._clsElement.className+= " failed";
+        }
+        this._clsElement = undefined;
         return this;
     }
 }
@@ -548,7 +568,7 @@ function makeBas(basInfo:BasInfo,cls:string,p:any){
                 createElement("li","",ol).innerHTML = content ;
         }
     }
-    return dlist;
+    return {dlist,element:fs};
 }
 function makeDescList(arr:any[],p:any){
     let ul;

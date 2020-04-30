@@ -81,39 +81,38 @@ export class ObservableTest {
         title:"构造函数的几种用法"
     })
     ctors(assert_statement:TAssertStatement){
-        //用法1 :ctor(初始化值,额外信息?)
+        //用法1 :ctor(初始化值)
         let data = {};
-        let ob = new YA.Observable(data,(val)=>val===undefined?data:data=val,33);
+        let ob = new YA.Observable(data,(val)=>val===undefined?data:data=val);
         assert_statement((assert:TAssert)=>{
             assert(data,ob.$target,"指定初值，可观察数据代理的值为初值:ob.$target===data");
-            assert(33,ob.$extras,"额外信息为33:ob.$extras===33");
         });  
 
-        //用法2 :ctor(原始值访问函数,额外信息?)
+        //用法2 :ctor(原始值访问函数)
         data = {};
-        ob = new YA.Observable((val)=>val===undefined?data:data=val,33);
+        ob = new YA.Observable((val)=>val===undefined?data:data=val);
         assert_statement((assert:TAssert)=>{
             assert(data,ob.$target,"可观察数据代理的初值从原始值访问函数中获取:ob.$target===data");
-            assert(33,ob.$extras,"额外信息为33:ob.$extras===33");
+           
         });  
 
-        //用法3: ctor(初始化值,原始值访问函数,额外信息?)
+        //用法3: ctor(初始化值,原始值访问函数)
         data = 12;
-        ob = new YA.Observable(22,(val)=>val===undefined?data:data=val,33);
+        ob = new YA.Observable(22,(val)=>val===undefined?data:data=val);
         assert_statement((assert:TAssert)=>{
             assert(22,ob.$target,"指定初值，可观察数据代理的值为初值:ob1.$target===22");
             assert(22,data, "代理同时会把初值回写回原始数据中:data2===22");
         });  
 
-        //用法4: ctor(上级代理,属性名,额外信息?,初值?)
+        //用法4: ctor(上级代理,属性名,初值?)
         data = {name:"yiy",title:"YA"};
         let owner= new YA.ObservableObject(data);
-        let nameProp = new YA.Observable(owner,"name",44);
-        let titleProp = new YA.Observable(owner,"title",null,"YA framework");
+        let nameProp = new YA.Observable(owner,"name");
+        let titleProp = new YA.Observable(owner,"title","YA framework");
 
         assert_statement((assert:TAssert)=>{
             assert("yiy",nameProp.$target,"nameProp初值从原始对象中来:nameProp.$target==='yiy'");
-            assert(44,nameProp.$extras, "额外信息为44:nameProp.$extras===44");
+            //assert(44,nameProp.$extras, "额外信息为44:nameProp.$extras===44");
             assert(owner,nameProp.$__obOwner__);
 
             assert("YA framework",titleProp.$target,"titleProp初值为指定的初值:nameProp.$target==='YA framework'");

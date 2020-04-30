@@ -294,7 +294,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
     $__obRaw__: (value?: TData) => any;
     constructor(init: IObservableIndexable<TData> | {
         (val?: TData): any;
-    } | TData, index?: any, extras?: any, initValue?: any);
+    } | TData, index?: any, initValue?: any);
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     /**
@@ -318,7 +318,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     [index: string]: any;
     constructor(init: IObservableIndexable<any> | {
         (val?: TData): any;
-    } | TData, index?: any, extras?: any, initValue?: any);
+    } | TData, index?: any, initValue?: any);
     $prop(name: string): any;
     get(accessMode?: ObservableModes): any;
     set(newValue: TData | IObservable<TData>, updateImmediately?: boolean): IObservableObject<TData>;
@@ -337,7 +337,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     $_itemSchema: ObservableSchema<TItem>;
     constructor(init: IObservableIndexable<TItem[]> | {
         (val?: TItem[]): any;
-    } | TItem[], index?: any, itemSchemaOrExtras?: any, extras?: any);
+    } | TItem[], index?: any, itemSchemaOrInitData?: any);
     toString(): string;
     clear(): ObservableArray<TItem>;
     get(accessMode?: ObservableModes): any;
