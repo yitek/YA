@@ -402,56 +402,49 @@ export declare class ObservableProxy implements IObservable<any> {
 }
 export declare function observable(schema: any, index?: string, subject?: any): any;
 export declare function enumerator(schema: any, index?: string, subject?: any): ObservableProxy;
-export interface IDomNode {
-    nodeType: number;
-    nodeValue: any;
-    tagName: string;
-    className: string;
+export interface IElement {
+    readonly nodeType: number;
+    nodeValue: string | null;
+    readonly tagName: string | null;
 }
 export interface IDomDocument {
-    createElement(tag: string): IDomNode;
-    createTextNode(text: string): IDomNode;
+    createElement(tag: string): IElement;
+    createTextNode(text: string): IElement;
 }
-export interface IDomUtility {
+export interface IElementUtility {
     isElement(obj: any, includeText?: boolean): boolean;
     is_inDocument(obj: any): boolean;
     createElement(tag: string, attrs?: {
         [name: string]: string;
-    }, parent?: IDomNode, content?: string): IDomNode;
-    createText(text: string, parent?: IDomNode): IDomNode;
-    createPlaceholder(): IDomNode;
-    setContent(node: IDomNode, content: string): IDomUtility;
-    getContent(node: IDomNode): string;
-    setAttribute(node: IDomNode, name: string, value: string): IDomUtility;
-    getAttribute(node: IDomNode, name: string): string;
-    removeAttribute(node: IDomNode, name: string): IDomUtility;
-    setProperty(node: IDomNode, name: string, value: any): IDomUtility;
-    getProperty(node: IDomNode, name: string): any;
-    appendChild(parent: IDomNode, child: IDomNode): IDomUtility;
-    insertBefore(insert: IDomNode, rel: IDomNode): IDomUtility;
-    insertAfter(insert: IDomNode, rel: IDomNode): IDomUtility;
-    remove(node: IDomNode): IDomUtility;
-    replaceNode(oldNode: IDomNode, newNode: IDomNode): any;
-    getParent(node: IDomNode): IDomNode;
-    hide(node: any, immeditately?: boolean): IDomUtility;
-    show(node: any, immeditately?: boolean): IDomUtility;
-    removeAllChildren(node: IDomNode): IDomUtility;
-    getChildren(node: IDomNode): IDomNode[];
-    getStyle(node: IDomNode, name: string): string;
-    setStyle(node: IDomNode, name: string, value: string): IDomUtility;
-    hasClass(node: IDomNode, cls: string): boolean;
-    addClass(node: IDomNode, cls: string): IDomUtility;
-    removeClass(node: IDomNode, cls: string): IDomUtility;
-    replaceClass(node: IDomNode, oldCls: string, newCls: string, alwaysAdd?: boolean): IDomUtility;
-    getValue(node: IDomNode): any;
-    setValue(node: IDomNode, value: any): any;
-    change(elem: IDomNode, handler: (value: any) => void): boolean;
-    attach(elem: IDomNode, evtname: string, handler: Function): any;
-    detech(elem: IDomNode, evtname: string, handler: Function): any;
-    parse(domString: string): IDomNode[];
+    }, parent?: IElement, content?: string): IElement;
+    createText(text: string, parent?: IElement): IElement;
+    createPlaceholder(): IElement;
+    setContent(node: IElement, content: string): IElementUtility;
+    getContent(node: IElement): string;
+    setAttribute(node: IElement, name: string, value: string): IElementUtility;
+    getAttribute(node: IElement, name: string): string;
+    removeAttribute(node: IElement, name: string): IElementUtility;
+    setProperty(node: IElement, name: string, value: any): IElementUtility;
+    getProperty(node: IElement, name: string): any;
+    appendChild(parent: IElement, child: IElement): IElementUtility;
+    insertBefore(insert: IElement, rel: IElement): IElementUtility;
+    insertAfter(insert: IElement, rel: IElement): IElementUtility;
+    remove(node: IElement): IElementUtility;
+    replace(oldNode: IElement, newNode: IElement): any;
+    getParent(node: IElement): IElement;
+    hide(node: any, immeditately?: boolean): IElementUtility;
+    show(node: any, immeditately?: boolean): IElementUtility;
+    removeAllChildren(node: IElement): IElementUtility;
+    getChildren(node: IElement): IElement[];
+    getValue(node: IElement): any;
+    setValue(node: IElement, value: any): any;
+    change(elem: IElement, handler: (value: any) => void): boolean;
+    attach(elem: IElement, evtname: string, handler: Function): any;
+    detech(elem: IElement, evtname: string, handler: Function): any;
+    parse(domString: string): IElement[];
 }
-export declare let DomUtility: IDomUtility;
-export declare type TChildDescriptor = string | IDomNode | INodeDescriptor;
+export declare let ElementUtility: IElementUtility;
+export declare type TChildDescriptor = string | IElement | INodeDescriptor;
 export interface INodeDescriptor {
     tag?: string;
     Component?: Function;
@@ -466,24 +459,24 @@ export interface INodeDescriptor {
  * comp.render 的是container,descriptor
  *
  * @param {IViewModel}} [viewModel] 视图模型实例，数据来源
- * @param {IDomNode} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
+ * @param {IElement} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
  * @param {INodeDescriptor} vnode 描述了属性与那些observable关联；当然也可以直接与值关联.这个参数主要是组件用于获取它的children信息
- * @returns {(IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
+ * @returns {(IElement|IElement[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
  */
-export declare type TRender = (descriptor: INodeDescriptor, container?: IDomNode) => IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
+export declare type TRender = (descriptor: INodeDescriptor, container?: IElement) => IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
 export declare enum JSXModes {
     vnode = 0,
     dnode = 1
 }
 export declare function jsxMode(mode: JSXModes, statement: () => any): any;
-declare function createDescriptor(descriptor: INodeDescriptor, container: IDomNode, comp: IComponent): IDomNode | IDomNode[];
+declare function createDescriptor(descriptor: INodeDescriptor, container: IElement, comp: IComponent): IElement | IElement[];
 export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
-} | IDomNode, vmOrCtnrOrFirstChild?: IDomNode | any, ...otherChildren: any[]) => IDomNode | IDomNode[];
-export declare function createElements(arr: any[], container: IDomNode, compInstance: IComponent): IDomNode[];
-export declare function bindDomAttr(element: IDomNode, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
+} | IElement, vmOrCtnrOrFirstChild?: IElement | any, ...otherChildren: any[]) => IElement | IElement[];
+export declare function createElements(arr: any[], container: IElement, compInstance: IComponent): IElement[];
+export declare function bindDomAttr(element: IElement, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
 export declare let EVENT: any;
-export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IDomNode): IDomNode[] | IDomNode;
+export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IElement): IElement[] | IElement;
 export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
@@ -539,8 +532,8 @@ export interface IComponentInfo {
 }
 export interface IComponent extends IDisposable {
     $_meta: IComponentInfo;
-    render(container?: IDomNode, descriptor?: INodeDescriptor): IDomNode | IDomNode[] | INodeDescriptor | INodeDescriptor[];
-    $__elements__: IDomNode | IDomNode[];
+    render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
+    $__elements__: IElement | IElement[];
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
@@ -606,9 +599,8 @@ export declare class Placeholder {
     constructor(replace: any, before?: any, after?: any);
 }
 export declare let attrBinders: {
-    [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
+    [name: string]: (elem: IElement, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
 };
-export declare let styleConvertors: any;
 export declare function THIS(obj: any, name: string | Function): () => any;
 export declare function queryString(str: string): {};
 export declare function toJson(obj: any): string;
@@ -624,23 +616,22 @@ declare let YA: {
     ObservableSchema: typeof ObservableSchema;
     observable: typeof observable;
     enumerator: typeof enumerator;
-    createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IDomNode | {
+    createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IElement | {
         [name: string]: any;
-    }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IDomNode | IDomNode[];
+    }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IElement | IElement[];
     createDescriptor: typeof createDescriptor;
     createElements: typeof createElements;
     createComponent: typeof createComponent;
     EVENT: any;
     attrBinders: {
-        [name: string]: (elem: IDomNode, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
+        [name: string]: (elem: IElement, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
     };
     componentInfos: {
         [tag: string]: TComponentType;
     };
     not: typeof not;
     computed: (...args: any[]) => IComputedExpression;
-    DomUtility: IDomUtility;
-    styleConvertors: any;
+    ElementUtility: IElementUtility;
     reactive: typeof reactive;
     ReactiveTypes: typeof ReactiveTypes;
     intimate: typeof implicit;

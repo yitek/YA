@@ -1,6 +1,4 @@
-import { Dom, IDom, dom } from "./dom/YA.dom";
-import { IView, Renderer } from "./YA.modeling";
-import { component } from "./YA.core-00.02";
+
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -1615,64 +1613,57 @@ export function enumerator(schema:any,index?:string,subject?:any):ObservableProx
 // DOM操作
 //////////////////////////////////////////////////////////////////////////////
 
-export interface IDomNode{
-    nodeType:number;
-    nodeValue:any;
-    tagName:string;
-    className:string;
+export interface IElement{
+    readonly nodeType:number;
+    nodeValue:string | null;
+    readonly tagName:string|null;
 }
 export interface IDomDocument{
-    createElement(tag:string):IDomNode;
-    createTextNode(text:string):IDomNode;
+    createElement(tag:string):IElement;
+    createTextNode(text:string):IElement;
 
 }
-export interface IDomUtility{
+export interface IElementUtility{
     isElement(obj:any,includeText?:boolean):boolean;
     is_inDocument(obj:any):boolean;
-    createElement(tag:string,attrs?:{[name:string]:string},parent?:IDomNode,content?:string):IDomNode;
-    createText(text:string,parent?:IDomNode):IDomNode;
-    createPlaceholder():IDomNode;
-    setContent(node:IDomNode,content:string):IDomUtility;
-    getContent(node:IDomNode):string;
-    setAttribute(node:IDomNode,name:string,value:string):IDomUtility;
-    getAttribute(node:IDomNode,name:string):string;
-    removeAttribute(node:IDomNode,name:string):IDomUtility;
-    setProperty(node:IDomNode,name:string,value:any):IDomUtility;
-    getProperty(node:IDomNode,name:string):any;
-    appendChild(parent:IDomNode,child:IDomNode):IDomUtility;
-    insertBefore(insert:IDomNode,rel:IDomNode):IDomUtility;
-    insertAfter(insert:IDomNode,rel:IDomNode):IDomUtility;
-    remove(node:IDomNode):IDomUtility;
-    replaceNode(oldNode:IDomNode,newNode:IDomNode);
-    getParent(node:IDomNode):IDomNode;
-    hide(node:any,immeditately?:boolean):IDomUtility;
-    show(node:any,immeditately?:boolean):IDomUtility;
-    removeAllChildren(node:IDomNode):IDomUtility;
-    getChildren(node:IDomNode):IDomNode[];
-    getStyle(node:IDomNode,name:string):string;
-    setStyle(node:IDomNode,name:string,value:string):IDomUtility;
-    hasClass(node:IDomNode,cls:string):boolean;
-    addClass(node:IDomNode,cls:string):IDomUtility;
-    removeClass(node:IDomNode,cls:string):IDomUtility;
-    replaceClass(node:IDomNode,oldCls:string,newCls:string,alwaysAdd?:boolean):IDomUtility;
-    getValue(node:IDomNode):any;
-    setValue(node:IDomNode,value:any);
-    change(elem:IDomNode,handler:(value:any)=>void):boolean;
+    createElement(tag:string,attrs?:{[name:string]:string},parent?:IElement,content?:string):IElement;
+    createText(text:string,parent?:IElement):IElement;
+    createPlaceholder():IElement;
+    setContent(node:IElement,content:string):IElementUtility;
+    getContent(node:IElement):string;
+    setAttribute(node:IElement,name:string,value:string):IElementUtility;
+    getAttribute(node:IElement,name:string):string;
+    removeAttribute(node:IElement,name:string):IElementUtility;
+    setProperty(node:IElement,name:string,value:any):IElementUtility;
+    getProperty(node:IElement,name:string):any;
+    appendChild(parent:IElement,child:IElement):IElementUtility;
+    insertBefore(insert:IElement,rel:IElement):IElementUtility;
+    insertAfter(insert:IElement,rel:IElement):IElementUtility;
+    remove(node:IElement):IElementUtility;
+    replace(oldNode:IElement,newNode:IElement);
+    getParent(node:IElement):IElement;
+    hide(node:any,immeditately?:boolean):IElementUtility;
+    show(node:any,immeditately?:boolean):IElementUtility;
+    removeAllChildren(node:IElement):IElementUtility;
+    getChildren(node:IElement):IElement[];
+    getValue(node:IElement):any;
+    setValue(node:IElement,value:any);
+    change(elem:IElement,handler:(value:any)=>void):boolean;
     
-    attach(elem:IDomNode,evtname:string,handler:Function);
-    detech(elem:IDomNode,evtname:string,handler:Function);
-    parse(domString:string):IDomNode[];
+    attach(elem:IElement,evtname:string,handler:Function);
+    detech(elem:IElement,evtname:string,handler:Function);
+    parse(domString:string):IElement[];
     
     
 }
-export let DomUtility:IDomUtility={} as any;
-DomUtility.isElement=(elem,includeText?:boolean):boolean=>{
+export let ElementUtility:IElementUtility={} as any;
+ElementUtility.isElement=(elem,includeText?:boolean):boolean=>{
     if(!elem) return false;
     if(!(elem as Node).insertBefore || !(elem as Node).ownerDocument)return false;
     return includeText?true:(elem as HTMLElement).nodeType === 1;
 };
 
-DomUtility.createElement=function(tag:string,attrs?:{[name:string]:string},parent?:IDomNode,content?:string):IDomNode{
+ElementUtility.createElement=function(tag:string,attrs?:{[name:string]:string},parent?:IElement,content?:string):IElement{
     let elem = document.createElement(tag);
     if(attrs) for(const n in attrs) elem.setAttribute(n,attrs[n]);
     if(parent) (parent as any).appendChild(elem);
@@ -1681,93 +1672,93 @@ DomUtility.createElement=function(tag:string,attrs?:{[name:string]:string},paren
     
 };
 
-DomUtility.createText=(txt:string,parent?:IDomNode):IDomNode=>{
-    let node= document.createTextNode(txt) as any as IDomNode;
+ElementUtility.createText=(txt:string,parent?:IElement):IElement=>{
+    let node= document.createTextNode(txt) as any as IElement;
     if(parent) (parent as any).appendChild(node);
     return node;
 };
-DomUtility.createPlaceholder=():IDomNode=>{
+ElementUtility.createPlaceholder=():IElement=>{
     let rs = document.createElement("span");
     rs.className="YA-PLACEHOLDER";
     rs.style.display = "none";
     return rs;
 };
-DomUtility.setContent=(elem:IDomNode,content:string):IDomUtility=>{
+ElementUtility.setContent=(elem:IElement,content:string):IElementUtility=>{
     if(elem.nodeType===1)(elem as any).innerHTML = content;
     else elem.nodeValue = content;
-    return DomUtility;
+    return ElementUtility;
 }
-DomUtility.getContent=(elem:IDomNode):string=>{
+ElementUtility.getContent=(elem:IElement):string=>{
     return elem.nodeType===1?(elem as any).innerHTML:elem.nodeValue;
 };
 
-DomUtility.setAttribute=(elem:IDomNode,name:string,value:string):IDomUtility=>{
+ElementUtility.setAttribute=(elem:IElement,name:string,value:string):IElementUtility=>{
     (elem as any)[name]=value;
-    return DomUtility;
+    return ElementUtility;
 };
-DomUtility.getAttribute=(elem:IDomNode,name:string):string=>{
+ElementUtility.getAttribute=(elem:IElement,name:string):string=>{
     return (elem as any).getAttribute(name);
 };
-DomUtility.removeAttribute=(elem:IDomNode,name:string):IDomUtility=>{
+ElementUtility.removeAttribute=(elem:IElement,name:string):IElementUtility=>{
     (elem as any).removeAttribute(name);
-    return DomUtility;
+    return ElementUtility;
 };
 
-DomUtility.setProperty=(elem:IDomNode,name:string,value:any):IDomUtility=>{
+ElementUtility.setProperty=(elem:IElement,name:string,value:any):IElementUtility=>{
     (elem as any)[name]=value;
-    return DomUtility;
+    return ElementUtility;
 };
-DomUtility.getProperty=(elem:IDomNode,name:string):any=>{
+ElementUtility.getProperty=(elem:IElement,name:string):any=>{
     return (elem as any)[name];
 };
 
-DomUtility.appendChild=(container:IDomNode,child:IDomNode):IDomUtility=>{
+ElementUtility.appendChild=(container:IElement,child:IElement):IElementUtility=>{
     (container as any).appendChild(child);
-    return DomUtility;
+    return ElementUtility;
 };
 
-DomUtility.insertBefore=(insert:IDomNode,rel:IDomNode):IDomUtility=>{
+ElementUtility.insertBefore=(insert:IElement,rel:IElement):IElementUtility=>{
     if((rel as any).parentNode)(rel as any).parentNode.insertBefore(insert,rel);
-    return DomUtility;
+    return ElementUtility;
 };
 
-DomUtility.insertAfter=(insert:IDomNode,rel:any):IDomUtility=>{
+ElementUtility.insertAfter=(insert:IElement,rel:any):IElementUtility=>{
     if(rel.parentNode)rel.parentNode.insertAfter(insert,rel);
-    return DomUtility;
+    return ElementUtility;
 };
-DomUtility.getParent=(elem:IDomNode)=>(elem as any).parentNode as IDomNode;
-DomUtility.remove = (node:IDomNode):IDomUtility=>{
+ElementUtility.getParent=(elem:IElement)=>(elem as any).parentNode as IElement;
+ElementUtility.remove = (node:IElement):IElementUtility=>{
     if((node as any).parentNode) (node as any).parentNode.removeChild(node);
-    return DomUtility;
+    return ElementUtility;
 }
-DomUtility.removeAllChildren=(elem:IDomNode):IDomUtility=>{
+ElementUtility.removeAllChildren=(elem:IElement):IElementUtility=>{
     (elem as any).innerHTML = elem.nodeValue="";
-    return DomUtility;
+    return ElementUtility;
 };
-DomUtility.getChildren=(elem:IDomNode)=>(elem as any).childNodes;
+ElementUtility.getChildren=(elem:IElement)=>(elem as any).childNodes;
 
-DomUtility.show = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+ElementUtility.show = (elem:IElement,immeditately?:boolean):IElementUtility=>{
     (elem as any).style.display="";
-    return DomUtility;
+    return ElementUtility;
 }
-DomUtility.hide = (elem:IDomNode,immeditately?:boolean):IDomUtility=>{
+ElementUtility.hide = (elem:IElement,immeditately?:boolean):IElementUtility=>{
     (elem as any).style.display="none";
-    return DomUtility;
+    return ElementUtility;
 };
 
-DomUtility.attach = (elem:any,evtname:string,handler:Function):IDomUtility=>{
+ElementUtility.attach = (elem:any,evtname:string,handler:Function):IElementUtility=>{
     if(elem.addEventListener) elem.addEventListener(evtname,handler,false);
     else if(elem.attachEvent) elem.attachEvent('on' + evtname,handler);
     else elem['on'+evtname] = handler;
-    return DomUtility;
+    return ElementUtility;
 }
-DomUtility.detech = (elem:any,evtname:string,handler:Function)=>{
+ElementUtility.detech = (elem:any,evtname:string,handler:Function)=>{
     if(elem.removeEventListener) elem.removeEventListener(evtname,handler,false);
     else if(elem.detechEvent) elem.detechEvent('on' + evtname,handler);
     else elem['on'+evtname] = null;
-    return DomUtility;
+    return ElementUtility;
 }
-DomUtility.is_inDocument = (elem:any):boolean=>{
+ElementUtility.is_inDocument = (elem:any):boolean=>{
     let doc = (elem as HTMLElement).ownerDocument;
     while(elem){
         elem = elem.parentNode;
@@ -1776,7 +1767,7 @@ DomUtility.is_inDocument = (elem:any):boolean=>{
     if(!elem) return false;
     return true;
 }
-DomUtility.getValue = (elem:IDomNode):any=>{
+ElementUtility.getValue = (elem:IElement):any=>{
     if(typeof (elem as any).get ==="function") return (elem as any).get();
     let tag = elem.tagName;
     if(!tag) return (elem as any).nodeValue;
@@ -1814,15 +1805,14 @@ DomUtility.getValue = (elem:IDomNode):any=>{
     else return (elem as any).innerHTML;
 }
 
-DomUtility.replaceNode = (old:IDomNode,newNode:IDomNode)=>{
+ElementUtility.replace = (old:IElement,newNode:IElement)=>{
     let pa = (old as any).parentNode;
     if(pa){
         (pa as HTMLElement).insertBefore(newNode as any,old as any);
         pa.removeChild(old);
     } 
-
 }
-DomUtility.setValue = (elem:IDomNode,value:any)=>{
+ElementUtility.setValue = (elem:IElement,value:any)=>{
     if(typeof (elem as any).set ==="function") return (elem as any).set(value);
     let tag = elem.tagName;
     if(!tag) return (elem as any).nodeValue=value;
@@ -1833,7 +1823,7 @@ DomUtility.setValue = (elem:IDomNode,value:any)=>{
                 (elem as any).checked = true;
             }else {
                 (elem as any).checked = false;
-                DomUtility.removeAttribute(elem,"checked");
+                ElementUtility.removeAttribute(elem,"checked");
             }
         }else if(type==="checkbox"){
             let p = (elem as any).parentNode;
@@ -1849,7 +1839,7 @@ DomUtility.setValue = (elem:IDomNode,value:any)=>{
                             (child as any).checked = true;
                         }else {
                             (child as any).checked = false;
-                            DomUtility.removeAttribute(child,"checked");
+                            ElementUtility.removeAttribute(child,"checked");
                         }
                     }
                 }
@@ -1858,7 +1848,7 @@ DomUtility.setValue = (elem:IDomNode,value:any)=>{
                     (elem as any).checked = true;
                 }else {
                     (elem as any).checked = false;
-                    DomUtility.removeAttribute(elem,"checked");
+                    ElementUtility.removeAttribute(elem,"checked");
                 }
             }
             return;
@@ -1872,14 +1862,14 @@ DomUtility.setValue = (elem:IDomNode,value:any)=>{
             if(opt.value===value) opt.selected =true;
             else {
                 opt.selected = false;
-                DomUtility.removeAttribute(opt,"selected");
+                ElementUtility.removeAttribute(opt,"selected");
             }
         }
     }else if(tag==="TEXTAREA") return (elem as any).value=value;
     else if(tag==="OPTION") return (elem as any).value=value;
     else return  (elem as any).innerHTML=value;
 };
-DomUtility.change = (elem:IDomNode,handler:(value:any)=>void):boolean=>{
+ElementUtility.change = (elem:IElement,handler:(value:any)=>void):boolean=>{
     let tag = elem.tagName;
     if(!tag) return false;
     let onchange:Function;
@@ -1888,21 +1878,21 @@ DomUtility.change = (elem:IDomNode,handler:(value:any)=>void):boolean=>{
         let type = (elem as any).type;
         if(type==="radio"){
             onchange = ()=>handler.call(elem,(elem as any).checked?(elem as any).value:undefined);
-            DomUtility.attach(elem,"click",onchange);
-            DomUtility.attach(elem,"blur",onchange);
+            ElementUtility.attach(elem,"click",onchange);
+            ElementUtility.attach(elem,"blur",onchange);
             return true;
 
         }else if(type==="checkbox"){
-            onchange = ()=>handler.call(elem,DomUtility.getValue(elem));
-            DomUtility.attach(elem,"click",onchange);
-            DomUtility.attach(elem,"blur",onchange);
+            onchange = ()=>handler.call(elem,ElementUtility.getValue(elem));
+            ElementUtility.attach(elem,"click",onchange);
+            ElementUtility.attach(elem,"blur",onchange);
             return true;
         }
         isInput = true;
     }else if(tag==="SELECT"){
-        onchange = ()=>handler.call(elem,DomUtility.getValue(elem));
-        DomUtility.attach(elem,"change",onchange);
-        DomUtility.attach(elem,"blur",onchange);
+        onchange = ()=>handler.call(elem,ElementUtility.getValue(elem));
+        ElementUtility.attach(elem,"change",onchange);
+        ElementUtility.attach(elem,"blur",onchange);
         return true;
     }else if(tag==="TEXTAREA"){
         isInput= true;
@@ -1913,7 +1903,7 @@ DomUtility.change = (elem:IDomNode,handler:(value:any)=>void):boolean=>{
         if(tick) clearTimeout(tick);
         (elem as any).$__YA_inputTick__ =setTimeout(()=>{
             delete (elem as any)["$__YA_inputTick__"];
-            handler.call(elem,DomUtility.getValue(elem));
+            handler.call(elem,ElementUtility.getValue(elem));
         },100);
     };
     let onblur = ()=>{
@@ -1922,83 +1912,14 @@ DomUtility.change = (elem:IDomNode,handler:(value:any)=>void):boolean=>{
             clearTimeout(tick);
             delete (elem as any)["$__YA_inputTick__"];
         }
-        handler.call(elem,DomUtility.getValue(elem));
+        handler.call(elem,ElementUtility.getValue(elem));
     };
-    DomUtility.attach(elem,"keydown",onkeydown);
-    DomUtility.attach(elem,"blur",onblur);
+    ElementUtility.attach(elem,"keydown",onkeydown);
+    ElementUtility.attach(elem,"blur",onblur);
 }
 
 
-
-try{
-    let element_wrapper:HTMLElement =  DomUtility.createElement("div") as any;
-
-    if((element_wrapper as any).currentStyle){
-        DomUtility.getStyle = (node,name)=> (node as any).currentStyle[name];
-    }else {
-        DomUtility.getStyle = (node,name)=>getComputedStyle(node as any,false as any)[name];
-    }
-    DomUtility.setStyle = (node:IDomNode,name:string,value:string):IDomUtility=>{
-        let convertor = styleConvertors[name];
-        (node as any).style[name] = convertor?convertor(value):value;
-        return DomUtility;
-    }
-    DomUtility.parse = (domString:string):IDomNode[]=>{
-        element_wrapper.innerHTML = domString;
-        return element_wrapper.childNodes as any;
-    }
-}catch(ex){}
-
-
-
-let emptyStringRegx = /\s+/g;
-function findClassAt(clsnames:string,cls:string):number{
-    let at = clsnames.indexOf(cls);
-    let len = cls.length;
-    while(at>=0){
-        if(at>0){
-            let prev = clsnames[at-1];
-            if(!emptyStringRegx.test(prev)){at = clsnames.indexOf(cls,at+len);continue;}
-        }
-        if((at+len)!==clsnames.length){
-            let next = clsnames[at+length];
-            if(!emptyStringRegx.test(next)){at = clsnames.indexOf(cls,at+len);continue;}
-        }
-        return at;
-    }
-    return at;
-}
-
-DomUtility.hasClass=(node:IDomNode,cls:string):boolean=>{
-    return findClassAt(node.className,cls)>=0;
-}
-DomUtility.addClass=(node:IDomNode,cls:string):IDomUtility =>{ //IDom{
-    if(findClassAt(node.className,cls)>=0) return DomUtility;
-    node.className+= " " + cls;
-    return DomUtility;
-}
-DomUtility.removeClass = (node:IDomNode,cls:string):IDomUtility => { //IDom{
-    let clsnames = node.className;
-    let at = findClassAt(clsnames,cls);
-    if(at<=0) return DomUtility;
-    let prev = clsnames.substring(0,at);
-    let next =clsnames.substr(at+cls.length);
-    node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
-}
-DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd?:boolean):IDomUtility => { //IDom{
-    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
-    let clsnames = node.className;
-    let at = findClassAt(clsnames,old_cls);
-    if(at<=0) {
-        if(alwaysAdd) node.className = clsnames + " " + new_cls;
-        return DomUtility;
-    }
-    let prev = clsnames.substring(0,at);
-    let next =clsnames.substr(at+old_cls.length);
-    node.className= prev +new_cls+ next;
-    
-    return DomUtility;
-}   
+ 
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2008,7 +1929,7 @@ DomUtility.replaceClass = (node:IDomNode,old_cls:string,new_cls:string,alwaysAdd
 
 
 
-export type TChildDescriptor = string | IDomNode | INodeDescriptor;
+export type TChildDescriptor = string | IElement | INodeDescriptor;
 export interface INodeDescriptor{
     tag?:string;
     Component?:Function;
@@ -2026,11 +1947,11 @@ export interface INodeDescriptor{
  * comp.render 的是container,descriptor
  * 
  * @param {IViewModel}} [viewModel] 视图模型实例，数据来源
- * @param {IDomNode} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
+ * @param {IElement} [container] 父级对象，如果设置了值，会把产生的dom-node加入到该node的子节点中
  * @param {INodeDescriptor} vnode 描述了属性与那些observable关联；当然也可以直接与值关联.这个参数主要是组件用于获取它的children信息
- * @returns {(IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
+ * @returns {(IElement|IElement[]|INodeDescriptor|INodeDescriptor[])} 可以返回dom-node或v-node(descriptor),如果返回的是v-node，框架会调用YA.createElement将其转换成dom-node
  */
-export type TRender = (descriptor:INodeDescriptor,container?:IDomNode)=>IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[];
+export type TRender = (descriptor:INodeDescriptor,container?:IElement)=>IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
 
 
 export enum JSXModes{
@@ -2053,19 +1974,19 @@ export function jsxMode(mode:JSXModes,statement:()=>any){
 
 function _createElement(
     tag:string|INodeDescriptor|Function|any[],
-    attrs?:{[name:string]:any}|IDomNode,
-    compInst?:IComponent|IDomNode
+    attrs?:{[name:string]:any}|IElement,
+    compInst?:IComponent|IElement
     
 ){
     if(tag===undefined || tag===null || tag === "") return;
     let descriptor:INodeDescriptor;
-    let container:IDomNode;
+    let container:IElement;
     let t = typeof tag;
     
     if(t==="string"){
-        if(DomUtility.isElement(attrs)){
+        if(ElementUtility.isElement(attrs)){
             //一:createElement("hello",container?,comp?);
-            return createText(tag,attrs as IDomNode,compInst as IComponent);
+            return createText(tag,attrs as IElement,compInst as IComponent);
         }
         //二:createElement("hello",{},...children);
         //构建descriptor
@@ -2081,13 +2002,13 @@ function _createElement(
         return (_jsxMode===JSXModes.vnode)? descriptor:createDescriptor(descriptor,null,null);
         
     }else if(t==="function"){
-        if(attrs===undefined || DomUtility.isElement(attrs)){
+        if(attrs===undefined || ElementUtility.isElement(attrs)){
             //三:createElement(Comp,container);
-            return createComponent(tag as Function,null,attrs as IDomNode);
+            return createComponent(tag as Function,null,attrs as IElement);
         }
-        if(compInst && DomUtility.isElement(compInst)){
+        if(compInst && ElementUtility.isElement(compInst)){
             //四:createElement(Comp,attrs,container);
-            return createComponent(tag as Function,attrs,compInst as IDomNode);
+            return createComponent(tag as Function,attrs,compInst as IElement);
         }
         //五: createElement(Comp:Function,attrs:{},...children);
         descriptor = {};
@@ -2104,20 +2025,20 @@ function _createElement(
         
         if(is_array(tag)){
             //六:createElement(descriptors:INodeDescriptors[],container,comp);
-            return createElements(tag as INodeDescriptor[],attrs as IDomNode,compInst as IComponent);
+            return createElements(tag as INodeDescriptor[],attrs as IElement,compInst as IComponent);
         }else if(tag instanceof Observable || tag instanceof ObservableProxy|| tag instanceof Computed){
-            return createText(tag,attrs as IDomNode,compInst as IComponent);
+            return createText(tag,attrs as IElement,compInst as IComponent);
         }else{
             //八:createElement(descriptor:INodeDescriptor,container,comp);
-            return createDescriptor(tag as INodeDescriptor,attrs as IDomNode,compInst as IComponent);
+            return createDescriptor(tag as INodeDescriptor,attrs as IElement,compInst as IComponent);
         }
         
     }else {throw new Error("不正确的参数");}
 }
 
-function createDescriptor(descriptor:INodeDescriptor,container:IDomNode,comp:IComponent){
+function createDescriptor(descriptor:INodeDescriptor,container:IElement,comp:IComponent){
 
-    let elem :IDomNode;
+    let elem :IElement;
     //没有tag，就是文本
     if(!descriptor.tag && !descriptor.Component){
         return createText(descriptor.content,container,comp);
@@ -2140,24 +2061,24 @@ function createDescriptor(descriptor:INodeDescriptor,container:IDomNode,comp:ICo
 
 export let createElement:(
     tag:string | Function | INodeDescriptor | any[]
-    ,attrs?:{[name:string]:any}|IDomNode
-    ,vmOrCtnrOrFirstChild?:IDomNode|any
+    ,attrs?:{[name:string]:any}|IElement
+    ,vmOrCtnrOrFirstChild?:IElement|any
     ,...otherChildren:any[]
-)=>IDomNode|IDomNode[] = _createElement as any;
+)=>IElement|IElement[] = _createElement as any;
 
-function createText(value:any,container:IDomNode,compInstance:IComponent){
-    let elem:IDomNode;
+function createText(value:any,container:IElement,compInstance:IComponent){
+    let elem:IElement;
     if(Observable.isObservable(value)){
-        elem = DomUtility.createText(value.get(ObservableModes.Value));
-        value.subscribe(e=>{DomUtility.setContent(elem,e.value);},compInstance);
+        elem = ElementUtility.createText(value.get(ObservableModes.Value));
+        value.subscribe(e=>{ElementUtility.setContent(elem,e.value);},compInstance);
     }else{
-        elem = DomUtility.createText(value);
+        elem = ElementUtility.createText(value);
     }
-    if(container) DomUtility.appendChild(container,elem);
+    if(container) ElementUtility.appendChild(container,elem);
         return elem;
 }
 
-export function createElements(arr:any[],container:IDomNode,compInstance:IComponent):IDomNode[]{
+export function createElements(arr:any[],container:IElement,compInstance:IComponent):IElement[]{
     let rs = [];
     for(const child of arr){
         let node = _createElement(child,container,compInstance); 
@@ -2169,9 +2090,9 @@ export function createElements(arr:any[],container:IDomNode,compInstance:ICompon
 }
 
 
-function createDom(descriptor:INodeDescriptor,parent?:IDomNode,compInstance?:IComponent):IDomNode{
-    let elem = DomUtility.createElement(descriptor.tag as string);
-    if(parent) DomUtility.appendChild(parent,elem);
+function createDom(descriptor:INodeDescriptor,parent?:IElement,compInstance?:IComponent):IElement{
+    let elem = ElementUtility.createElement(descriptor.tag as string);
+    if(parent) ElementUtility.appendChild(parent,elem);
     let ignoreChildren:boolean = false;
     //let anchorElem = elem;
     for(let attrName in descriptor){
@@ -2201,16 +2122,16 @@ function createDom(descriptor:INodeDescriptor,parent?:IDomNode,compInstance?:ICo
     if(ignoreChildren) return elem;
     if(descriptor.content){
         if(descriptor.content instanceof Computed){
-            let txtElem = DomUtility.createText(descriptor.content.getValue(compInstance),elem);
+            let txtElem = ElementUtility.createText(descriptor.content.getValue(compInstance),elem);
             descriptor.content.bindValue((val)=>{
-                DomUtility.setContent(txtElem,val)
+                ElementUtility.setContent(txtElem,val)
             },compInstance);
         } if(Observable.isObservable(descriptor.content)){
             let ob = descriptor.content as Observable<any>;
-            let txtElem = DomUtility.createText(ob.get(ObservableModes.Value),elem);
-            ob.subscribe(e=>DomUtility.setContent(txtElem,e.value),compInstance);
+            let txtElem = ElementUtility.createText(ob.get(ObservableModes.Value),elem);
+            ob.subscribe(e=>ElementUtility.setContent(txtElem,e.value),compInstance);
         }else {
-            let txtElem = DomUtility.createText(descriptor.content,elem);
+            let txtElem = ElementUtility.createText(descriptor.content,elem);
         }
         
     }
@@ -2220,7 +2141,7 @@ function createDom(descriptor:INodeDescriptor,parent?:IDomNode,compInstance?:ICo
     return elem;
 }
 
-function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+function bindDomFor(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
     let arr = bindValue[0];
     if(arr instanceof ObservableProxy) arr = arr.get(ObservableModes.Observable);
@@ -2231,7 +2152,7 @@ function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstan
         
         arr.subscribe((e:IChangeEventArgs<any>)=>{
             let arr = e.sender;
-            DomUtility.removeAllChildren(elem);
+            ElementUtility.removeAllChildren(elem);
             
             for(let key in arr)((key,value)=>{
                 if(key==="constructor") return;
@@ -2243,7 +2164,7 @@ function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstan
                     value.subscribe((e:IChangeEventArgs<any>)=>{
                         if(e.type=== ChangeTypes.Remove){
                             for(let subElem of renderRs) {
-                                DomUtility.remove(subElem);
+                                ElementUtility.remove(subElem);
                             }
                         }
                     },compInstance);
@@ -2260,7 +2181,7 @@ function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstan
             value.subscribe((e:IChangeEventArgs<any>)=>{
                 if(e.type=== ChangeTypes.Remove){
                     for(let subElem of renderRs) {
-                        DomUtility.remove(subElem);
+                        ElementUtility.remove(subElem);
                     }
                 }
             },compInstance);
@@ -2269,22 +2190,22 @@ function bindDomFor(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstan
     return RenderDirectives.IgnoreChildren;
 }
 
-function bindDomIf(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
-    let placeholder = DomUtility.createPlaceholder();
+function bindDomIf(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+    let placeholder = ElementUtility.createPlaceholder();
     Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
 
     if(Observable.isObservable(bindValue)){
         bindValue.subscribe((e)=>{
             if(e.value){
-                DomUtility.replaceNode(placeholder,elem);
-            }else DomUtility.replaceNode(elem,placeholder);
+                ElementUtility.replace(placeholder,elem);
+            }else ElementUtility.replace(elem,placeholder);
         },compInstance);
         bindValue = bindValue.get(ObservableModes.Default);
     }
-    if(!bindValue){DomUtility.replaceNode(elem,placeholder);};
+    if(!bindValue){ElementUtility.replace(elem,placeholder);};
 }
 //把属性绑定到element上
-export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+export function bindDomAttr(element:IElement,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     if(attrValue instanceof ObservableProxy) attrValue = attrValue.get(ObservableModes.Observable);
     let binder:Function = attrBinders[attrName];
     let bindResult:any;
@@ -2293,21 +2214,21 @@ export function bindDomAttr(element:IDomNode,attrName:string,attrValue:any,vnode
         if(binder){
             attrValue.bindValue((val)=>binder.call(compInstance,element,val,compInstance),compInstance);
         }else {
-            attrValue.bindValue((val)=>DomUtility.setAttribute(element,attrName,val),compInstance);
+            attrValue.bindValue((val)=>ElementUtility.setAttribute(element,attrName,val),compInstance);
         }
         
     } else{
         if(binder) bindResult= binder.call(compInstance,element,attrValue,vnode,compInstance);
         else if(attrValue instanceof Observable){
-            DomUtility.setAttribute(element,attrName,attrValue.get(ObservableModes.Value));
-            attrValue.subscribe((e)=>DomUtility.setAttribute(element,attrName,e.value),compInstance);
+            ElementUtility.setAttribute(element,attrName,attrValue.get(ObservableModes.Value));
+            attrValue.subscribe((e)=>ElementUtility.setAttribute(element,attrName,e.value),compInstance);
         }
-        else DomUtility.setAttribute(element,attrName,attrValue);
+        else ElementUtility.setAttribute(element,attrName,attrValue);
     }
     return bindResult;
 }
 
-function bindDomEvent(element:IDomNode,evtName:string,params:any,vnode:INodeDescriptor,compInstance:IComponent):boolean{
+function bindDomEvent(element:IElement,evtName:string,params:any,vnode:INodeDescriptor,compInstance:IComponent):boolean{
     let handler= params;
     let t = typeof params;
     let pars;
@@ -2351,12 +2272,12 @@ function bindDomEvent(element:IDomNode,evtName:string,params:any,vnode:INodeDesc
             
         }
     };
-    DomUtility.attach(element,evtName,finalHandler);
+    ElementUtility.attach(element,evtName,finalHandler);
     return true;
 }
 export let EVENT:any = {};
 
-export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IDomNode):IDomNode[]|IDomNode{
+export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement):IElement[]|IElement{
     
     //获取到vnode，attr-value得到的应该是schema
     let compInstance :any;
@@ -2407,8 +2328,8 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
     return elems;
 }
 
-function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,container:IDomNode){
-    let placeholder = DomUtility.createPlaceholder();
+function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
+    let placeholder = ElementUtility.createPlaceholder();
     let isArr = is_array(elems);
     if(isArr){
         for(const elem of elems) Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
@@ -2419,26 +2340,26 @@ function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,contain
     if(Observable.isObservable(bindValue)){
         bindValue.subscribe((e)=>{
             if(e.value){
-                let p = DomUtility.getParent(placeholder);
+                let p = ElementUtility.getParent(placeholder);
                 if(p){
                     if(isArr){
                         for(const elem of elems){
-                            DomUtility.insertBefore(elem,placeholder);
-                            DomUtility.remove(placeholder);
+                            ElementUtility.insertBefore(elem,placeholder);
+                            ElementUtility.remove(placeholder);
                         }
                     }else{
-                        DomUtility.replaceNode(elems,placeholder);
+                        ElementUtility.replace(elems,placeholder);
                     }
                 }
             }else {
                 if(isArr){
                     let inserted = false;
                     for(const elem of elems){
-                        if(!inserted){ DomUtility.insertAfter(placeholder,elem);inserted =true;}
-                        DomUtility.remove(elem);
+                        if(!inserted){ ElementUtility.insertAfter(placeholder,elem);inserted =true;}
+                        ElementUtility.remove(elem);
                     }
                 }else{
-                    DomUtility.replaceNode(elems,placeholder);
+                    ElementUtility.replace(elems,placeholder);
                 }
             }
         },compInstance);
@@ -2448,11 +2369,11 @@ function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,contain
         if(isArr){
             let inserted = false;
             for(const elem of elems){
-                if(!inserted){ DomUtility.insertAfter(placeholder,elem);inserted =true;}
-                DomUtility.remove(elem);
+                if(!inserted){ ElementUtility.insertAfter(placeholder,elem);inserted =true;}
+                ElementUtility.remove(elem);
             }
         }else{
-            DomUtility.replaceNode(elems,placeholder);
+            ElementUtility.replace(elems,placeholder);
         }
     };
 }
@@ -2522,7 +2443,7 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
 
 
 
-function handleRenderResult(renderResult:any,instance:any,renderFn:any,descriptor:INodeDescriptor,container:IDomNode){
+function handleRenderResult(renderResult:any,instance:any,renderFn:any,descriptor:INodeDescriptor,container:IElement){
     
     let isArray = is_array(renderResult);
     
@@ -2530,31 +2451,31 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
     
     if(isArray){
         for(const val of renderResult){
-            resultIsElement = DomUtility.isElement(renderResult,true);
+            resultIsElement = ElementUtility.isElement(renderResult,true);
             break;
         }
         isArray = true;
     }else {
-        resultIsElement = DomUtility.isElement(renderResult,true);
+        resultIsElement = ElementUtility.isElement(renderResult,true);
     }
     if(resultIsElement){
         if(container){
-            if(isArray) for(const elem of renderResult) DomUtility.appendChild(container,elem);
-            else DomUtility.appendChild(container,renderResult);
+            if(isArray) for(const elem of renderResult) ElementUtility.appendChild(container,elem);
+            else ElementUtility.appendChild(container,renderResult);
         }
         return renderResult;
     }else {
         let renderNode = renderResult;
         if(isArray){
-            let result :IDomNode[] =[];
+            let result :IElement[] =[];
             for(const vnode of renderNode){
-                let elem = createElement(vnode,container,instance) as IDomNode;
+                let elem = createElement(vnode,container,instance) as IElement;
                 //if(container) DomUtility.appendChild(container,elem);
                 result.push(elem);
             }
             renderResult = result;
         }else {
-            renderResult = createDescriptor(renderNode,container,instance) as IDomNode;
+            renderResult = createDescriptor(renderNode,container,instance) as IElement;
         }
         
         return renderResult;
@@ -2702,8 +2623,8 @@ export interface IComponentInfo {
 export interface IComponent extends IDisposable{
     $_meta:IComponentInfo;
     
-    render(container?:IDomNode,descriptor?:INodeDescriptor):IDomNode|IDomNode[]|INodeDescriptor|INodeDescriptor[];
-    $__elements__:IDomNode | IDomNode[];
+    render(descriptor?:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
+    $__elements__:IElement | IElement[];
     
 
 }
@@ -2903,16 +2824,16 @@ function clearGarbage(components:IComponent[],count:number):number{
 function checkGarbage(comp:IComponent){
     
     if(!comp || !comp.$__elements__) return true;
-    if(DomUtility.isElement(comp.$__elements__,true)){
+    if(ElementUtility.isElement(comp.$__elements__,true)){
         let elem = comp.$__elements__ as any;
-        if(DomUtility.is_inDocument(elem)) return false;
-        else if((elem as any).$__placeholder__ && DomUtility.is_inDocument(elem.$__placeholder__)) return false;
+        if(ElementUtility.is_inDocument(elem)) return false;
+        else if((elem as any).$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;
         return true;
-    }else if((comp.$__elements__ as IDomNode[]).length){
-        for(let i =0,j=(comp.$__elements__ as IDomNode[]).length;i<j;i++){
+    }else if((comp.$__elements__ as IElement[]).length){
+        for(let i =0,j=(comp.$__elements__ as IElement[]).length;i<j;i++){
             let elem = comp.$__elements__[i];
-            if(DomUtility.is_inDocument(elem)) return false;
-            else if(elem.$__placeholder__ && DomUtility.is_inDocument(elem.$__placeholder__)) return false;
+            if(ElementUtility.is_inDocument(elem)) return false;
+            else if(elem.$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;
         }
         return true;
     }
@@ -2933,44 +2854,34 @@ export class Placeholder{
 }
 
 
-export let attrBinders:{[name:string]:(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent)=>any}={};
+export let attrBinders:{[name:string]:(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent)=>any}={};
 
-attrBinders.value = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+attrBinders.value = function(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     if(Observable.isObservable(bindValue)){
-        DomUtility.setValue(elem,bindValue.get(ObservableModes.Value));
+        ElementUtility.setValue(elem,bindValue.get(ObservableModes.Value));
         bindValue.subscribe((e:IChangeEventArgs<any>)=>{
-            DomUtility.setValue(elem,e.value);
+            ElementUtility.setValue(elem,e.value);
         },compInstance);
     }else{
-        DomUtility.setValue(elem,bindValue);
+        ElementUtility.setValue(elem,bindValue);
     }
 }
 
-attrBinders["b-value"] = function(elem:IDomNode,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+attrBinders["b-value"] = function(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     if(Observable.isObservable(bindValue)){
-        DomUtility.setValue(elem,bindValue.get(ObservableModes.Value));
+        ElementUtility.setValue(elem,bindValue.get(ObservableModes.Value));
         bindValue.subscribe((e:IChangeEventArgs<any>)=>{
-            DomUtility.setValue(elem,e.value);
+            ElementUtility.setValue(elem,e.value);
         },compInstance);
-        DomUtility.change(elem,(value)=>{
+        ElementUtility.change(elem,(value)=>{
             bindValue.set(value);
             bindValue.update();
         });
     }else{
-        DomUtility.setValue(elem,bindValue);
+        ElementUtility.setValue(elem,bindValue);
     }
 }
 
-
-export let styleConvertors :any= {};
-
-let unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
-styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConvertors.bottom = styleConvertors.width = styleConvertors.height = function (value:any) {
-    if(!value) return "0";
-    if(typeof value==="number"){
-        return value + "px";
-    }else return value;
-}
 
 
 
@@ -3024,7 +2935,7 @@ let YA={
     ,createElement,createDescriptor,createElements,createComponent,EVENT
     ,attrBinders,componentInfos: componentTypes
     ,not,computed
-    ,DomUtility: DomUtility,styleConvertors
+    ,ElementUtility
     ,reactive,ReactiveTypes
     ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,Default,toJson,queryString
     

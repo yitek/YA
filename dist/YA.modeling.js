@@ -863,7 +863,7 @@ var __extends = (this && this.__extends) || (function () {
         return Renderer;
     }());
     exports.Renderer = Renderer;
-    var DomUtility = YA.DomUtility;
+    var DomUtility = YA.ElementUtility;
     var componentFactories = {};
     function textFactory(member, initValue, memberViewType, container) {
     }

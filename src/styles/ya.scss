@@ -1,0 +1,28 @@
+$fontSize:14px;
+$margin:6px;
+$padding:6px;
+$borderRadius:6px;
+
+$frontColor:#eee;
+$borderColor:#666;
+*{
+    box-sizing: border-box;
+    border:0;
+    padding:0;
+    margin:0;
+    font-size:14px;
+}
+
+.ya-mask{
+    .ya-mask-backend{
+        background-color:#000;
+        opacity: 0.5;
+    }
+    .ya-mask-front{
+        padding:$padding;
+        background-color:$frontColor;
+        border:1px solid $borderColor;
+        border-radius: $borderRadius;
+        
+    }
+}

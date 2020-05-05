@@ -1,3 +1,8 @@
+////////////////////////////////////////////////////////////////////
+//
+// 语言机制与一些对象上的扩展
+//
+////////////////////////////////////////////////////////////////////
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -29,11 +34,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     "use strict";
     var _this = this;
     Object.defineProperty(exports, "__esModule", { value: true });
-    ////////////////////////////////////////////////////////////////////
-    //
-    // 语言机制与一些对象上的扩展
-    //
-    ////////////////////////////////////////////////////////////////////
     //implicit 
     function implicit(strong, members, value) {
         if (members) {
@@ -1519,15 +1519,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     }
     exports.enumerator = enumerator;
-    exports.DomUtility = {};
-    exports.DomUtility.isElement = function (elem, includeText) {
+    exports.ElementUtility = {};
+    exports.ElementUtility.isElement = function (elem, includeText) {
         if (!elem)
             return false;
         if (!elem.insertBefore || !elem.ownerDocument)
             return false;
         return includeText ? true : elem.nodeType === 1;
     };
-    exports.DomUtility.createElement = function (tag, attrs, parent, content) {
+    exports.ElementUtility.createElement = function (tag, attrs, parent, content) {
         var elem = document.createElement(tag);
         if (attrs)
             for (var n in attrs)
@@ -1538,98 +1538,98 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             elem.innerHTML = content;
         return elem;
     };
-    exports.DomUtility.createText = function (txt, parent) {
+    exports.ElementUtility.createText = function (txt, parent) {
         var node = document.createTextNode(txt);
         if (parent)
             parent.appendChild(node);
         return node;
     };
-    exports.DomUtility.createPlaceholder = function () {
+    exports.ElementUtility.createPlaceholder = function () {
         var rs = document.createElement("span");
         rs.className = "YA-PLACEHOLDER";
         rs.style.display = "none";
         return rs;
     };
-    exports.DomUtility.setContent = function (elem, content) {
+    exports.ElementUtility.setContent = function (elem, content) {
         if (elem.nodeType === 1)
             elem.innerHTML = content;
         else
             elem.nodeValue = content;
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.getContent = function (elem) {
+    exports.ElementUtility.getContent = function (elem) {
         return elem.nodeType === 1 ? elem.innerHTML : elem.nodeValue;
     };
-    exports.DomUtility.setAttribute = function (elem, name, value) {
+    exports.ElementUtility.setAttribute = function (elem, name, value) {
         elem[name] = value;
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.getAttribute = function (elem, name) {
+    exports.ElementUtility.getAttribute = function (elem, name) {
         return elem.getAttribute(name);
     };
-    exports.DomUtility.removeAttribute = function (elem, name) {
+    exports.ElementUtility.removeAttribute = function (elem, name) {
         elem.removeAttribute(name);
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.setProperty = function (elem, name, value) {
+    exports.ElementUtility.setProperty = function (elem, name, value) {
         elem[name] = value;
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.getProperty = function (elem, name) {
+    exports.ElementUtility.getProperty = function (elem, name) {
         return elem[name];
     };
-    exports.DomUtility.appendChild = function (container, child) {
+    exports.ElementUtility.appendChild = function (container, child) {
         container.appendChild(child);
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.insertBefore = function (insert, rel) {
+    exports.ElementUtility.insertBefore = function (insert, rel) {
         if (rel.parentNode)
             rel.parentNode.insertBefore(insert, rel);
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.insertAfter = function (insert, rel) {
+    exports.ElementUtility.insertAfter = function (insert, rel) {
         if (rel.parentNode)
             rel.parentNode.insertAfter(insert, rel);
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.getParent = function (elem) { return elem.parentNode; };
-    exports.DomUtility.remove = function (node) {
+    exports.ElementUtility.getParent = function (elem) { return elem.parentNode; };
+    exports.ElementUtility.remove = function (node) {
         if (node.parentNode)
             node.parentNode.removeChild(node);
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.removeAllChildren = function (elem) {
+    exports.ElementUtility.removeAllChildren = function (elem) {
         elem.innerHTML = elem.nodeValue = "";
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.getChildren = function (elem) { return elem.childNodes; };
-    exports.DomUtility.show = function (elem, immeditately) {
+    exports.ElementUtility.getChildren = function (elem) { return elem.childNodes; };
+    exports.ElementUtility.show = function (elem, immeditately) {
         elem.style.display = "";
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.hide = function (elem, immeditately) {
+    exports.ElementUtility.hide = function (elem, immeditately) {
         elem.style.display = "none";
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.attach = function (elem, evtname, handler) {
+    exports.ElementUtility.attach = function (elem, evtname, handler) {
         if (elem.addEventListener)
             elem.addEventListener(evtname, handler, false);
         else if (elem.attachEvent)
             elem.attachEvent('on' + evtname, handler);
         else
             elem['on' + evtname] = handler;
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.detech = function (elem, evtname, handler) {
+    exports.ElementUtility.detech = function (elem, evtname, handler) {
         if (elem.removeEventListener)
             elem.removeEventListener(evtname, handler, false);
         else if (elem.detechEvent)
             elem.detechEvent('on' + evtname, handler);
         else
             elem['on' + evtname] = null;
-        return exports.DomUtility;
+        return exports.ElementUtility;
     };
-    exports.DomUtility.is_inDocument = function (elem) {
+    exports.ElementUtility.is_inDocument = function (elem) {
         var doc = elem.ownerDocument;
         while (elem) {
             elem = elem.parentNode;
@@ -1640,7 +1640,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return false;
         return true;
     };
-    exports.DomUtility.getValue = function (elem) {
+    exports.ElementUtility.getValue = function (elem) {
         if (typeof elem.get === "function")
             return elem.get();
         var tag = elem.tagName;
@@ -1693,14 +1693,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return elem.innerHTML;
     };
-    exports.DomUtility.replaceNode = function (old, newNode) {
+    exports.ElementUtility.replace = function (old, newNode) {
         var pa = old.parentNode;
         if (pa) {
             pa.insertBefore(newNode, old);
             pa.removeChild(old);
         }
     };
-    exports.DomUtility.setValue = function (elem, value) {
+    exports.ElementUtility.setValue = function (elem, value) {
         if (typeof elem.set === "function")
             return elem.set(value);
         var tag = elem.tagName;
@@ -1714,7 +1714,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 else {
                     elem.checked = false;
-                    exports.DomUtility.removeAttribute(elem, "checked");
+                    exports.ElementUtility.removeAttribute(elem, "checked");
                 }
             }
             else if (type === "checkbox") {
@@ -1733,7 +1733,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                             }
                             else {
                                 child.checked = false;
-                                exports.DomUtility.removeAttribute(child, "checked");
+                                exports.ElementUtility.removeAttribute(child, "checked");
                             }
                         }
                     }
@@ -1744,7 +1744,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     }
                     else {
                         elem.checked = false;
-                        exports.DomUtility.removeAttribute(elem, "checked");
+                        exports.ElementUtility.removeAttribute(elem, "checked");
                     }
                 }
                 return;
@@ -1761,7 +1761,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     opt.selected = true;
                 else {
                     opt.selected = false;
-                    exports.DomUtility.removeAttribute(opt, "selected");
+                    exports.ElementUtility.removeAttribute(opt, "selected");
                 }
             }
         }
@@ -1772,7 +1772,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else
             return elem.innerHTML = value;
     };
-    exports.DomUtility.change = function (elem, handler) {
+    exports.ElementUtility.change = function (elem, handler) {
         var tag = elem.tagName;
         if (!tag)
             return false;
@@ -1782,22 +1782,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var type = elem.type;
             if (type === "radio") {
                 onchange = function () { return handler.call(elem, elem.checked ? elem.value : undefined); };
-                exports.DomUtility.attach(elem, "click", onchange);
-                exports.DomUtility.attach(elem, "blur", onchange);
+                exports.ElementUtility.attach(elem, "click", onchange);
+                exports.ElementUtility.attach(elem, "blur", onchange);
                 return true;
             }
             else if (type === "checkbox") {
-                onchange = function () { return handler.call(elem, exports.DomUtility.getValue(elem)); };
-                exports.DomUtility.attach(elem, "click", onchange);
-                exports.DomUtility.attach(elem, "blur", onchange);
+                onchange = function () { return handler.call(elem, exports.ElementUtility.getValue(elem)); };
+                exports.ElementUtility.attach(elem, "click", onchange);
+                exports.ElementUtility.attach(elem, "blur", onchange);
                 return true;
             }
             isInput = true;
         }
         else if (tag === "SELECT") {
-            onchange = function () { return handler.call(elem, exports.DomUtility.getValue(elem)); };
-            exports.DomUtility.attach(elem, "change", onchange);
-            exports.DomUtility.attach(elem, "blur", onchange);
+            onchange = function () { return handler.call(elem, exports.ElementUtility.getValue(elem)); };
+            exports.ElementUtility.attach(elem, "change", onchange);
+            exports.ElementUtility.attach(elem, "blur", onchange);
             return true;
         }
         else if (tag === "TEXTAREA") {
@@ -1811,7 +1811,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 clearTimeout(tick);
             elem.$__YA_inputTick__ = setTimeout(function () {
                 delete elem["$__YA_inputTick__"];
-                handler.call(elem, exports.DomUtility.getValue(elem));
+                handler.call(elem, exports.ElementUtility.getValue(elem));
             }, 100);
         };
         var onblur = function () {
@@ -1820,85 +1820,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 clearTimeout(tick);
                 delete elem["$__YA_inputTick__"];
             }
-            handler.call(elem, exports.DomUtility.getValue(elem));
+            handler.call(elem, exports.ElementUtility.getValue(elem));
         };
-        exports.DomUtility.attach(elem, "keydown", onkeydown);
-        exports.DomUtility.attach(elem, "blur", onblur);
-    };
-    try {
-        var element_wrapper_1 = exports.DomUtility.createElement("div");
-        if (element_wrapper_1.currentStyle) {
-            exports.DomUtility.getStyle = function (node, name) { return node.currentStyle[name]; };
-        }
-        else {
-            exports.DomUtility.getStyle = function (node, name) { return getComputedStyle(node, false)[name]; };
-        }
-        exports.DomUtility.setStyle = function (node, name, value) {
-            var convertor = exports.styleConvertors[name];
-            node.style[name] = convertor ? convertor(value) : value;
-            return exports.DomUtility;
-        };
-        exports.DomUtility.parse = function (domString) {
-            element_wrapper_1.innerHTML = domString;
-            return element_wrapper_1.childNodes;
-        };
-    }
-    catch (ex) { }
-    var emptyStringRegx = /\s+/g;
-    function findClassAt(clsnames, cls) {
-        var at = clsnames.indexOf(cls);
-        var len = cls.length;
-        while (at >= 0) {
-            if (at > 0) {
-                var prev = clsnames[at - 1];
-                if (!emptyStringRegx.test(prev)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            if ((at + len) !== clsnames.length) {
-                var next = clsnames[at + length];
-                if (!emptyStringRegx.test(next)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            return at;
-        }
-        return at;
-    }
-    exports.DomUtility.hasClass = function (node, cls) {
-        return findClassAt(node.className, cls) >= 0;
-    };
-    exports.DomUtility.addClass = function (node, cls) {
-        if (findClassAt(node.className, cls) >= 0)
-            return exports.DomUtility;
-        node.className += " " + cls;
-        return exports.DomUtility;
-    };
-    exports.DomUtility.removeClass = function (node, cls) {
-        var clsnames = node.className;
-        var at = findClassAt(clsnames, cls);
-        if (at <= 0)
-            return exports.DomUtility;
-        var prev = clsnames.substring(0, at);
-        var next = clsnames.substr(at + cls.length);
-        node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
-    };
-    exports.DomUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
-        if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
-            return _this.addClass(new_cls);
-        var clsnames = node.className;
-        var at = findClassAt(clsnames, old_cls);
-        if (at <= 0) {
-            if (alwaysAdd)
-                node.className = clsnames + " " + new_cls;
-            return exports.DomUtility;
-        }
-        var prev = clsnames.substring(0, at);
-        var next = clsnames.substr(at + old_cls.length);
-        node.className = prev + new_cls + next;
-        return exports.DomUtility;
+        exports.ElementUtility.attach(elem, "keydown", onkeydown);
+        exports.ElementUtility.attach(elem, "blur", onblur);
     };
     var JSXModes;
     (function (JSXModes) {
@@ -1924,7 +1849,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var container;
         var t = typeof tag;
         if (t === "string") {
-            if (exports.DomUtility.isElement(attrs)) {
+            if (exports.ElementUtility.isElement(attrs)) {
                 //一:createElement("hello",container?,comp?);
                 return createText(tag, attrs, compInst);
             }
@@ -1942,11 +1867,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return (_jsxMode === JSXModes.vnode) ? descriptor : createDescriptor(descriptor, null, null);
         }
         else if (t === "function") {
-            if (attrs === undefined || exports.DomUtility.isElement(attrs)) {
+            if (attrs === undefined || exports.ElementUtility.isElement(attrs)) {
                 //三:createElement(Comp,container);
                 return createComponent(tag, null, attrs);
             }
-            if (compInst && exports.DomUtility.isElement(compInst)) {
+            if (compInst && exports.ElementUtility.isElement(compInst)) {
                 //四:createElement(Comp,attrs,container);
                 return createComponent(tag, attrs, compInst);
             }
@@ -2003,14 +1928,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function createText(value, container, compInstance) {
         var elem;
         if (Observable.isObservable(value)) {
-            elem = exports.DomUtility.createText(value.get(ObservableModes.Value));
-            value.subscribe(function (e) { exports.DomUtility.setContent(elem, e.value); }, compInstance);
+            elem = exports.ElementUtility.createText(value.get(ObservableModes.Value));
+            value.subscribe(function (e) { exports.ElementUtility.setContent(elem, e.value); }, compInstance);
         }
         else {
-            elem = exports.DomUtility.createText(value);
+            elem = exports.ElementUtility.createText(value);
         }
         if (container)
-            exports.DomUtility.appendChild(container, elem);
+            exports.ElementUtility.appendChild(container, elem);
         return elem;
     }
     function createElements(arr, container, compInstance) {
@@ -2031,9 +1956,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.createElements = createElements;
     function createDom(descriptor, parent, compInstance) {
-        var elem = exports.DomUtility.createElement(descriptor.tag);
+        var elem = exports.ElementUtility.createElement(descriptor.tag);
         if (parent)
-            exports.DomUtility.appendChild(parent, elem);
+            exports.ElementUtility.appendChild(parent, elem);
         var ignoreChildren = false;
         //let anchorElem = elem;
         for (var attrName in descriptor) {
@@ -2065,18 +1990,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return elem;
         if (descriptor.content) {
             if (descriptor.content instanceof Computed) {
-                var txtElem_1 = exports.DomUtility.createText(descriptor.content.getValue(compInstance), elem);
+                var txtElem_1 = exports.ElementUtility.createText(descriptor.content.getValue(compInstance), elem);
                 descriptor.content.bindValue(function (val) {
-                    exports.DomUtility.setContent(txtElem_1, val);
+                    exports.ElementUtility.setContent(txtElem_1, val);
                 }, compInstance);
             }
             if (Observable.isObservable(descriptor.content)) {
                 var ob = descriptor.content;
-                var txtElem_2 = exports.DomUtility.createText(ob.get(ObservableModes.Value), elem);
-                ob.subscribe(function (e) { return exports.DomUtility.setContent(txtElem_2, e.value); }, compInstance);
+                var txtElem_2 = exports.ElementUtility.createText(ob.get(ObservableModes.Value), elem);
+                ob.subscribe(function (e) { return exports.ElementUtility.setContent(txtElem_2, e.value); }, compInstance);
             }
             else {
-                var txtElem = exports.DomUtility.createText(descriptor.content, elem);
+                var txtElem = exports.ElementUtility.createText(descriptor.content, elem);
             }
         }
         var children = descriptor.children;
@@ -2096,7 +2021,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (Observable.isObservable(arr)) {
             arr.subscribe(function (e) {
                 var arr = e.sender;
-                exports.DomUtility.removeAllChildren(elem);
+                exports.ElementUtility.removeAllChildren(elem);
                 for (var key in arr)
                     (function (key, value) {
                         if (key === "constructor")
@@ -2111,7 +2036,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                                 if (e.type === ChangeTypes.Remove) {
                                     for (var _i = 0, renderRs_1 = renderRs; _i < renderRs_1.length; _i++) {
                                         var subElem = renderRs_1[_i];
-                                        exports.DomUtility.remove(subElem);
+                                        exports.ElementUtility.remove(subElem);
                                     }
                                 }
                             }, compInstance);
@@ -2133,7 +2058,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         if (e.type === ChangeTypes.Remove) {
                             for (var _i = 0, renderRs_2 = renderRs; _i < renderRs_2.length; _i++) {
                                 var subElem = renderRs_2[_i];
-                                exports.DomUtility.remove(subElem);
+                                exports.ElementUtility.remove(subElem);
                             }
                         }
                     }, compInstance);
@@ -2142,20 +2067,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return RenderDirectives.IgnoreChildren;
     }
     function bindDomIf(elem, bindValue, vnode, compInstance) {
-        var placeholder = exports.DomUtility.createPlaceholder();
+        var placeholder = exports.ElementUtility.createPlaceholder();
         Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
         if (Observable.isObservable(bindValue)) {
             bindValue.subscribe(function (e) {
                 if (e.value) {
-                    exports.DomUtility.replaceNode(placeholder, elem);
+                    exports.ElementUtility.replace(placeholder, elem);
                 }
                 else
-                    exports.DomUtility.replaceNode(elem, placeholder);
+                    exports.ElementUtility.replace(elem, placeholder);
             }, compInstance);
             bindValue = bindValue.get(ObservableModes.Default);
         }
         if (!bindValue) {
-            exports.DomUtility.replaceNode(elem, placeholder);
+            exports.ElementUtility.replace(elem, placeholder);
         }
         ;
     }
@@ -2171,18 +2096,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 attrValue.bindValue(function (val) { return binder.call(compInstance, element, val, compInstance); }, compInstance);
             }
             else {
-                attrValue.bindValue(function (val) { return exports.DomUtility.setAttribute(element, attrName, val); }, compInstance);
+                attrValue.bindValue(function (val) { return exports.ElementUtility.setAttribute(element, attrName, val); }, compInstance);
             }
         }
         else {
             if (binder)
                 bindResult = binder.call(compInstance, element, attrValue, vnode, compInstance);
             else if (attrValue instanceof Observable) {
-                exports.DomUtility.setAttribute(element, attrName, attrValue.get(ObservableModes.Value));
-                attrValue.subscribe(function (e) { return exports.DomUtility.setAttribute(element, attrName, e.value); }, compInstance);
+                exports.ElementUtility.setAttribute(element, attrName, attrValue.get(ObservableModes.Value));
+                attrValue.subscribe(function (e) { return exports.ElementUtility.setAttribute(element, attrName, e.value); }, compInstance);
             }
             else
-                exports.DomUtility.setAttribute(element, attrName, attrValue);
+                exports.ElementUtility.setAttribute(element, attrName, attrValue);
         }
         return bindResult;
     }
@@ -2240,7 +2165,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 });
             }
         };
-        exports.DomUtility.attach(element, evtName, finalHandler);
+        exports.ElementUtility.attach(element, evtName, finalHandler);
         return true;
     }
     exports.EVENT = {};
@@ -2299,7 +2224,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.createComponent = createComponent;
     function bindComponentIf(compInstance, bindValue, elems, container) {
-        var placeholder = exports.DomUtility.createPlaceholder();
+        var placeholder = exports.ElementUtility.createPlaceholder();
         var isArr = is_array(elems);
         if (isArr) {
             for (var _i = 0, elems_1 = elems; _i < elems_1.length; _i++) {
@@ -2313,17 +2238,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (Observable.isObservable(bindValue)) {
             bindValue.subscribe(function (e) {
                 if (e.value) {
-                    var p = exports.DomUtility.getParent(placeholder);
+                    var p = exports.ElementUtility.getParent(placeholder);
                     if (p) {
                         if (isArr) {
                             for (var _i = 0, elems_3 = elems; _i < elems_3.length; _i++) {
                                 var elem = elems_3[_i];
-                                exports.DomUtility.insertBefore(elem, placeholder);
-                                exports.DomUtility.remove(placeholder);
+                                exports.ElementUtility.insertBefore(elem, placeholder);
+                                exports.ElementUtility.remove(placeholder);
                             }
                         }
                         else {
-                            exports.DomUtility.replaceNode(elems, placeholder);
+                            exports.ElementUtility.replace(elems, placeholder);
                         }
                     }
                 }
@@ -2333,14 +2258,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         for (var _a = 0, elems_4 = elems; _a < elems_4.length; _a++) {
                             var elem = elems_4[_a];
                             if (!inserted) {
-                                exports.DomUtility.insertAfter(placeholder, elem);
+                                exports.ElementUtility.insertAfter(placeholder, elem);
                                 inserted = true;
                             }
-                            exports.DomUtility.remove(elem);
+                            exports.ElementUtility.remove(elem);
                         }
                     }
                     else {
-                        exports.DomUtility.replaceNode(elems, placeholder);
+                        exports.ElementUtility.replace(elems, placeholder);
                     }
                 }
             }, compInstance);
@@ -2352,14 +2277,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 for (var _a = 0, elems_2 = elems; _a < elems_2.length; _a++) {
                     var elem = elems_2[_a];
                     if (!inserted) {
-                        exports.DomUtility.insertAfter(placeholder, elem);
+                        exports.ElementUtility.insertAfter(placeholder, elem);
                         inserted = true;
                     }
-                    exports.DomUtility.remove(elem);
+                    exports.ElementUtility.remove(elem);
                 }
             }
             else {
-                exports.DomUtility.replaceNode(elems, placeholder);
+                exports.ElementUtility.replace(elems, placeholder);
             }
         }
         ;
@@ -2438,23 +2363,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (isArray) {
             for (var _i = 0, renderResult_1 = renderResult; _i < renderResult_1.length; _i++) {
                 var val = renderResult_1[_i];
-                resultIsElement = exports.DomUtility.isElement(renderResult, true);
+                resultIsElement = exports.ElementUtility.isElement(renderResult, true);
                 break;
             }
             isArray = true;
         }
         else {
-            resultIsElement = exports.DomUtility.isElement(renderResult, true);
+            resultIsElement = exports.ElementUtility.isElement(renderResult, true);
         }
         if (resultIsElement) {
             if (container) {
                 if (isArray)
                     for (var _a = 0, renderResult_2 = renderResult; _a < renderResult_2.length; _a++) {
                         var elem = renderResult_2[_a];
-                        exports.DomUtility.appendChild(container, elem);
+                        exports.ElementUtility.appendChild(container, elem);
                     }
                 else
-                    exports.DomUtility.appendChild(container, renderResult);
+                    exports.ElementUtility.appendChild(container, renderResult);
             }
             return renderResult;
         }
@@ -2778,20 +2703,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function checkGarbage(comp) {
         if (!comp || !comp.$__elements__)
             return true;
-        if (exports.DomUtility.isElement(comp.$__elements__, true)) {
+        if (exports.ElementUtility.isElement(comp.$__elements__, true)) {
             var elem = comp.$__elements__;
-            if (exports.DomUtility.is_inDocument(elem))
+            if (exports.ElementUtility.is_inDocument(elem))
                 return false;
-            else if (elem.$__placeholder__ && exports.DomUtility.is_inDocument(elem.$__placeholder__))
+            else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
                 return false;
             return true;
         }
         else if (comp.$__elements__.length) {
             for (var i = 0, j = comp.$__elements__.length; i < j; i++) {
                 var elem = comp.$__elements__[i];
-                if (exports.DomUtility.is_inDocument(elem))
+                if (exports.ElementUtility.is_inDocument(elem))
                     return false;
-                else if (elem.$__placeholder__ && exports.DomUtility.is_inDocument(elem.$__placeholder__))
+                else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
                     return false;
             }
             return true;
@@ -2815,40 +2740,29 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.attrBinders = {};
     exports.attrBinders.value = function (elem, bindValue, vnode, compInstance) {
         if (Observable.isObservable(bindValue)) {
-            exports.DomUtility.setValue(elem, bindValue.get(ObservableModes.Value));
+            exports.ElementUtility.setValue(elem, bindValue.get(ObservableModes.Value));
             bindValue.subscribe(function (e) {
-                exports.DomUtility.setValue(elem, e.value);
+                exports.ElementUtility.setValue(elem, e.value);
             }, compInstance);
         }
         else {
-            exports.DomUtility.setValue(elem, bindValue);
+            exports.ElementUtility.setValue(elem, bindValue);
         }
     };
     exports.attrBinders["b-value"] = function (elem, bindValue, vnode, compInstance) {
         if (Observable.isObservable(bindValue)) {
-            exports.DomUtility.setValue(elem, bindValue.get(ObservableModes.Value));
+            exports.ElementUtility.setValue(elem, bindValue.get(ObservableModes.Value));
             bindValue.subscribe(function (e) {
-                exports.DomUtility.setValue(elem, e.value);
+                exports.ElementUtility.setValue(elem, e.value);
             }, compInstance);
-            exports.DomUtility.change(elem, function (value) {
+            exports.ElementUtility.change(elem, function (value) {
                 bindValue.set(value);
                 bindValue.update();
             });
         }
         else {
-            exports.DomUtility.setValue(elem, bindValue);
+            exports.ElementUtility.setValue(elem, bindValue);
         }
-    };
-    exports.styleConvertors = {};
-    var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
-    exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = function (value) {
-        if (!value)
-            return "0";
-        if (typeof value === "number") {
-            return value + "px";
-        }
-        else
-            return value;
     };
     //======================================================================
     function THIS(obj, name) {
@@ -2892,7 +2806,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
         attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         not: not, computed: exports.computed,
-        DomUtility: exports.DomUtility, styleConvertors: exports.styleConvertors,
+        ElementUtility: exports.ElementUtility,
         reactive: reactive, ReactiveTypes: ReactiveTypes,
         intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, Default: exports.Default, toJson: toJson, queryString: queryString
     };

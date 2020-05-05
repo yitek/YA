@@ -23,46 +23,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         CreateElementTest.prototype.base_jsx = function (assert_statement, demoElement) {
             //最简单的创建一个div
             var div = YA.createElement("div");
-            YA.DomUtility.appendChild(demoElement, div);
-            YA.DomUtility.setContent(div, "该div是由YA.createElement('div')产生的");
+            YA.ElementUtility.appendChild(demoElement, div);
+            YA.ElementUtility.setContent(div, "该div是由YA.createElement('div')产生的");
             //带属性的div
             div = YA.createElement("div", {
                 "className": "blue-block"
             });
-            YA.DomUtility.appendChild(demoElement, div);
-            YA.DomUtility.setContent(div, "该div是由YA.createElement('div',{})产生的");
+            YA.ElementUtility.appendChild(demoElement, div);
+            YA.ElementUtility.setContent(div, "该div是由YA.createElement('div',{})产生的");
             //带 children
             div = YA.createElement("div", { "class": "red-block" }, "该div是外面创建的", YA.createElement("div", { className: "blue-block" }, "该div是里面创建的"));
-            YA.DomUtility.appendChild(demoElement, div);
+            YA.ElementUtility.appendChild(demoElement, div);
         };
         CreateElementTest.prototype.component_jsx = function (assert_statement, demoElement) {
             //创建一个jsx函数风格的组件
             var Component = function (states) {
-                var elem = YA.DomUtility.createElement("div");
-                YA.DomUtility.setAttribute(elem, "className", states.css);
-                YA.DomUtility.setContent(elem, states.text);
+                var elem = YA.ElementUtility.createElement("div");
+                YA.ElementUtility.setAttribute(elem, "className", states.css);
+                YA.ElementUtility.setContent(elem, states.text);
                 return elem;
             };
             var domNode = YA.createElement(Component, { css: "blue-block", text: "函数风格的jsx组件" });
-            YA.DomUtility.appendChild(demoElement, domNode);
+            YA.ElementUtility.appendChild(demoElement, domNode);
             //创建一个面向对象风格的组件
             Component = function (states) {
                 this.render = function () {
-                    var elem = YA.DomUtility.createElement("div");
-                    YA.DomUtility.setAttribute(elem, "className", states.css);
-                    YA.DomUtility.setContent(elem, states.text);
+                    var elem = YA.ElementUtility.createElement("div");
+                    YA.ElementUtility.setAttribute(elem, "className", states.css);
+                    YA.ElementUtility.setContent(elem, states.text);
                     return elem;
                 };
             };
             domNode = YA.createElement(Component, { css: "red-block", text: "对象·风格的jsx组件" });
-            YA.DomUtility.appendChild(demoElement, domNode);
+            YA.ElementUtility.appendChild(demoElement, domNode);
         };
         CreateElementTest.prototype.manual = function (assert_statement, demoElement) {
             //构建一个text
             var text = YA.createElement({ content: "该文本由YA.createElement({content:''})方式创建" }, demoElement);
             //构建一个div
             var div = YA.createElement({ tag: "div", className: "blue-block", content: "该div由YA.createElement({})创建" });
-            YA.DomUtility.appendChild(demoElement, div);
+            YA.ElementUtility.appendChild(demoElement, div);
             //构建一个带children的div
             var hasChildren = YA.createElement({
                 tag: "div",
@@ -72,7 +72,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     "这是带children的div"
                     //也可以是一个元素
                     ,
-                    YA.DomUtility.createElement("tag", {}, null, "这是children中的元素")
+                    YA.ElementUtility.createElement("tag", {}, null, "这是children中的元素")
                     //还可以是NodeDescriptor
                     ,
                     {
@@ -86,9 +86,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         CreateElementTest.prototype.componentLib_jsx = function (assert_statement, demoElement) {
             //创建一个jsx函数风格的组件
             var Component = function (states) {
-                var elem = YA.DomUtility.createElement("div");
-                YA.DomUtility.setAttribute(elem, "className", states.css);
-                YA.DomUtility.setContent(elem, states.text);
+                var elem = YA.ElementUtility.createElement("div");
+                YA.ElementUtility.setAttribute(elem, "className", states.css);
+                YA.ElementUtility.setContent(elem, states.text);
                 return elem;
             };
             YA.componentTypes["MyComp"] = Component;
@@ -97,7 +97,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 css: "blue-block",
                 text: "从组件库中生成的组件"
             });
-            YA.DomUtility.appendChild(demoElement, domNode);
+            YA.ElementUtility.appendChild(demoElement, domNode);
         };
         CreateElementTest.prototype.composite = function (assert_statement, demoElement) {
             var Comp1 = function (descriptor, container) {
@@ -140,7 +140,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
             }
             var elem = YA.createElement(Comp3, { css: "blue-block" });
-            YA.DomUtility.appendChild(demoElement, elem);
+            YA.ElementUtility.appendChild(demoElement, elem);
         };
         CreateElementTest.prototype.vnode = function (assert_statement, demoElement) {
             var attrs = YA.observable({ css: "green-block", text: "init text" });
@@ -157,7 +157,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
             });
             var elem = YA.createElement(vnode);
-            YA.DomUtility.appendChild(demoElement, elem);
+            YA.ElementUtility.appendChild(demoElement, elem);
         };
         CreateElementTest.prototype.compAttr = function (assert_statement, demoElement) {
             function Comp() {
@@ -179,7 +179,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
             }
             var node = YA.createElement(Comp, { css: "red-block", "text": "注入的text" });
-            YA.DomUtility.appendChild(demoElement, node);
+            YA.ElementUtility.appendChild(demoElement, node);
         };
         CreateElementTest.prototype.deep = function (assert_statement, demoElement) {
             var Comp1 = function (descriptor, container) {
@@ -235,7 +235,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
             }
             var elem = YA.createElement(Comp3);
-            YA.DomUtility.appendChild(demoElement, elem);
+            YA.ElementUtility.appendChild(demoElement, elem);
         };
         __decorate([
             doct_1.doct({

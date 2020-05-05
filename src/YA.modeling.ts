@@ -1579,7 +1579,7 @@ export class Renderer{
         
     }*/
 }
-let DomUtility = YA.DomUtility;
+let DomUtility = YA.ElementUtility;
 export type TComponentFactory = (member:ViewMember,initValue:any,memberViewType:InputViewTypes,container:any)=>any;
 let componentFactories :{[typename:string]:TComponentFactory}= {};
 function textFactory(member:ViewMember,initValue:any,memberViewType:InputViewTypes,container:any){

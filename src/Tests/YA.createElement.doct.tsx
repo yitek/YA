@@ -19,23 +19,23 @@ export class CreateElementTest {
     })
     base_jsx(assert_statement:TAssertStatement,demoElement:any){
         //最简单的创建一个div
-        let div :YA.IDomNode= YA.createElement("div") as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,div);
-        YA.DomUtility.setContent(div,"该div是由YA.createElement('div')产生的");
+        let div :YA.IElement= YA.createElement("div") as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,div);
+        YA.ElementUtility.setContent(div,"该div是由YA.createElement('div')产生的");
 
         //带属性的div
         div = YA.createElement("div",{
             "className":"blue-block"
-        }) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,div);
-        YA.DomUtility.setContent(div,"该div是由YA.createElement('div',{})产生的");
+        }) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,div);
+        YA.ElementUtility.setContent(div,"该div是由YA.createElement('div',{})产生的");
 
         //带 children
         div = YA.createElement("div",{"class":"red-block"}
             ,"该div是外面创建的"
             ,YA.createElement("div",{className:"blue-block"},"该div是里面创建的")
-        ) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,div);
+        ) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,div);
     }
     @doct({
         title:"带组件的jsx"
@@ -43,25 +43,25 @@ export class CreateElementTest {
     component_jsx(assert_statement:TAssertStatement,demoElement:any){
         //创建一个jsx函数风格的组件
         let Component:any = function(states){
-            let elem = YA.DomUtility.createElement("div");
-            YA.DomUtility.setAttribute(elem,"className",states.css);
-            YA.DomUtility.setContent(elem,states.text);
+            let elem = YA.ElementUtility.createElement("div");
+            YA.ElementUtility.setAttribute(elem,"className",states.css);
+            YA.ElementUtility.setContent(elem,states.text);
             return elem;
         };
-        let domNode = YA.createElement(Component,{css:"blue-block",text:"函数风格的jsx组件"}) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,domNode);
+        let domNode = YA.createElement(Component,{css:"blue-block",text:"函数风格的jsx组件"}) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,domNode);
 
         //创建一个面向对象风格的组件
         Component = function(states){
             this.render = ()=>{
-                let elem = YA.DomUtility.createElement("div");
-                YA.DomUtility.setAttribute(elem,"className",states.css);
-                YA.DomUtility.setContent(elem,states.text);
+                let elem = YA.ElementUtility.createElement("div");
+                YA.ElementUtility.setAttribute(elem,"className",states.css);
+                YA.ElementUtility.setContent(elem,states.text);
                 return elem;
             }
         };
-        domNode = YA.createElement(Component,{css:"red-block",text:"对象·风格的jsx组件"}) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,domNode);
+        domNode = YA.createElement(Component,{css:"red-block",text:"对象·风格的jsx组件"}) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,domNode);
     }
     
     @doct({
@@ -76,8 +76,8 @@ export class CreateElementTest {
         let text = YA.createElement({content:"该文本由YA.createElement({content:''})方式创建"},demoElement);
         
         //构建一个div
-        let div = YA.createElement({tag:"div",className:"blue-block",content:"该div由YA.createElement({})创建"}) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,div);
+        let div = YA.createElement({tag:"div",className:"blue-block",content:"该div由YA.createElement({})创建"}) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,div);
         
         //构建一个带children的div
         let hasChildren = YA.createElement({
@@ -87,7 +87,7 @@ export class CreateElementTest {
                 //可以是文本
                 "这是带children的div"
                 //也可以是一个元素
-                ,YA.DomUtility.createElement("tag",{},null,"这是children中的元素")
+                ,YA.ElementUtility.createElement("tag",{},null,"这是children中的元素")
                 //还可以是NodeDescriptor
                 ,{
                     tag:"div",
@@ -106,9 +106,9 @@ export class CreateElementTest {
     componentLib_jsx(assert_statement:TAssertStatement,demoElement:any){
         //创建一个jsx函数风格的组件
         let Component:any = function(states){
-            let elem = YA.DomUtility.createElement("div");
-            YA.DomUtility.setAttribute(elem,"className",states.css);
-            YA.DomUtility.setContent(elem,states.text);
+            let elem = YA.ElementUtility.createElement("div");
+            YA.ElementUtility.setAttribute(elem,"className",states.css);
+            YA.ElementUtility.setContent(elem,states.text);
             return elem;
         };
         YA.componentTypes["MyComp"] = Component;
@@ -116,8 +116,8 @@ export class CreateElementTest {
             tag:"MyComp",
             css:"blue-block",
             text:"从组件库中生成的组件"
-        }) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,domNode);
+        }) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,domNode);
     }
     @doct({
         title:"组件的组合调用"
@@ -164,8 +164,8 @@ export class CreateElementTest {
                 </div>;
             };
         }
-        let elem = YA.createElement(Comp3,{css:"blue-block"}) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,elem);
+        let elem = YA.createElement(Comp3,{css:"blue-block"}) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,elem);
         
     }
 
@@ -187,8 +187,8 @@ export class CreateElementTest {
                 ]
             };
         });
-        let elem = YA.createElement(vnode) as YA.IDomNode;
-            YA.DomUtility.appendChild(demoElement,elem);
+        let elem = YA.createElement(vnode) as YA.IElement;
+            YA.ElementUtility.appendChild(demoElement,elem);
     }
     @doct({
         title:"控件与属性绑定"
@@ -198,7 +198,7 @@ export class CreateElementTest {
             YA.observable("blue-block","css",this);
             YA.observable("","text",this);
             YA.observable("这是comp2自己赋值的文本","innerText",this);
-            this.render =(descriptor:YA.INodeDescriptor,container:YA.IDomNode)=>{
+            this.render =(descriptor:YA.INodeDescriptor,container:YA.IElement)=>{
                 /*return <div class={this.css}>
                     this.text =  {this.text}<br />
                     this.innerText={this.innerText}
@@ -209,8 +209,8 @@ export class CreateElementTest {
                 </div>;
             }
         }
-        let node:YA.IDomNode = YA.createElement(Comp,{css:"red-block","text":"注入的text"}) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,node);
+        let node:YA.IElement = YA.createElement(Comp,{css:"red-block","text":"注入的text"}) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,node);
     }
     @doct({
         title:"多层绑定"
@@ -265,8 +265,8 @@ export class CreateElementTest {
                 </div>;
             };
         }
-        let elem = YA.createElement(Comp3) as YA.IDomNode;
-        YA.DomUtility.appendChild(demoElement,elem);
+        let elem = YA.createElement(Comp3) as YA.IElement;
+        YA.ElementUtility.appendChild(demoElement,elem);
         
     }
 }
