@@ -72,10 +72,10 @@ declare class TabPanel extends Component {
     __contentElement: IElement;
     name: string;
     css: string;
-    caption: string;
+    label: string;
     selected: boolean;
     select(selected?: boolean, onlyHideSelf?: boolean): TabPanel;
-    render(descriptor: YA.INodeDescriptor, container?: IElement): any[];
+    render(descriptor: YA.INodeDescriptor, container?: IElement): any;
 }
 export declare class Tab extends Component {
     static Panel: {
@@ -88,6 +88,8 @@ export declare class Tab extends Component {
     __captionsElement: IElement;
     __contentsElement: IElement;
     constructor();
+    selected: string;
+    defaultPanelName: string;
     render(descriptor: YA.INodeDescriptor, container: IElement): any;
 }
 export {};

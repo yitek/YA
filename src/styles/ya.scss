@@ -3,14 +3,29 @@ $margin:6px;
 $padding:6px;
 $borderRadius:6px;
 
+$titleHeight:31px;
+
 $frontColor:#eee;
 $borderColor:#666;
+
+$titleBackendColor:#ccc;
+$titleFrontColor:#060606;
+
+$contentBackendColor:#efefef;
+
+
+$liColors:#f5ad1b,#5f89ce,#94bf45,#da8ec5,#78bfc2,#bec278,#8e78c2,#c27878;
+
+
 *{
     box-sizing: border-box;
     border:0;
     padding:0;
     margin:0;
     font-size:14px;
+}
+ul{
+    list-style: none;
 }
 
 .ya-mask{
@@ -25,4 +40,88 @@ $borderColor:#666;
         border-radius: $borderRadius;
         
     }
+}
+.ya-tab{
+    
+
+    &>ul.ya-tab-labels{
+        padding:0 $titleHeight*0.2;
+        height:$titleHeight;
+        &>li.ya-tab-label{
+            display: inline-block;
+            position: relative;
+            max-width:200px;
+            min-width:60px;
+            height:$titleHeight;
+            overflow: hidden;
+            
+            color:lighten($titleFrontColor,35%);
+            margin-left:-$titleHeight*0.3;
+            padding:0 $titleHeight 0 0;
+            cursor: pointer;
+            z-index:0;
+            &:first-child{
+                margin-left:0;
+            }
+            &::after{
+                position:absolute;
+                top:-$titleHeight;
+                right:0;
+                
+                height:$titleHeight;
+                content:"";
+                border-bottom:$titleHeight solid $titleBackendColor;
+                border-right:$titleHeight solid transparent;
+                border-left: 0;
+                
+            }
+            &>label{
+                display: inline-block;
+                height:$titleHeight;
+                cursor: pointer;
+                background-color: $titleBackendColor;
+                font-weight: bold;
+                padding:$padding;
+            }
+           
+            &.selected{
+                color:$titleFrontColor;
+                z-index:1;
+               
+            }
+        }
+    }
+    &>div.ya-tab-contents{
+        margin:0;padding:9;
+        background-color: $contentBackendColor;
+        &>div.ya-tab-content{
+            padding:$padding;
+        }
+    }
+
+
+    @each $c in $liColors{
+        $i:index($liColors,$c);     
+        &>ul.ya-tab-labels>li:nth-child( #{$i} ){  
+            border-left:$titleHeight*0.2 solid $c;
+            &:hover{
+                background-color: lighten($c,30%);
+                color:lighten($titleFrontColor,17%);
+                
+            }
+            &.selected{
+                &::after{
+                    border-bottom-color:$c;
+                    border-right-color: transparent;
+                }
+                &>label{
+                    background-color:$c;
+                }
+            }
+        }
+        &>div.ya-tab-contents>div:nth-child(#{$i}){
+            border-top:$titleHeight*0.1 solid $c;
+        }
+    }
+
 }

@@ -27,7 +27,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
 })(function (require, exports) {
     "use strict";
-    var _this = this;
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA = require("YA.core");
     var Size = /** @class */ (function () {
@@ -103,7 +102,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
     }
     catch (ex) { }
-    var emptyStringRegx = /\s+/g;
+    var emptyStringRegx = /\s+/;
     function findClassAt(clsnames, cls) {
         var at = clsnames.indexOf(cls);
         var len = cls.length;
@@ -130,6 +129,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return findClassAt(node.className, cls) >= 0;
     };
     var addClass = exports.ElementUtility.addClass = function (node, cls) {
+        if (!cls)
+            return exports.ElementUtility;
         if (findClassAt(node.className, cls) >= 0)
             return exports.ElementUtility;
         node.className += " " + cls;
@@ -146,7 +147,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     };
     var replaceClass = exports.ElementUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
         if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
-            return _this.addClass(new_cls);
+            return addClass(node, new_cls);
         var clsnames = node.className;
         var at = findClassAt(clsnames, old_cls);
         if (at <= 0) {
@@ -436,7 +437,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     this.$parent.selectedPanel.select(false, true);
                 }
                 addClass(this.__captionElement, "selected");
-                this.$parent.__contentsElement.appendChild(this.__contentElement);
+                addClass(this.__contentElement, "selected");
+                this.__contentElement.style.display = "block";
                 this.$parent.selectedPanel = this;
                 if (!this.$parent.defaultPanel)
                     this.$parent.defaultPanel = this;
@@ -446,7 +448,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 if (this.$parent.selectedPanel !== this)
                     return this;
                 removeClass(this.__captionElement, "selected");
-                this.__contentElement.parentNode.removeChild(this.__contentElement);
+                removeClass(this.__contentElement, "selected");
+                this.__contentElement.style.display = "none";
                 this.selected = false;
                 if (!onlyHideSelf)
                     this.$parent.defaultPanel.select();
@@ -455,16 +458,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         TabPanel.prototype.render = function (descriptor, container) {
             var _this = this;
-            var titleElem = this.__captionElement = exports.ElementUtility.createElement("li", null, this.$parent.__captionsElement);
-            YA.bindDomAttr(titleElem, "caption", this.caption, descriptor, this, function (elem, name, value, old) {
+            var selected;
+            YA.observableMode(YA.ObservableModes.Value, function () {
+                selected = _this.selected;
+            });
+            var titleElem = this.__captionElement = exports.ElementUtility.createElement("li", { "class": "ya-tab-label" }, this.$parent.__captionsElement);
+            var txtElem = exports.ElementUtility.createElement("label", null, titleElem);
+            var contentElement = this.__contentElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-content" }, this.$parent.__contentsElement);
+            contentElement.style.display = "none";
+            YA.bindDomAttr(txtElem, "text", this.label, descriptor, this, function (elem, name, value, old) {
                 elem.innerHTML = value;
             });
             YA.bindDomAttr(titleElem, "className", this.css, descriptor, this, function (elem, name, value, old) {
-                if (old)
-                    old = "ya-tab-panel-caption " + old;
-                if (value)
-                    value = "ya-tab-panel-caption " + value;
                 replaceClass(elem, old, value, true);
+                //replaceClass(this.__contentElement,old,value,true);
             });
             var selectedAttr = descriptor.selected;
             if (selectedAttr)
@@ -472,23 +479,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     _this.select(e.value);
                 }, this);
             exports.ElementUtility.attach(titleElem, "click", function () { return _this.select(); });
-            var contentElement = this.__contentElement = exports.ElementUtility.createElement("div", null, this.$parent.__captionsElement);
             YA.bindDomAttr(contentElement, "className", this.css, descriptor, this, function (elem, name, value, old) {
-                if (old)
-                    old = "ya-tab-panel-content " + old;
-                if (value)
-                    value = "ya-tab-panel-content " + value;
                 replaceClass(elem, old, value, true);
             });
             YA.createElements(descriptor.children, contentElement, this);
-            return [titleElem, contentElement];
+            var rs = [titleElem, contentElement];
+            rs.$__alreadyAppendToContainer = true;
+            this.selected.subscribe(function (e) {
+                _this.select(e.value);
+            }, this);
+            if (selected)
+                this.select(true);
+            return rs;
         };
         __decorate([
             YA.in_parameter()
         ], TabPanel.prototype, "css", void 0);
         __decorate([
-            YA.in_parameter()
-        ], TabPanel.prototype, "caption", void 0);
+            YA.parameter()
+        ], TabPanel.prototype, "label", void 0);
         __decorate([
             YA.parameter()
         ], TabPanel.prototype, "selected", void 0);
@@ -502,31 +511,52 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Tab.prototype.render = function (descriptor, container) {
             var elem;
             elem = document.createElement("div");
+            elem.className = "ya-tab";
             YA.bindDomAttr(elem, "className", this.css, descriptor, this, function (elem, name, value, old) {
-                if (old)
-                    old = "ya-tab " + old;
-                if (value)
-                    value = "ya-tab " + value;
                 replaceClass(elem, old, value, true);
             });
-            this.__captionsElement = exports.ElementUtility.createElement("ul", { className: "ya-tab-captions" }, elem);
-            this.__contentsElement = exports.ElementUtility.createElement("div", { className: "ya-tab-contents" }, elem);
+            this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-tab-labels" }, elem);
+            this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-contents" }, elem);
             var children = descriptor.children;
+            var selectedPanel;
+            var _loop_1 = function (child) {
+                if (child.Component !== TabPanel)
+                    return "continue";
+                var panel = YA.createComponent(child.Component, child, null, this_1, { returnInstance: true });
+                if (!panel.name)
+                    panel.name = "tab-panel-" + YA.cid();
+                if (!this_1.panels)
+                    this_1.panels = [];
+                this_1.panels.push(panel);
+                YA.observableMode(YA.ObservableModes.Value, function () {
+                    if (!selectedPanel)
+                        selectedPanel = panel;
+                    else if (!selectedPanel.selected && panel.selected)
+                        selectedPanel = panel;
+                });
+            };
+            var this_1 = this;
             for (var _i = 0, children_1 = children; _i < children_1.length; _i++) {
                 var child = children_1[_i];
-                if (child.Component !== TabPanel)
-                    continue;
-                var panel = YA.createComponent(child.Component, child, null, this, { returnInstance: true });
-                if (!this.panels)
-                    this.panels = [];
-                this.panels.push(panel);
+                _loop_1(child);
             }
+            YA.observableMode(YA.ObservableModes.Value, function () {
+                if (selectedPanel && !selectedPanel.selected) {
+                    selectedPanel.select();
+                }
+            });
             return elem;
         };
         Tab.Panel = TabPanel;
         __decorate([
             YA.in_parameter()
         ], Tab.prototype, "css", void 0);
+        __decorate([
+            YA.parameter()
+        ], Tab.prototype, "selected", void 0);
+        __decorate([
+            YA.in_parameter()
+        ], Tab.prototype, "defaultPanelName", void 0);
         return Tab;
     }(Component));
     exports.Tab = Tab;

@@ -2526,7 +2526,7 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
     
     if(isArray){
         for(const val of renderResult){
-            resultIsElement = ElementUtility.isElement(renderResult,true);
+            resultIsElement = ElementUtility.isElement(val,true);
             break;
         }
         isArray = true;
@@ -2534,7 +2534,7 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
         resultIsElement = ElementUtility.isElement(renderResult,true);
     }
     if(resultIsElement){
-        if(container){
+        if(container && !(renderResult as any).$__alreadyAppendToContainer){
             if(isArray) for(const elem of renderResult) ElementUtility.appendChild(container,elem);
             else ElementUtility.appendChild(container,renderResult);
         }
@@ -2788,22 +2788,29 @@ function getChildren(){
     }
     return children;
 }
-
+function is_define(name:string,inst){
+    
+    while(inst){
+        if(Object.getOwnPropertyDescriptor(inst,name))return true;
+        inst = Object.getPrototypeOf(inst); 
+    }
+    return false; 
+}
 function buildComponent(inst,proto?){
     if(!proto) proto = inst;
-    if(inst.$element===undefined){
+    if(!is_define("$element",inst)){
         Object.defineProperty(proto,"$element",{configurable:false,enumerable:true,get:getElement,set:setElement});
     }
-    if(inst.$elements===undefined){
+    if(!is_define("$elements",inst)){
         Object.defineProperty(proto,"$elements",{configurable:false,enumerable:true,get:getElements,set:setElements});
     }
-    if(inst.$parent===undefined){
+    if(!is_define("$parent",inst)){
         Object.defineProperty(proto,"$parent",{configurable:false,enumerable:true,get:getParent,set:setParent});
     }
-    if(inst.$children===undefined){
+    if(!is_define("$children",inst)){
         Object.defineProperty(proto,"$children",{configurable:false,enumerable:true,get:getChildren});
     }
-    if(!inst.dispose) disposable(proto);
+    if(!inst.dispose) disposable(proto||inst);
     
 }
 
@@ -3025,7 +3032,7 @@ function checkGarbage(comp:IComponent){
     
     if(!comp) return true;
     let elems = comp.$elements;
-    for(let i =0,j=elems.length;i<j;i++){
+    if(elems)for(let i =0,j=elems.length;i<j;i++){
         let elem = elems[i] as any;
         if(ElementUtility.is_inDocument(elem)) return false;
         else if(elem.$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;

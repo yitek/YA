@@ -86,7 +86,7 @@ try{
 
 
 
-let emptyStringRegx = /\s+/g;
+let emptyStringRegx = /\s+/;
 function findClassAt(clsnames:string,cls:string):number{
     let at = clsnames.indexOf(cls);
     let len = cls.length;
@@ -108,6 +108,7 @@ let hasClass= ElementUtility.hasClass=(node:IElement,cls:string):boolean=>{
     return findClassAt(node.className,cls)>=0;
 }
 let addClass= ElementUtility.addClass=(node:IElement,cls:string):IElementUtility =>{ //IDom{
+    if(!cls)return ElementUtility;
     if(findClassAt(node.className,cls)>=0) return ElementUtility;
     node.className+= " " + cls;
     return ElementUtility;
@@ -121,7 +122,7 @@ let removeClass= ElementUtility.removeClass = (node:IElement,cls:string):IElemen
     node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
 }
 let replaceClass=ElementUtility.replaceClass = (node:IElement,old_cls:string,new_cls:string,alwaysAdd?:boolean):IElementUtility => { //IDom{
-    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return this.addClass(new_cls);
+    if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return addClass(node,new_cls);
     let clsnames = node.className;
     let at = findClassAt(clsnames,old_cls);
     if(at<=0) {
@@ -410,8 +411,8 @@ class TabPanel extends Component{
     name:string;
     @YA.in_parameter()
     css:string;
-    @YA.in_parameter()
-    caption:string;
+    @YA.parameter()
+    label:string;
     @YA.parameter()
     selected:boolean;
 
@@ -425,14 +426,16 @@ class TabPanel extends Component{
             }
             
             addClass(this.__captionElement,"selected");
-            (this.$parent as Tab).__contentsElement.appendChild(this.__contentElement);
+            addClass(this.__contentElement,"selected");
+            this.__contentElement.style.display="block";
             (this.$parent as Tab).selectedPanel = this;
             if(!(this.$parent as Tab).defaultPanel)(this.$parent as Tab).defaultPanel=this;
             this.selected=true;
         }else{
             if((this.$parent as Tab).selectedPanel!==this) return this;
             removeClass(this.__captionElement,"selected");
-            this.__contentElement.parentNode.removeChild(this.__contentElement);
+            removeClass(this.__contentElement,"selected");
+            this.__contentElement.style.display="none";
             this.selected = false;
             if(!onlyHideSelf) (this.$parent as Tab).defaultPanel.select();
         }
@@ -440,28 +443,40 @@ class TabPanel extends Component{
     }
     
     render(descriptor:YA.INodeDescriptor,container?:IElement){
-        let titleElem = this.__captionElement = ElementUtility.createElement("li",null,(this.$parent as Tab).__captionsElement) as any;
-        YA.bindDomAttr(titleElem,"caption",this.caption,descriptor,this as any,(elem:IElement,name,value,old)=>{
+        let selected:boolean;
+        YA.observableMode(YA.ObservableModes.Value,()=>{
+            selected = this.selected;
+        });
+        let titleElem = this.__captionElement = ElementUtility.createElement("li",{"class":"ya-tab-label"},(this.$parent as Tab).__captionsElement) as any;
+        let txtElem = ElementUtility.createElement("label",null,titleElem);
+        let contentElement = this.__contentElement =ElementUtility.createElement("div",{"class":"ya-tab-content"},(this.$parent as Tab).__contentsElement) as any;
+        contentElement.style.display="none";
+
+        YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
             elem.innerHTML = value;
         });
+        
         YA.bindDomAttr(titleElem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
-            if(old) old = "ya-tab-panel-caption " + old;
-            if(value) value = "ya-tab-panel-caption "+value;
             replaceClass(elem,old, value,true);
+            //replaceClass(this.__contentElement,old,value,true);
         });
         let selectedAttr = descriptor.selected;
         if(selectedAttr) selectedAttr.subscribe((e)=>{
             this.select(e.value);
         },this);
         ElementUtility.attach(titleElem,"click",()=>this.select());
-        let contentElement = this.__contentElement =ElementUtility.createElement("div",null,(this.$parent as Tab).__captionsElement) as any;
         YA.bindDomAttr(contentElement,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
-            if(old) old = "ya-tab-panel-content " + old;
-            if(value) value = "ya-tab-panel-content "+value;
             replaceClass(elem,old,value,true);
         });
         YA.createElements(descriptor.children,contentElement,this as any);
-        return [titleElem,contentElement];
+        let rs = [titleElem,contentElement] as any;
+        rs.$__alreadyAppendToContainer = true;
+
+        (this.selected as any as YA.Observable<any>).subscribe((e)=>{
+            this.select(e.value);
+        },this);
+        if(selected) this.select(true);
+        return rs;
     }
 }
 export class Tab extends Component{
@@ -479,24 +494,39 @@ export class Tab extends Component{
     constructor(){
         super();
     }
+    @YA.parameter()
+    selected:string;
+    @YA.in_parameter()
+    defaultPanelName:string;
 
     render(descriptor:YA.INodeDescriptor,container:IElement):any{
         let elem :IElement;
         elem = document.createElement("div");
+        elem.className="ya-tab";
         YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
-            if(old) old = "ya-tab " + old;
-            if(value) value = "ya-tab "+value;
             replaceClass(elem,old, value,true);
         });
-        this.__captionsElement = ElementUtility.createElement("ul",{className:"ya-tab-captions"},elem) as any;
-        this.__contentsElement = ElementUtility.createElement("div",{className:"ya-tab-contents"},elem) as any;
+        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
+        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
         let children = descriptor.children;
+        let selectedPanel :TabPanel;
         for(let child of children){
             if((child as any).Component!==TabPanel) continue;
             let panel = YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true}) as TabPanel;
+            if(!panel.name) panel.name="tab-panel-"+YA.cid();
             if(!this.panels)this.panels = [];
             this.panels.push(panel);
+            YA.observableMode(YA.ObservableModes.Value,()=>{
+                if(!selectedPanel) selectedPanel = panel;
+                else if(!selectedPanel.selected && panel.selected) selectedPanel= panel;
+            });
         }
+        YA.observableMode(YA.ObservableModes.Value,()=>{
+            if(selectedPanel && !selectedPanel.selected){
+                selectedPanel.select();
+            } 
+        });
+       
         return elem;
     }
 }

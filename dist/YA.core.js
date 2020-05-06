@@ -2444,7 +2444,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (isArray) {
             for (var _i = 0, renderResult_1 = renderResult; _i < renderResult_1.length; _i++) {
                 var val = renderResult_1[_i];
-                resultIsElement = exports.ElementUtility.isElement(renderResult, true);
+                resultIsElement = exports.ElementUtility.isElement(val, true);
                 break;
             }
             isArray = true;
@@ -2453,7 +2453,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             resultIsElement = exports.ElementUtility.isElement(renderResult, true);
         }
         if (resultIsElement) {
-            if (container) {
+            if (container && !renderResult.$__alreadyAppendToContainer) {
                 if (isArray)
                     for (var _a = 0, renderResult_2 = renderResult; _a < renderResult_2.length; _a++) {
                         var elem = renderResult_2[_a];
@@ -2688,23 +2688,31 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return children;
     }
+    function is_define(name, inst) {
+        while (inst) {
+            if (Object.getOwnPropertyDescriptor(inst, name))
+                return true;
+            inst = Object.getPrototypeOf(inst);
+        }
+        return false;
+    }
     function buildComponent(inst, proto) {
         if (!proto)
             proto = inst;
-        if (inst.$element === undefined) {
+        if (!is_define("$element", inst)) {
             Object.defineProperty(proto, "$element", { configurable: false, enumerable: true, get: getElement, set: setElement });
         }
-        if (inst.$elements === undefined) {
+        if (!is_define("$elements", inst)) {
             Object.defineProperty(proto, "$elements", { configurable: false, enumerable: true, get: getElements, set: setElements });
         }
-        if (inst.$parent === undefined) {
+        if (!is_define("$parent", inst)) {
             Object.defineProperty(proto, "$parent", { configurable: false, enumerable: true, get: getParent, set: setParent });
         }
-        if (inst.$children === undefined) {
+        if (!is_define("$children", inst)) {
             Object.defineProperty(proto, "$children", { configurable: false, enumerable: true, get: getChildren });
         }
         if (!inst.dispose)
-            disposable(proto);
+            disposable(proto || inst);
     }
     var Component = /** @class */ (function (_super) {
         __extends(Component, _super);
@@ -2894,13 +2902,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (!comp)
             return true;
         var elems = comp.$elements;
-        for (var i = 0, j = elems.length; i < j; i++) {
-            var elem = elems[i];
-            if (exports.ElementUtility.is_inDocument(elem))
-                return false;
-            else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
-                return false;
-        }
+        if (elems)
+            for (var i = 0, j = elems.length; i < j; i++) {
+                var elem = elems[i];
+                if (exports.ElementUtility.is_inDocument(elem))
+                    return false;
+                else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
+                    return false;
+            }
         return true;
     }
     var RenderDirectives;
