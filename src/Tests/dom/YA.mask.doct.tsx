@@ -6,6 +6,7 @@ import * as Dom from "../../YA.dom";
     ,descriptions:[
         "遮罩"
     ]
+    ,debugging:"maskComp"
 })
 export class MaskTest {
     constructor(){
@@ -95,7 +96,10 @@ export class MaskTest {
     })
     maskComp(assert_statement:TAssertStatement,demoElement?:any){
         class MaskableComp extends Dom.Component{
-           
+            constructor(){
+                super();
+                debugger;
+            }
             
             showMask(){
                 this.mask =prompt("请填写消息内容",this.mask as string);

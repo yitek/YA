@@ -39,6 +39,13 @@ export declare class DPath {
     static replace(template: string, data?: any): string;
 }
 export declare function clone(src: any, deep?: boolean): any;
+/**
+ * 获取一个全局唯一的编号
+ *
+ * @export
+ * @returns
+ */
+export declare function cid(): number;
 export declare type TAsyncStatement = (resolve: (result: any) => any, reject: (err: any) => any) => any;
 export interface IThenable {
     then(fulfillCallback: (result: any) => any, rejectCallback?: (result: any) => any): IThenable;
@@ -469,14 +476,18 @@ export declare enum JSXModes {
     dnode = 1
 }
 export declare function jsxMode(mode: JSXModes, statement: () => any): any;
-declare function createDescriptor(descriptor: INodeDescriptor, container: IElement, comp: IComponent): IElement | IElement[];
+declare function createDescriptor(descriptor: INodeDescriptor, container: IElement, comp: IComponent): IElement | IElement[] | IComponent;
 export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
 } | IElement, vmOrCtnrOrFirstChild?: IElement | any, ...otherChildren: any[]) => IElement | IElement[];
 export declare function createElements(arr: any[], container: IElement, compInstance: IComponent): IElement[];
-export declare function bindDomAttr(element: IElement, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent): any;
+export declare function bindDomAttr(element: IElement, attrName: string, attrValue: any, vnode: INodeDescriptor, compInstance: IComponent, op?: (elem: IElement, name: string, value: any, old: any) => any): any;
 export declare let EVENT: any;
-export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IElement): IElement[] | IElement;
+export interface ComponentCreationOpts {
+    returnInstance?: boolean;
+    noGarbaging?: boolean;
+}
+export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IElement, compParent?: IComponent, opts?: ComponentCreationOpts): IElement[] | IElement | IComponent;
 export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
@@ -485,6 +496,7 @@ declare class Computed extends Subject<IChangeEventArgs<any>> implements IObserv
     lamda: Function;
     parameters: any[];
     $type: any;
+    $cid: number;
     constructor(lamda: Function, parameters: any[]);
     get(mode?: ObservableModes): any;
     set(value: any): any;
@@ -501,7 +513,7 @@ declare class Computed extends Subject<IChangeEventArgs<any>> implements IObserv
     }): ISubject<any>;
     fulfill(topic: string | any, evtArgs?: any): ISubject<any>;
     getValue(compInstance: IComponent): any;
-    bindValue(setter: (val: any) => any, compInstance: IComponent): void;
+    bindValue(setter: (val: any, old: any) => any, compInstance: IComponent): void;
 }
 export declare let computed: (...args: any[]) => IComputedExpression;
 export declare function not(param: any, strong?: boolean): Computed;
@@ -519,7 +531,7 @@ export interface IReactiveInfo {
     schema?: ObservableSchema<any>;
     initData?: any;
 }
-export interface IComponentInfo {
+export interface IComponentMeta {
     reactives?: {
         [prop: string]: IReactiveInfo;
     };
@@ -531,17 +543,31 @@ export interface IComponentInfo {
     explicit?: boolean;
 }
 export interface IComponent extends IDisposable {
-    $_meta: IComponentInfo;
+    $meta: IComponentMeta;
+    $parent?: IComponent;
+    $cid?: string;
+    $children?: IComponent[];
+    $elements: IElement[];
+    $element: IElement;
     render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
-    $__elements__: IElement | IElement[];
+}
+export declare class Component extends Disposable implements IComponent {
+    $cid?: string;
+    $meta: IComponentMeta;
+    $elements: IElement[];
+    $element: IElement;
+    $parent?: IComponent;
+    $children: IComponent[];
+    constructor();
+    render(des: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;
 };
 export declare type TComponentType = TComponentCtor & {
-    $meta: IComponentInfo;
+    $meta: IComponentMeta;
     prototype: {
-        $meta: IComponentInfo;
+        $meta: IComponentMeta;
     };
 };
 export interface IDisposeInfo {
@@ -623,6 +649,7 @@ declare let YA: {
     createElements: typeof createElements;
     createComponent: typeof createComponent;
     EVENT: any;
+    bindDomAttr: typeof bindDomAttr;
     attrBinders: {
         [name: string]: (elem: IElement, bindValue: any, vnode: INodeDescriptor, compInstance: IComponent) => any;
     };
@@ -632,6 +659,7 @@ declare let YA: {
     not: typeof not;
     computed: (...args: any[]) => IComputedExpression;
     ElementUtility: IElementUtility;
+    Component: typeof Component;
     reactive: typeof reactive;
     ReactiveTypes: typeof ReactiveTypes;
     intimate: typeof implicit;

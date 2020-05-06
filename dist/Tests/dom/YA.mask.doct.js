@@ -94,7 +94,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var MaskableComp = /** @class */ (function (_super) {
                 __extends(MaskableComp, _super);
                 function MaskableComp() {
-                    return _super !== null && _super.apply(this, arguments) || this;
+                    var _this = _super.call(this) || this;
+                    debugger;
+                    return _this;
                 }
                 MaskableComp.prototype.showMask = function () {
                     var _this = this;
@@ -149,7 +151,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 title: "YA.dom.mask",
                 descriptions: [
                     "遮罩"
-                ]
+                ],
+                debugging: "maskComp"
             })
         ], MaskTest);
         return MaskTest;

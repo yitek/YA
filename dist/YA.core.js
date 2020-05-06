@@ -240,6 +240,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return rs;
     }
     exports.clone = clone;
+    var _cid = 0;
+    /**
+     * 获取一个全局唯一的编号
+     *
+     * @export
+     * @returns
+     */
+    function cid() {
+        if (_cid > 2100000000)
+            _cid = -210000000;
+        return _cid;
+    }
+    exports.cid = cid;
     var PromiseStates;
     (function (PromiseStates) {
         PromiseStates[PromiseStates["Pending"] = 0] = "Pending";
@@ -253,10 +266,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var result = this.$_promise_result = undefined;
             var fulfillCallbacks = this.$_promise_fulfillCallbacks = [];
             var rejectCallbacks = this.$_promise_rejectCallbacks = [];
-            //Object.defineProperty(this,"$_promise_status",{enumerable:false,configurable:false,get:()=>status});   
-            //Object.defineProperty(this,"$_promise_fulfillCallbacks",{enumerable:false,configurable:false,get:()=>fulfillCallbacks});
-            //Object.defineProperty(this,"$_promise_rejectCallbacks",{enumerable:false,configurable:false,get:()=>rejectCallbacks});   
-            //Object.defineProperty(this,"$_promise_result",{enumerable:false,configurable:false,get:()=>result});   
             var resolve = function (result) {
                 if (status !== PromiseStates.Pending) {
                     console.warn("settled状态不应该再调用resolve/reject");
@@ -650,6 +659,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 Object.defineProperty(this, "$isDisposed", { enumerable: false, configurable: true, writable: false, value: true });
                 var onReleases = this.$__disposings__;
+                if (!onReleases)
+                    return this;
                 try {
                     for (var _i = 0, onReleases_1 = onReleases; _i < onReleases_1.length; _i++) {
                         var release = onReleases_1[_i];
@@ -1842,7 +1853,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     }
     exports.jsxMode = jsxMode;
-    function _createElement(tag, attrs, compInst) {
+    function _createElement(tag, attrs, compInst, compParent) {
         if (tag === undefined || tag === null || tag === "")
             return;
         var descriptor;
@@ -1868,12 +1879,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         else if (t === "function") {
             if (attrs === undefined || exports.ElementUtility.isElement(attrs)) {
-                //三:createElement(Comp,container);
-                return createComponent(tag, null, attrs);
+                //三:createElement(Comp,container,compParent);
+                return createComponent(tag, null, attrs, compInst);
             }
             if (compInst && exports.ElementUtility.isElement(compInst)) {
-                //四:createElement(Comp,attrs,container);
-                return createComponent(tag, attrs, compInst);
+                //四:createElement(Comp,attrs,container,compParent);
+                return createComponent(tag, attrs, compInst, compParent);
             }
             //五: createElement(Comp:Function,attrs:{},...children);
             descriptor = {};
@@ -1885,7 +1896,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 children.push(arguments[i]);
             }
             descriptor.children = children;
-            return (_jsxMode === JSXModes.vnode) ? descriptor : createComponent(descriptor.Component, descriptor, null);
+            return (_jsxMode === JSXModes.vnode) ? descriptor : createComponent(descriptor.Component, descriptor, null, null);
         }
         else if (t === "object") {
             if (is_array(tag)) {
@@ -1921,7 +1932,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return elem;
             }
         }
-        var elems = createComponent(descriptor.Component, descriptor, container);
+        var elems = createComponent(descriptor.Component, descriptor, container, comp);
         return elems;
     }
     exports.createElement = _createElement;
@@ -2085,29 +2096,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ;
     }
     //把属性绑定到element上
-    function bindDomAttr(element, attrName, attrValue, vnode, compInstance) {
+    function bindDomAttr(element, attrName, attrValue, vnode, compInstance, op) {
         if (attrValue instanceof ObservableProxy)
             attrValue = attrValue.get(ObservableModes.Observable);
         var binder = exports.attrBinders[attrName];
         var bindResult;
+        if (!op)
+            op = function (elem, name, value, old) {
+                exports.ElementUtility.setProperty(elem, name, value);
+            };
         //计算表达式
         if (attrValue instanceof Computed) {
             if (binder) {
                 attrValue.bindValue(function (val) { return binder.call(compInstance, element, val, compInstance); }, compInstance);
             }
             else {
-                attrValue.bindValue(function (val) { return exports.ElementUtility.setAttribute(element, attrName, val); }, compInstance);
+                attrValue.bindValue(function (val) { return op(element, attrName, val, undefined); }, compInstance);
             }
         }
         else {
             if (binder)
                 bindResult = binder.call(compInstance, element, attrValue, vnode, compInstance);
             else if (attrValue instanceof Observable) {
-                exports.ElementUtility.setAttribute(element, attrName, attrValue.get(ObservableModes.Value));
-                attrValue.subscribe(function (e) { return exports.ElementUtility.setAttribute(element, attrName, e.value); }, compInstance);
+                op(element, attrName, attrValue.get(ObservableModes.Value), undefined);
+                attrValue.subscribe(function (e) { return op(element, attrName, e.value, e.old); }, compInstance);
             }
             else
-                exports.ElementUtility.setAttribute(element, attrName, attrValue);
+                op(element, attrName, attrValue, undefined);
         }
         return bindResult;
     }
@@ -2169,7 +2184,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return true;
     }
     exports.EVENT = {};
-    function createComponent(componentType, descriptor, container) {
+    function createComponent(componentType, descriptor, container, compParent, opts) {
         //获取到vnode，attr-value得到的应该是schema
         var compInstance;
         var renderResult;
@@ -2183,9 +2198,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             compInstance = new componentType(descriptor, container);
             // object-component
             if (typeof compInstance.render === 'function') {
-                //确定component有dispose函数
-                if (typeof compInstance.dispose !== "function") {
-                    disposable(compInstance);
+                buildComponent(compInstance, componentType.prototype);
+                if (compInstance.$parent = compParent) {
+                    compParent.$children.push(compInstance);
+                    compInstance.dispose(function () {
+                        if (this.$parent) {
+                            for (var i = 0, j = this.$parent.$children; i < j; i++) {
+                                var c = this.$parent.$children.unshift();
+                                if (c !== this)
+                                    this.$parent.$children.push(c);
+                            }
+                        }
+                    });
                 }
                 //绑定属性
                 for (var propname in descriptor) {
@@ -2193,6 +2217,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         continue;
                     if (propname === "if") {
                         ifAttrValue = descriptor[propname];
+                        continue;
+                    }
+                    if (propname === "cid") {
+                        bindComponentCid(compInstance, descriptor[propname], null, container);
                         continue;
                     }
                     bindComponentAttr(compInstance, propname, descriptor[propname]);
@@ -2212,15 +2240,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             Observable.accessMode = omode;
         }
         var elems = handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
-        if (compInstance)
-            Object.defineProperty(compInstance, "$__elements__", { enumerable: false, configurable: false, writable: false, value: elems });
+        if (exports.ElementUtility.isElement(elems))
+            compInstance.$element = elems;
+        else
+            compInstance.$elements = elems;
         //绑定if属性
         if (ifAttrValue)
             bindComponentIf(compInstance, ifAttrValue, elems, container);
         //每个创建的控件都要定期做垃圾检查
-        if (compInstance)
+        if (compInstance && (!opts || !opts.noGarbaging))
             ComponentGarbage.singleon.attech(compInstance);
-        return elems;
+        return opts && opts.returnInstance ? compInstance : elems;
     }
     exports.createComponent = createComponent;
     function bindComponentIf(compInstance, bindValue, elems, container) {
@@ -2289,6 +2319,57 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         ;
     }
+    function bindComponentCid(compInstance, bindValue, elems, container) {
+        var parent = compInstance.$parent;
+        if (!parent)
+            return;
+        if (Observable.isObservable(bindValue)) {
+            bindValue.subscribe(function (e) {
+                setCid(parent, compInstance, e.value, e.old);
+            }, compInstance);
+            bindValue = bindValue.get(ObservableModes.Value);
+        }
+        setCid(parent, compInstance, bindValue, undefined);
+    }
+    function setCid(parent, comp, cid, old) {
+        if (!cid) {
+            console.warn("调用了setCID,但给的值为空,忽略该操作", cid, comp);
+            return;
+        }
+        comp.$cid = cid;
+        var existed = old ? parent[old] : null;
+        if (existed) {
+            if (existed === comp) {
+                delete parent[old];
+                parent[cid] = comp;
+            }
+            else {
+                for (var i = 0, j = existed.length; i < j; i++) {
+                    var c = existed.unshift();
+                    if (c !== comp)
+                        existed.push(c);
+                }
+                if (existed.length == 0)
+                    delete parent[old];
+            }
+        }
+        existed = parent[cid];
+        if (!existed) {
+            parent[cid] = comp;
+        }
+        else if (is_array(existed)) {
+            for (var i = 0, j = existed.length; i < j; i++) {
+                var c = existed.unshift();
+                if (c !== comp)
+                    existed.push(c);
+            }
+            existed.push(comp);
+        }
+        else {
+            var arr = [existed, comp];
+            parent[cid] = arr;
+        }
+    }
     /**
      *
      *
@@ -2304,7 +2385,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var componentName = "Component";
         if (prop) {
             if (Observable.isObservable(prop)) {
-                var meta = compInstance.$_meta || {};
+                var meta = compInstance.$meta || {};
                 //获取属性的类型
                 var propType = meta.reactives ? meta.reactives[propName].type : ReactiveTypes.In;
                 var isOb = Observable.isObservable(propValue);
@@ -2409,6 +2490,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _this.parameters = parameters;
             if (!_this.parameters)
                 _this.parameters = [];
+            Object.defineProperty(_this, "$cid", { enumerable: false, writable: false, configurable: false, value: "$computed_" + cid() });
             return _this;
         }
         Computed.prototype.get = function (mode) {
@@ -2443,8 +2525,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 if (Observable.isObservable(dep)) {
                     if (!fn) {
                         fn = function (e) {
+                            var old;
+                            if (disposable)
+                                old = disposable[_this.$cid];
                             var value = _this.get(ObservableModes.Default);
-                            var evt = { value: value, sender: e.sender, type: ChangeTypes.Computed };
+                            var evt = { value: value, sender: e.sender, old: old, type: ChangeTypes.Computed };
                             handler.call(_this, evt);
                         };
                         if (typeof topic === "function") {
@@ -2493,7 +2578,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 else
                     args.push(dep);
             }
-            return this.lamda.apply(compInstance, args);
+            var value = this.lamda.apply(compInstance, args);
+            if (compInstance)
+                Object.defineProperty(compInstance, this.$cid, { enumerable: false, configurable: true, value: value });
+            return value;
         };
         Computed.prototype.bindValue = function (setter, compInstance) {
             var _this = this;
@@ -2501,7 +2589,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var ob = _a[_i];
                 if (Observable.isObservable(ob))
                     ob.subscribe(function (e) {
-                        setter(_this.getValue(compInstance));
+                        var old = compInstance ? compInstance[_this.$cid] : undefined;
+                        setter(_this.getValue(compInstance), old);
                     }, compInstance);
             }
         };
@@ -2528,6 +2617,107 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ReactiveTypes[ReactiveTypes["Out"] = 2] = "Out";
         ReactiveTypes[ReactiveTypes["Parameter"] = 3] = "Parameter";
     })(ReactiveTypes = exports.ReactiveTypes || (exports.ReactiveTypes = {}));
+    function getElement() {
+        if (this.$__element__ === undefined) {
+            var elem = void 0;
+            if (this.$__elements__) {
+                elem = this.$__elements__[0];
+            }
+            if (!elem)
+                elem = null;
+            Object.defineProperty(this, "$__element__", { configurable: false, writable: true, enumerable: false, value: elem });
+            return elem;
+        }
+        return this.$__element__;
+    }
+    function setElement(elem) {
+        if (this.$__element__ === undefined) {
+            Object.defineProperty(this, "$__element__", { configurable: false, writable: true, enumerable: false, value: elem });
+            return;
+        }
+        this.$__element__ = elem || null;
+        if (elem && !this.$__elements__) {
+            this.elements = [elem];
+        }
+    }
+    function getElements() {
+        if (this.$__elements__ === undefined) {
+            var elems = void 0;
+            if (this.$__element__) {
+                elems = [this.$__element__];
+            }
+            if (!elems)
+                elems = null;
+            Object.defineProperty(this, "$__elements__", { configurable: false, writable: true, enumerable: false, value: elems });
+            return elems;
+        }
+        return this.$__elements__;
+    }
+    function setElements(elems) {
+        if (this.$__elements__ === undefined) {
+            Object.defineProperty(this, "$__elements__", { configurable: false, writable: true, enumerable: false, value: elems });
+            if (elems && elems.length && !this.$__element__)
+                this.element = elems[0];
+            return;
+        }
+        this.$__elements__ = elems || null;
+        if (elems && elems.length && !this.$__element__) {
+            this.element = elems[0];
+        }
+    }
+    function getParent() {
+        var p = this.$__parent__;
+        if (p === undefined) {
+            Object.defineProperty(this, "$__parent__", { enumerable: false, writable: true, configurable: false, value: null });
+            return null;
+        }
+        return p || null;
+    }
+    function setParent(val) {
+        if (this.$__parent__ === undefined) {
+            Object.defineProperty(this, "$__parent__", { enumerable: false, writable: true, configurable: false, value: val || null });
+        }
+        else
+            this.$__parent__ = val;
+    }
+    function getChildren() {
+        var children = this.$__children__;
+        if (children === undefined) {
+            children = [];
+            Object.defineProperty(this, "$__children__", { enumerable: false, writable: false, configurable: false, value: children });
+        }
+        return children;
+    }
+    function buildComponent(inst, proto) {
+        if (!proto)
+            proto = inst;
+        if (inst.$element === undefined) {
+            Object.defineProperty(proto, "$element", { configurable: false, enumerable: true, get: getElement, set: setElement });
+        }
+        if (inst.$elements === undefined) {
+            Object.defineProperty(proto, "$elements", { configurable: false, enumerable: true, get: getElements, set: setElements });
+        }
+        if (inst.$parent === undefined) {
+            Object.defineProperty(proto, "$parent", { configurable: false, enumerable: true, get: getParent, set: setParent });
+        }
+        if (inst.$children === undefined) {
+            Object.defineProperty(proto, "$children", { configurable: false, enumerable: true, get: getChildren });
+        }
+        if (!inst.dispose)
+            disposable(proto);
+    }
+    var Component = /** @class */ (function (_super) {
+        __extends(Component, _super);
+        function Component() {
+            return _super.call(this) || this;
+        }
+        Component.prototype.render = function (des, container) {
+            throw new Error("abstract method");
+        };
+        return Component;
+    }(Disposable));
+    exports.Component = Component;
+    buildComponent(Component.prototype);
     /////////////////////////////////////////////////////////////////////////////
     //
     // ts 装饰器支持
@@ -2553,9 +2743,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.reactive = reactive;
     function reactiveInfo(obj, name, value) {
-        var meta = (obj.$_meta);
+        var meta = (obj.$meta);
         if (!meta)
-            Object.defineProperty(obj, "$_meta", { enumerable: false, configurable: false, writable: false, value: meta = {} });
+            Object.defineProperty(obj, "$meta", { enumerable: false, configurable: false, writable: false, value: meta = {} });
         var reactiveInfos = meta.reactives || (meta.reactives = {});
         if (!name)
             return reactiveInfos;
@@ -2701,26 +2891,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return count;
     }
     function checkGarbage(comp) {
-        if (!comp || !comp.$__elements__)
+        if (!comp)
             return true;
-        if (exports.ElementUtility.isElement(comp.$__elements__, true)) {
-            var elem = comp.$__elements__;
+        var elems = comp.$elements;
+        for (var i = 0, j = elems.length; i < j; i++) {
+            var elem = elems[i];
             if (exports.ElementUtility.is_inDocument(elem))
                 return false;
             else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
                 return false;
-            return true;
         }
-        else if (comp.$__elements__.length) {
-            for (var i = 0, j = comp.$__elements__.length; i < j; i++) {
-                var elem = comp.$__elements__[i];
-                if (exports.ElementUtility.is_inDocument(elem))
-                    return false;
-                else if (elem.$__placeholder__ && exports.ElementUtility.is_inDocument(elem.$__placeholder__))
-                    return false;
-            }
-            return true;
-        }
+        return true;
     }
     var RenderDirectives;
     (function (RenderDirectives) {
@@ -2804,10 +2985,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
         observable: observable, enumerator: enumerator,
         createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
-        attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
+        bindDomAttr: bindDomAttr, attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         not: not, computed: exports.computed,
         ElementUtility: exports.ElementUtility,
-        reactive: reactive, ReactiveTypes: ReactiveTypes,
+        Component: Component, reactive: reactive, ReactiveTypes: ReactiveTypes,
         intimate: implicit, clone: clone, Promise: Promise, trim: trim, is_array: is_array, is_assoc: is_assoc, is_empty: is_empty, Default: exports.Default, toJson: toJson, queryString: queryString
     };
     if (typeof window !== 'undefined')

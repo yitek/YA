@@ -193,6 +193,19 @@ export function  clone(src:any,deep?:boolean) {
     return rs;
 }
 
+let _cid=0;
+
+/**
+ * 获取一个全局唯一的编号
+ *
+ * @export
+ * @returns
+ */
+export function cid(){
+    if(_cid>2100000000) _cid= -210000000;
+    return _cid;
+}
+
 //=======================================================================
 // Promise /异步
 export type TAsyncStatement=(resolve:(result:any)=>any,reject:(err:any)=>any)=>any;
@@ -215,10 +228,7 @@ export class Promise implements IThenable{
         let result =this.$_promise_result = undefined;
         let fulfillCallbacks:{(result:any,isSuccess?:boolean):any}[] = this.$_promise_fulfillCallbacks=[];
         let rejectCallbacks:{(result:any,isSuccess?:boolean):any}[] = this.$_promise_rejectCallbacks =[];
-        //Object.defineProperty(this,"$_promise_status",{enumerable:false,configurable:false,get:()=>status});   
-        //Object.defineProperty(this,"$_promise_fulfillCallbacks",{enumerable:false,configurable:false,get:()=>fulfillCallbacks});
-        //Object.defineProperty(this,"$_promise_rejectCallbacks",{enumerable:false,configurable:false,get:()=>rejectCallbacks});   
-        //Object.defineProperty(this,"$_promise_result",{enumerable:false,configurable:false,get:()=>result});   
+       
     
         let resolve =(result:any):Promise=>{
             if(status!==PromiseStates.Pending){ 
@@ -695,6 +705,7 @@ export function disposable(target:any):IDisposable{
         }
         Object.defineProperty(this,"$isDisposed",{enumerable:false,configurable:true,writable:false,value:true});
         let onReleases = this.$__disposings__;
+        if(!onReleases)return this;
         try{
             for(const release of onReleases){
                 release.call(this,onRelease,this);
@@ -1975,8 +1986,8 @@ export function jsxMode(mode:JSXModes,statement:()=>any){
 function _createElement(
     tag:string|INodeDescriptor|Function|any[],
     attrs?:{[name:string]:any}|IElement,
-    compInst?:IComponent|IElement
-    
+    compInst?:IComponent|IElement,
+    compParent?:IComponent
 ){
     if(tag===undefined || tag===null || tag === "") return;
     let descriptor:INodeDescriptor;
@@ -2003,12 +2014,12 @@ function _createElement(
         
     }else if(t==="function"){
         if(attrs===undefined || ElementUtility.isElement(attrs)){
-            //三:createElement(Comp,container);
-            return createComponent(tag as Function,null,attrs as IElement);
+            //三:createElement(Comp,container,compParent);
+            return createComponent(tag as Function,null,attrs as IElement,compInst as IComponent);
         }
         if(compInst && ElementUtility.isElement(compInst)){
-            //四:createElement(Comp,attrs,container);
-            return createComponent(tag as Function,attrs,compInst as IElement);
+            //四:createElement(Comp,attrs,container,compParent);
+            return createComponent(tag as Function,attrs,compInst as IElement,compParent);
         }
         //五: createElement(Comp:Function,attrs:{},...children);
         descriptor = {};
@@ -2020,7 +2031,7 @@ function _createElement(
             children.push(arguments[i]);
         }
         descriptor.children = children;
-        return (_jsxMode===JSXModes.vnode) ?descriptor:createComponent(descriptor.Component as any,descriptor,null);
+        return (_jsxMode===JSXModes.vnode) ?descriptor:createComponent(descriptor.Component as any,descriptor,null,null);
     }else if(t==="object") {
         
         if(is_array(tag)){
@@ -2054,7 +2065,7 @@ function createDescriptor(descriptor:INodeDescriptor,container:IElement,comp:ICo
             return elem;
         }
     }
-    let elems = createComponent(descriptor.Component as any,descriptor,container);
+    let elems = createComponent(descriptor.Component as any,descriptor,container,comp);
     return elems;
 }
 
@@ -2205,25 +2216,27 @@ function bindDomIf(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstanc
     if(!bindValue){ElementUtility.replace(elem,placeholder);};
 }
 //把属性绑定到element上
-export function bindDomAttr(element:IElement,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+export function bindDomAttr(element:IElement,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent,op?:(elem:IElement,name:string,value:any,old:any)=>any){
     if(attrValue instanceof ObservableProxy) attrValue = attrValue.get(ObservableModes.Observable);
     let binder:Function = attrBinders[attrName];
     let bindResult:any;
+    if(!op) op = (elem:IElement,name:string,value:any,old:any)=>{
+        ElementUtility.setProperty(elem,name,value);
+    };
     //计算表达式
     if(attrValue instanceof Computed){
         if(binder){
             attrValue.bindValue((val)=>binder.call(compInstance,element,val,compInstance),compInstance);
         }else {
-            attrValue.bindValue((val)=>ElementUtility.setAttribute(element,attrName,val),compInstance);
+            attrValue.bindValue((val)=>op(element,attrName,val,undefined),compInstance);
         }
-        
     } else{
         if(binder) bindResult= binder.call(compInstance,element,attrValue,vnode,compInstance);
         else if(attrValue instanceof Observable){
-            ElementUtility.setAttribute(element,attrName,attrValue.get(ObservableModes.Value));
-            attrValue.subscribe((e)=>ElementUtility.setAttribute(element,attrName,e.value),compInstance);
+            op(element,attrName,attrValue.get(ObservableModes.Value),undefined);
+            attrValue.subscribe((e)=>op(element,attrName,e.value,e.old),compInstance);
         }
-        else ElementUtility.setAttribute(element,attrName,attrValue);
+        else op(element,attrName,attrValue,undefined);
     }
     return bindResult;
 }
@@ -2276,8 +2289,11 @@ function bindDomEvent(element:IElement,evtName:string,params:any,vnode:INodeDesc
     return true;
 }
 export let EVENT:any = {};
-
-export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement):IElement[]|IElement{
+export interface ComponentCreationOpts{
+    returnInstance?:boolean;
+    noGarbaging?:boolean;
+}
+export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement,compParent?:IComponent,opts?:ComponentCreationOpts):IElement[]|IElement|IComponent{
     
     //获取到vnode，attr-value得到的应该是schema
     let compInstance :any;
@@ -2292,16 +2308,28 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
         compInstance = new componentType(descriptor,container);
         // object-component
         if(typeof compInstance.render==='function'){
-            //确定component有dispose函数
-            if(typeof compInstance.dispose!=="function"){
-                disposable(compInstance);
+            buildComponent(compInstance,componentType.prototype);
+            if(compInstance.$parent = compParent){
+                compParent.$children.push(compInstance);
+                compInstance.dispose(function(){
+                    if(this.$parent) {
+                        for(let i=0,j=this.$parent.$children;i<j;i++){
+                            let c = this.$parent.$children.unshift();
+                            if(c!==this) this.$parent.$children.push(c);
+                        }
+                    }
+                });
             }
-
+            
             //绑定属性
             for(const propname in descriptor){
                 if(propname==="tag" || propname==="children") continue;
                 if(propname==="if") {
                     ifAttrValue = descriptor[propname];
+                    continue;
+                }
+                if(propname==="cid"){
+                    bindComponentCid(compInstance,descriptor[propname],null,container);
                     continue;
                 }
                 bindComponentAttr(compInstance,propname,descriptor[propname]);
@@ -2320,12 +2348,14 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
 
 
     let elems = handleRenderResult(renderResult,compInstance,renderFn,descriptor,container);
-    if(compInstance) Object.defineProperty(compInstance,"$__elements__",{enumerable:false,configurable:false,writable:false,value:elems});
+    
+    if(ElementUtility.isElement(elems)) compInstance.$element = elems;
+    else compInstance.$elements = elems;
     //绑定if属性
     if(ifAttrValue) bindComponentIf(compInstance,ifAttrValue,elems,container);
     //每个创建的控件都要定期做垃圾检查
-    if(compInstance) ComponentGarbage.singleon.attech(compInstance);
-    return elems;
+    if(compInstance &&(!opts || !opts.noGarbaging)) ComponentGarbage.singleon.attech(compInstance);
+    return opts&&opts.returnInstance?compInstance:elems;
 }
 
 function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
@@ -2378,6 +2408,52 @@ function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,contain
     };
 }
 
+function bindComponentCid(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
+    let parent = compInstance.$parent;
+    if(!parent) return;
+    if(Observable.isObservable(bindValue)){
+        bindValue.subscribe((e:IChangeEventArgs<any>)=>{
+            setCid(parent,compInstance,e.value,e.old);
+        },compInstance);
+        bindValue = bindValue.get(ObservableModes.Value);
+    }
+    setCid(parent,compInstance,bindValue,undefined);
+
+}
+function setCid(parent,comp,cid,old?){
+    if(!cid) {
+        console.warn("调用了setCID,但给的值为空,忽略该操作",cid,comp);
+        return;
+    }
+    comp.$cid = cid;
+    let existed = old?parent[old]:null;
+    if(existed){
+        if(existed===comp){
+            delete parent[old];
+            parent[cid] = comp;
+        }else{
+            for(let i =0,j=existed.length;i<j;i++){
+                let c = existed.unshift();
+                if(c!==comp) existed.push(c);
+            }
+            if(existed.length==0) delete parent[old];
+        }
+    }
+    
+    existed = parent[cid];
+    if(!existed) {
+        parent[cid]= comp;
+    }else if(is_array(existed)){
+        for(let i =0,j=existed.length;i<j;i++){
+            let c = existed.unshift();
+            if(c!==comp) existed.push(c);
+        }
+        existed.push(comp);
+    }else {
+        let arr = [existed,comp];
+        parent[cid]=arr;
+    }
+}
 
 
 /**
@@ -2396,7 +2472,7 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
     
     if(prop){
         if(Observable.isObservable(prop)){
-            let meta:IComponentInfo = compInstance.$_meta || {};
+            let meta:IComponentMeta = compInstance.$meta || {};
             //获取属性的类型
             let propType :ReactiveTypes = meta.reactives?meta.reactives[propName].type:ReactiveTypes.In;
             let isOb = Observable.isObservable(propValue);
@@ -2446,7 +2522,6 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
 function handleRenderResult(renderResult:any,instance:any,renderFn:any,descriptor:INodeDescriptor,container:IElement){
     
     let isArray = is_array(renderResult);
-    
     let resultIsElement = false;
     
     if(isArray){
@@ -2474,6 +2549,7 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
                 result.push(elem);
             }
             renderResult = result;
+            
         }else {
             renderResult = createDescriptor(renderNode,container,instance) as IElement;
         }
@@ -2485,6 +2561,8 @@ function handleRenderResult(renderResult:any,instance:any,renderFn:any,descripto
 
 
 
+
+
 export interface IComputedExpression{
     lamda:Function;
     parameters:any[];
@@ -2492,9 +2570,11 @@ export interface IComputedExpression{
 
 class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any>{
     $type:any;
+    $cid:number;
     constructor(public lamda:Function,public parameters:any[]){
         super();
         if(!this.parameters) this.parameters = [];
+        Object.defineProperty(this,"$cid",{enumerable:false,writable:false,configurable:false,value:"$computed_"+cid()});
     }
     get(mode?:ObservableModes){
         if(mode===undefined) mode = Observable.accessMode;
@@ -2523,8 +2603,10 @@ class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any
                 
                 if(!fn){
                     fn = (e:IChangeEventArgs<any>)=>{
+                        let old:any;
+                        if(disposable) old = (disposable as any)[this.$cid];
                         let value = this.get(ObservableModes.Default);
-                        let evt = {value:value,sender:e.sender,type:ChangeTypes.Computed};
+                        let evt = {value:value,sender:e.sender,old:old,type:ChangeTypes.Computed};
                         handler.call(this,evt);
                     };
                     if(typeof topic ==="function"){
@@ -2567,14 +2649,18 @@ class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any
             if(ob) args.push(ob.get(ObservableModes.Value));
             else args.push(dep);
         }
-        return this.lamda.apply(compInstance,args);
+        let value = this.lamda.apply(compInstance,args);
+        if(compInstance) Object.defineProperty(compInstance,this.$cid,{enumerable:false,configurable:true,value:value});
+        return value;
     }
-    bindValue(setter:(val:any)=>any,compInstance:IComponent){
+    bindValue(setter:(val:any,old:any)=>any,compInstance:IComponent){
         for(let ob of this.parameters){
             if(Observable.isObservable(ob)) ob.subscribe(e=>{
-                setter(this.getValue(compInstance));
+                let old = compInstance?compInstance[this.$cid]:undefined;
+                setter(this.getValue(compInstance),old);
             },compInstance);
         }
+        
     }
 }
 
@@ -2609,7 +2695,7 @@ export interface IReactiveInfo{
 }
 
 
-export interface IComponentInfo {
+export interface IComponentMeta {
     reactives?:{[prop:string]:IReactiveInfo};
     
     ctor?:TComponentType;
@@ -2621,15 +2707,129 @@ export interface IComponentInfo {
 }
 
 export interface IComponent extends IDisposable{
-    $_meta:IComponentInfo;
-    
+    $meta:IComponentMeta;
+    $parent?:IComponent;
+    $cid?:string;
+    $children?:IComponent[];
+    $elements: IElement[];
+    $element:IElement;
     render(descriptor?:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
-    $__elements__:IElement | IElement[];
+}
+
+function getElement(){
+    if(this.$__element__===undefined){
+        let elem:any;
+        if(this.$__elements__){
+            elem = this.$__elements__[0];
+        }
+        if(!elem)elem=null;
+        Object.defineProperty(this,"$__element__",{configurable:false,writable:true,enumerable:false,value:elem});
+        return elem;
+    }
+    
+    return this.$__element__;
+}
+function setElement(elem:IElement){
+    if(this.$__element__===undefined){
+        Object.defineProperty(this,"$__element__",{configurable:false,writable:true,enumerable:false,value:elem});
+        return;
+    }
+    this.$__element__ = elem||null;
+    if(elem && !this.$__elements__){
+        this.elements = [elem];
+    }
+    
+}
+
+
+function getElements(){
+    if(this.$__elements__===undefined){
+        let elems:IElement[];
+        if(this.$__element__){
+            elems = [this.$__element__];
+        }
+        if(!elems)elems=null;
+        Object.defineProperty(this,"$__elements__",{configurable:false,writable:true,enumerable:false,value:elems});
+        return elems;
+    }
+    
+    return this.$__elements__;
+}
+function setElements(elems:IElement[]){
+    if(this.$__elements__===undefined){
+        Object.defineProperty(this,"$__elements__",{configurable:false,writable:true,enumerable:false,value:elems});
+        if(elems&& elems.length&& !this.$__element__) this.element = elems[0];
+        return;
+    }
+    this.$__elements__ = elems||null;
+    if(elems &&elems.length&& !this.$__element__){
+        this.element=elems[0];
+    }
+}
+function getParent(){
+    let p = this.$__parent__;
+    if(p===undefined){
+        Object.defineProperty(this,"$__parent__",{enumerable:false,writable:true,configurable:false,value:null});
+        return null;
+    }
+    return p||null;
+}
+function setParent(val){
+    if(this.$__parent__===undefined){
+        Object.defineProperty(this,"$__parent__",{enumerable:false,writable:true,configurable:false,value:val||null});
+    }else this.$__parent__ = val;
+}
+
+function getChildren(){
+    let children = this.$__children__;
+    if(children===undefined){
+        children =[];
+        Object.defineProperty(this,"$__children__",{enumerable:false,writable:false,configurable:false,value:children});
+    }
+    return children;
+}
+
+function buildComponent(inst,proto?){
+    if(!proto) proto = inst;
+    if(inst.$element===undefined){
+        Object.defineProperty(proto,"$element",{configurable:false,enumerable:true,get:getElement,set:setElement});
+    }
+    if(inst.$elements===undefined){
+        Object.defineProperty(proto,"$elements",{configurable:false,enumerable:true,get:getElements,set:setElements});
+    }
+    if(inst.$parent===undefined){
+        Object.defineProperty(proto,"$parent",{configurable:false,enumerable:true,get:getParent,set:setParent});
+    }
+    if(inst.$children===undefined){
+        Object.defineProperty(proto,"$children",{configurable:false,enumerable:true,get:getChildren});
+    }
+    if(!inst.dispose) disposable(proto);
+    
+}
+
+export class Component extends Disposable  implements IComponent{
+    $cid?:string;
+    $meta:IComponentMeta;
+    $elements:IElement[];
+    $element:IElement;
+    $parent?:IComponent;
+    $children:IComponent[];
     
 
+    constructor(){
+        super();
+    }
+    render(des:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[]{
+        throw new Error("abstract method");
+    }
+
+    
 }
+buildComponent(Component.prototype);
+
+
 export type TComponentCtor = {new (...args:any[]):IComponent};
-export type TComponentType = TComponentCtor & {$meta:IComponentInfo,prototype:{$meta:IComponentInfo}};
+export type TComponentType = TComponentCtor & {$meta:IComponentMeta,prototype:{$meta:IComponentMeta}};
 export interface IDisposeInfo{
     activeTime?:Date;
     inactiveTime?:Date;
@@ -2660,8 +2860,8 @@ export function reactive(type?:ReactiveTypes,schema?:ObservableSchema<any>|any,n
     return decorator;
 }
 function reactiveInfo(obj:any,name?:string,value?:any){
-    let meta :IComponentInfo = (obj.$_meta) as IComponentInfo;
-    if(!meta) Object.defineProperty(obj,"$_meta",{enumerable:false,configurable:false,writable:false,value:meta={}});
+    let meta :IComponentMeta = (obj.$meta) as IComponentMeta;
+    if(!meta) Object.defineProperty(obj,"$meta",{enumerable:false,configurable:false,writable:false,value:meta={}});
     let reactiveInfos = meta.reactives || (meta.reactives={});
     if(!name)return reactiveInfos;
     if(value===undefined)return reactiveInfos[name];
@@ -2823,20 +3023,14 @@ function clearGarbage(components:IComponent[],count:number):number{
 
 function checkGarbage(comp:IComponent){
     
-    if(!comp || !comp.$__elements__) return true;
-    if(ElementUtility.isElement(comp.$__elements__,true)){
-        let elem = comp.$__elements__ as any;
+    if(!comp) return true;
+    let elems = comp.$elements;
+    for(let i =0,j=elems.length;i<j;i++){
+        let elem = elems[i] as any;
         if(ElementUtility.is_inDocument(elem)) return false;
-        else if((elem as any).$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;
-        return true;
-    }else if((comp.$__elements__ as IElement[]).length){
-        for(let i =0,j=(comp.$__elements__ as IElement[]).length;i<j;i++){
-            let elem = comp.$__elements__[i];
-            if(ElementUtility.is_inDocument(elem)) return false;
-            else if(elem.$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;
-        }
-        return true;
+        else if(elem.$__placeholder__ && ElementUtility.is_inDocument(elem.$__placeholder__)) return false;
     }
+    return true;
     
 }
 
@@ -2933,10 +3127,10 @@ let YA={
     Subject,Disposable, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
     ,observable,enumerator
     ,createElement,createDescriptor,createElements,createComponent,EVENT
-    ,attrBinders,componentInfos: componentTypes
+    ,bindDomAttr,attrBinders,componentInfos: componentTypes
     ,not,computed
     ,ElementUtility
-    ,reactive,ReactiveTypes
+    ,Component,reactive,ReactiveTypes
     ,intimate: implicit,clone,Promise,trim,is_array,is_assoc,is_empty,Default,toJson,queryString
     
 };

@@ -63,10 +63,31 @@ export declare function mask(elem: IElement, opts: IMaskOpts | string | boolean)
 export interface IComponent extends YA.IComponent {
     mask: any;
 }
-export declare class Component extends YA.Disposable implements IComponent {
-    $_meta: YA.IComponentInfo;
-    $isDisposed: boolean;
+export declare class Component extends YA.Component {
     mask: any;
     render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
-    $__elements__: IElement | IElement[];
 }
+declare class TabPanel extends Component {
+    __captionElement: IElement;
+    __contentElement: IElement;
+    name: string;
+    css: string;
+    caption: string;
+    selected: boolean;
+    select(selected?: boolean, onlyHideSelf?: boolean): TabPanel;
+    render(descriptor: YA.INodeDescriptor, container?: IElement): any[];
+}
+export declare class Tab extends Component {
+    static Panel: {
+        new (...args: any[]): TabPanel;
+    };
+    selectedPanel: TabPanel;
+    defaultPanel: TabPanel;
+    css: string;
+    panels: TabPanel[];
+    __captionsElement: IElement;
+    __contentsElement: IElement;
+    constructor();
+    render(descriptor: YA.INodeDescriptor, container: IElement): any;
+}
+export {};

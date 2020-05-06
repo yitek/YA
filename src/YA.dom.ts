@@ -361,6 +361,8 @@ export function mask(elem:IElement,opts:IMaskOpts|string|boolean):Mask{
     return inst.mask(opts);
 }
 
+
+
 //////////////////////////////////////////////////////////////////////////////
 // Html控件
 //////////////////////////////////////////////////////////////////////////////
@@ -369,28 +371,132 @@ export interface IComponent extends YA.IComponent{
     mask:any;
 }
 
-export class Component extends YA.Disposable implements IComponent{
-    $_meta:YA.IComponentInfo;
-    $isDisposed:boolean;
+export class Component extends YA.Component{
+    
     mask:any;
+    
+
     render(descriptor?:YA.INodeDescriptor,container?:IElement):IElement|IElement[]|YA.INodeDescriptor|YA.INodeDescriptor[]{
         throw new Error("abstract method.");
     }
-    $__elements__:IElement | IElement[];
+    
+    
 }
 Object.defineProperty(Component.prototype,"mask",{enumerable:false,configurable:true,
     get:function(){
-        return this.$__elements__?this.$__elements__["YA_MASK_OPTS"]:undefined;
+        return this.$element?this.$elements["YA_MASK_OPTS"]:undefined;
     },
     set:function(value:any){
         if(!value)value=false;
-        this.$__elements__["YA_MASK_OPTS"]=value;
-        let inst = this.$__elements__[Mask.InstanceToken];
+        this.$element["YA_MASK_OPTS"]=value;
+        let inst = this.$element[Mask.InstanceToken];
         if(!inst){
-            inst = new Mask(this.$__elements__);
+            inst = new Mask(this.$element);
             this.dispose(()=> inst.dispose());
         }
         inst.mask(value);
 
     }
 });
+
+
+//////////////////////////////////////////////////////////////////////////////
+// Tab
+//////////////////////////////////////////////////////////////////////////////
+class TabPanel extends Component{
+    
+    __captionElement:IElement;
+    __contentElement:IElement;
+    name:string;
+    @YA.in_parameter()
+    css:string;
+    @YA.in_parameter()
+    caption:string;
+    @YA.parameter()
+    selected:boolean;
+
+    select(selected?:boolean,onlyHideSelf?:boolean):TabPanel{
+        if(selected===undefined) selected =true;
+        if(selected){
+            if((this.$parent as Tab).selectedPanel==this) return this;
+            //隐藏原先选中的tab，但不做其他工作
+            if((this.$parent as Tab).selectedPanel){
+                (this.$parent as Tab).selectedPanel.select(false,true);
+            }
+            
+            addClass(this.__captionElement,"selected");
+            (this.$parent as Tab).__contentsElement.appendChild(this.__contentElement);
+            (this.$parent as Tab).selectedPanel = this;
+            if(!(this.$parent as Tab).defaultPanel)(this.$parent as Tab).defaultPanel=this;
+            this.selected=true;
+        }else{
+            if((this.$parent as Tab).selectedPanel!==this) return this;
+            removeClass(this.__captionElement,"selected");
+            this.__contentElement.parentNode.removeChild(this.__contentElement);
+            this.selected = false;
+            if(!onlyHideSelf) (this.$parent as Tab).defaultPanel.select();
+        }
+        return this;
+    }
+    
+    render(descriptor:YA.INodeDescriptor,container?:IElement){
+        let titleElem = this.__captionElement = ElementUtility.createElement("li",null,(this.$parent as Tab).__captionsElement) as any;
+        YA.bindDomAttr(titleElem,"caption",this.caption,descriptor,this as any,(elem:IElement,name,value,old)=>{
+            elem.innerHTML = value;
+        });
+        YA.bindDomAttr(titleElem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
+            if(old) old = "ya-tab-panel-caption " + old;
+            if(value) value = "ya-tab-panel-caption "+value;
+            replaceClass(elem,old, value,true);
+        });
+        let selectedAttr = descriptor.selected;
+        if(selectedAttr) selectedAttr.subscribe((e)=>{
+            this.select(e.value);
+        },this);
+        ElementUtility.attach(titleElem,"click",()=>this.select());
+        let contentElement = this.__contentElement =ElementUtility.createElement("div",null,(this.$parent as Tab).__captionsElement) as any;
+        YA.bindDomAttr(contentElement,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
+            if(old) old = "ya-tab-panel-content " + old;
+            if(value) value = "ya-tab-panel-content "+value;
+            replaceClass(elem,old,value,true);
+        });
+        YA.createElements(descriptor.children,contentElement,this as any);
+        return [titleElem,contentElement];
+    }
+}
+export class Tab extends Component{
+    static Panel:{new(...args:any[]):TabPanel}=TabPanel;
+    selectedPanel:TabPanel;
+    defaultPanel:TabPanel;
+
+    @YA.in_parameter()
+    css:string;
+
+    panels:TabPanel[];
+    __captionsElement:IElement;
+    __contentsElement:IElement;
+
+    constructor(){
+        super();
+    }
+
+    render(descriptor:YA.INodeDescriptor,container:IElement):any{
+        let elem :IElement;
+        elem = document.createElement("div");
+        YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
+            if(old) old = "ya-tab " + old;
+            if(value) value = "ya-tab "+value;
+            replaceClass(elem,old, value,true);
+        });
+        this.__captionsElement = ElementUtility.createElement("ul",{className:"ya-tab-captions"},elem) as any;
+        this.__contentsElement = ElementUtility.createElement("div",{className:"ya-tab-contents"},elem) as any;
+        let children = descriptor.children;
+        for(let child of children){
+            if((child as any).Component!==TabPanel) continue;
+            let panel = YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true}) as TabPanel;
+            if(!this.panels)this.panels = [];
+            this.panels.push(panel);
+        }
+        return elem;
+    }
+}
