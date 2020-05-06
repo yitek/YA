@@ -42,9 +42,10 @@ export interface IElementUtility extends YA.IElementUtility{
     getStyle(node:IElement,name:string):string;
     setStyle(node:IElement,name:string|{[name:string]:any},value?:string|boolean):IElementUtility;
     hasClass(node:IElement,cls:string):boolean;
-    addClass(node:IElement,cls:string):IElementUtility;
-    removeClass(node:IElement,cls:string):IElementUtility;
-    replaceClass(node:IElement,oldCls:string,newCls:string,alwaysAdd?:boolean):IElementUtility;
+    addClass(node:IElement,cls:string):boolean;
+    removeClass(node:IElement,cls:string):boolean;
+    toggleClass(node:IElement,cls:string):boolean;
+    replaceClass(node:IElement,oldCls:string,newCls:string,alwaysAdd?:boolean):boolean;
     getAbs(elem:IElement):Pointer;
     setAbs(elem:IElement,pos:Pointer):IElementUtility;
     
@@ -107,34 +108,47 @@ function findClassAt(clsnames:string,cls:string):number{
 let hasClass= ElementUtility.hasClass=(node:IElement,cls:string):boolean=>{
     return findClassAt(node.className,cls)>=0;
 }
-let addClass= ElementUtility.addClass=(node:IElement,cls:string):IElementUtility =>{ //IDom{
-    if(!cls)return ElementUtility;
-    if(findClassAt(node.className,cls)>=0) return ElementUtility;
+let addClass= ElementUtility.addClass=(node:IElement,cls:string):boolean =>{ //IDom{
+    if(!cls)return false;
+    if(findClassAt(node.className,cls)>=0) return false;
     node.className+= " " + cls;
-    return ElementUtility;
+    return true;
 }
-let removeClass= ElementUtility.removeClass = (node:IElement,cls:string):IElementUtility => { //IDom{
+let removeClass= ElementUtility.removeClass = (node:IElement,cls:string):boolean => { //IDom{
     let clsnames = node.className;
     let at = findClassAt(clsnames,cls);
-    if(at<=0) return ElementUtility;
+    if(at<=0) return false;
     let prev = clsnames.substring(0,at);
     let next =clsnames.substr(at+cls.length);
     node.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
+    return true;
 }
-let replaceClass=ElementUtility.replaceClass = (node:IElement,old_cls:string,new_cls:string,alwaysAdd?:boolean):IElementUtility => { //IDom{
+let replaceClass=ElementUtility.replaceClass = (node:IElement,old_cls:string,new_cls:string,alwaysAdd?:boolean):boolean => { //IDom{
     if((old_cls==="" || old_cls===undefined || old_cls===null) && alwaysAdd) return addClass(node,new_cls);
     let clsnames = node.className;
     let at = findClassAt(clsnames,old_cls);
     if(at<=0) {
         if(alwaysAdd) node.className = clsnames + " " + new_cls;
-        return ElementUtility;
+        return true;
     }
     let prev = clsnames.substring(0,at);
     let next =clsnames.substr(at+old_cls.length);
     node.className= prev +new_cls+ next;
     
-    return ElementUtility;
+    return true;
 }  
+let toggleClass = ElementUtility.toggleClass = function(elem:IElement,cls:string):boolean{
+    let at = findClassAt(elem.className,cls);
+    if(at>=0){
+        let prev = cls.substring(0,at);
+        let next =cls.substr(at+cls.length);
+        elem.className= prev.replace(/(\s+$)/g,"") +" "+ next.replace(/(^\s+)/g,"");
+        return false;
+    }else{
+        elem.className += " " + cls;
+        return true;
+    }
+}
 
 
 let getAbs = ElementUtility.getAbs = function getAbs(elem:IElement){
@@ -401,13 +415,10 @@ Object.defineProperty(Component.prototype,"mask",{enumerable:false,configurable:
 });
 
 
-//////////////////////////////////////////////////////////////////////////////
-// Tab
-//////////////////////////////////////////////////////////////////////////////
-class TabPanel extends Component{
-    
-    __captionElement:IElement;
-    __contentElement:IElement;
+
+class Panel extends Component{   
+    _labelElement:IElement;
+    _contentElement:IElement;
     name:string;
     @YA.in_parameter()
     css:string;
@@ -416,41 +427,24 @@ class TabPanel extends Component{
     @YA.parameter()
     selected:boolean;
 
-    select(selected?:boolean,onlyHideSelf?:boolean):TabPanel{
-        if(selected===undefined) selected =true;
-        if(selected){
-            if((this.$parent as Tab).selectedPanel==this) return this;
-            //隐藏原先选中的tab，但不做其他工作
-            if((this.$parent as Tab).selectedPanel){
-                (this.$parent as Tab).selectedPanel.select(false,true);
-            }
-            
-            addClass(this.__captionElement,"selected");
-            addClass(this.__contentElement,"selected");
-            this.__contentElement.style.display="block";
-            (this.$parent as Tab).selectedPanel = this;
-            if(!(this.$parent as Tab).defaultPanel)(this.$parent as Tab).defaultPanel=this;
-            this.selected=true;
-        }else{
-            if((this.$parent as Tab).selectedPanel!==this) return this;
-            removeClass(this.__captionElement,"selected");
-            removeClass(this.__contentElement,"selected");
-            this.__contentElement.style.display="none";
-            this.selected = false;
-            if(!onlyHideSelf) (this.$parent as Tab).defaultPanel.select();
-        }
+    select(selected?:boolean,onlyHideSelf?:boolean):Panel{
+        let container = (this.$parent as PanelContainer);
+        if(container._selectPanelChanging(this,container.lastSelectedPanel,selected===undefined?true:selected,onlyHideSelf)===false)return this;
+        
         return this;
     }
     
-    render(descriptor:YA.INodeDescriptor,container?:IElement){
+    render(descriptor:YA.INodeDescriptor,elementContainer?:IElement){
         let selected:boolean;
+        let panelContainer:PanelContainer= this.$parent as PanelContainer;
+        let className = (panelContainer.className || "panelContainer");
         YA.observableMode(YA.ObservableModes.Value,()=>{
             selected = this.selected;
         });
-        let titleElem = this.__captionElement = ElementUtility.createElement("li",{"class":"ya-tab-label"},(this.$parent as Tab).__captionsElement) as any;
+        let titleElem = this._labelElement = ElementUtility.createElement("li",{"class":className + "-label"}) as any;
         let txtElem = ElementUtility.createElement("label",null,titleElem);
-        let contentElement = this.__contentElement =ElementUtility.createElement("div",{"class":"ya-tab-content"},(this.$parent as Tab).__contentsElement) as any;
-        contentElement.style.display="none";
+        let contentElement = this._contentElement =ElementUtility.createElement("div",{"class":className + "-content"}) as any;
+        
 
         YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
             elem.innerHTML = value;
@@ -469,31 +463,36 @@ class TabPanel extends Component{
             replaceClass(elem,old,value,true);
         });
         YA.createElements(descriptor.children,contentElement,this as any);
-        let rs = [titleElem,contentElement] as any;
-        rs.$__alreadyAppendToContainer = true;
+        
 
         (this.selected as any as YA.Observable<any>).subscribe((e)=>{
             this.select(e.value);
         },this);
+        let rs = panelContainer._panelCreated(this,titleElem,contentElement);
         if(selected) this.select(true);
         return rs;
     }
 }
-export class Tab extends Component{
-    static Panel:{new(...args:any[]):TabPanel}=TabPanel;
-    selectedPanel:TabPanel;
-    defaultPanel:TabPanel;
-
+export class PanelContainer extends Component{
+    static Panel:{new(...args:any[]):Panel}=Panel;
+    lastSelectedPanel:Panel;
+    defaultPanel:Panel;
+    className:string;
+    
+    _panelType:Function;
+    panels:Panel[];
+    @YA.out_parameter()
+    selectedPanels:string[]=[];
     @YA.in_parameter()
-    css:string;
+    css:string="";
 
-    panels:TabPanel[];
-    __captionsElement:IElement;
-    __contentsElement:IElement;
+    
+    
 
     constructor(){
         super();
     }
+
     @YA.parameter()
     selected:string;
     @YA.in_parameter()
@@ -501,32 +500,222 @@ export class Tab extends Component{
 
     render(descriptor:YA.INodeDescriptor,container:IElement):any{
         let elem :IElement;
+        let className = this.className = this.className || "panelContainer";
         elem = document.createElement("div");
-        elem.className="ya-tab";
+        elem.className=className;
         YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
             replaceClass(elem,old, value,true);
         });
-        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
-        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
+        this._elementCreated(elem);
+
+        
         let children = descriptor.children;
-        let selectedPanel :TabPanel;
+        let selectedPanels :Panel[]=[];
         for(let child of children){
-            if((child as any).Component!==TabPanel) continue;
-            let panel = YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true}) as TabPanel;
-            if(!panel.name) panel.name="tab-panel-"+YA.cid();
+            if(this._panelType && (child as any).Component!==this._panelType) continue;
+            let panel = YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true}) as Panel;
+            if(!panel.name) panel.name=className +"-"+YA.cid();
             if(!this.panels)this.panels = [];
             this.panels.push(panel);
             YA.observableMode(YA.ObservableModes.Value,()=>{
-                if(!selectedPanel) selectedPanel = panel;
-                else if(!selectedPanel.selected && panel.selected) selectedPanel= panel;
+                if(panel.selected) selectedPanels.push(panel);
             });
         }
-        YA.observableMode(YA.ObservableModes.Value,()=>{
-            if(selectedPanel && !selectedPanel.selected){
-                selectedPanel.select();
-            } 
-        });
-       
+        
+        this._rendered(selectedPanels);
         return elem;
+    }
+
+    /**
+     * 容器div已经创建，主要负责构建容器内部结构
+     *
+     * @param {IElement} elem
+     * @memberof PanelContainer
+     */
+    _elementCreated(elem:IElement){}
+
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     * 
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel:Panel,titleElem,cotnentElem):any{
+
+    }
+
+    _rendered(selectedPanels:Panel[]){
+
+    }
+
+
+    _selectPanelChanging(panel:Panel,lastSelectedPanel:Panel,selected:boolean,onlyUnselect:boolean):boolean{
+        return true;
+    }
+}
+
+export class Tab extends PanelContainer{
+    static Panel:{new(...args:any[]):Panel}=Panel;
+   
+    __captionsElement:IElement;
+    __contentsElement:IElement;
+
+    constructor(){
+        super();
+    }
+
+    /**
+     * 容器div已经创建，主要负责构建容器内部结构
+     *
+     * @param {IElement} elem
+     * @memberof PanelContainer
+     */
+    _elementCreated(elem:IElement){
+        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
+        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
+    }
+
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     * 
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel:Panel,labelElem,contentElem){
+        this.__captionsElement.appendChild(labelElem);
+        this.__contentsElement.appendChild(contentElem);
+        contentElem.style.display="none";
+        let rs = [labelElem,contentElem] as any;
+        rs.$__alreadyAppendToContainer = true;
+        return rs;
+    }
+
+    _rendered(selectedPanels){
+        debugger;
+        if(selectedPanels.length){
+            selectedPanels[selectedPanels.length-1].select(true);
+        }else{
+            if(this.panels.length){
+                this.panels[0].select(true);
+            }
+            
+        }
+    }
+
+    /**
+     * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
+     *
+     * @param {Panel} panel
+     * @param {Panel} lastSelectedPanel
+     * @memberof PanelContainer
+     */
+    _selectPanelChanging(panel:Panel,lastSelectedPanel:Panel,selected:boolean,onlyUselect:boolean):boolean{
+        if(selected===undefined) selected =true;
+        if(selected){
+            if(panel===lastSelectedPanel)return false;
+            //隐藏原先选中的tab，但不做其他工作
+            
+            if(lastSelectedPanel){
+                lastSelectedPanel.select(false,true);
+            }
+            
+            addClass(panel._labelElement,"selected");
+            addClass(panel._contentElement,"selected");
+            this.lastSelectedPanel = panel;
+            if(!this.defaultPanel)this.defaultPanel=panel;
+            panel._contentElement.style.display="block";
+            panel.selected=true;
+            this.selectedPanels=[panel.name];
+        }else{
+            if(this.lastSelectedPanel!==panel) return false;
+            removeClass(panel._labelElement,"selected");
+            removeClass(panel._contentElement,"selected");
+            panel.selected = false;
+            panel._contentElement.style.display="none";
+            if(!onlyUselect) (this.$parent as PanelContainer).defaultPanel.select();
+        }
+        return true;
+    }
+
+}
+Tab.prototype.className = "ya-tab";
+
+export class Groups extends PanelContainer{
+    static Panel:{new(...args:any[]):Panel}=Panel;
+    @YA.parameter()
+    multiple:boolean=true;
+
+    @YA.in_parameter()
+    expanded:boolean=true;
+
+    @YA.in_parameter()
+    collapsed:boolean=false;
+   
+    constructor(){
+        super();
+    }
+
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     * 
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel:Panel,labelElem,contentElem){
+        let panelElem = ElementUtility.createElement("div",{"class":this.className+"-" + "panel"}) as IElement;
+        panelElem.appendChild(labelElem);
+        panelElem.appendChild(contentElem);
+        return panelElem;
+    }
+
+    _rendered(selectedPanels:Panel[]){
+        YA.observableMode(YA.ObservableModes.Value,()=>{
+            if(this.expanded){
+                for(let pn of this.panels) pn.select(true);
+            }else if(this.collapsed){
+                for(let pn of this.panels) pn.select(false);
+            }else{
+                for(let pn of selectedPanels) pn.select(true);
+            }
+        });
+    }
+
+    _selectedPanelChanging(panel:Panel,oldPanel:Panel,selected:boolean):boolean{
+        let elem = panel.$element as any;
+        if(selected===false){
+            if(removeClass(elem,"selected")){
+                let panels = this.selectedPanels;
+                if(panels){
+                    for(let i =0,j=panels.length;i<j;i++) {
+                        let p = panels.shift();
+                        if(p!==panel.name) panels.push(p);
+                    }
+                }
+                this.selectedPanels = panels;
+            }
+            return true;
+        }
+        YA.observableMode(YA.ObservableModes.Value,()=>{
+            if(toggleClass(elem,"selected")){
+                let panels = this.selectedPanels;
+                if(panels) panels.push(panel.name);
+                else panels = [panel.name];
+                this.selectedPanels = panels;
+                if(!this.multiple){
+                    oldPanel.select(false);
+                }
+            }else{
+                let panels = this.selectedPanels;
+                if(panels){
+                    for(let i =0,j=panels.length;i<j;i++) {
+                        let p = panels.shift();
+                        if(p!==panel.name) panels.push(p);
+                    }
+                }
+                this.selectedPanels = panels;
+            }
+        });
+        
+        return true;
     }
 }

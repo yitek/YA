@@ -23,9 +23,10 @@ export interface IElementUtility extends YA.IElementUtility {
         [name: string]: any;
     }, value?: string | boolean): IElementUtility;
     hasClass(node: IElement, cls: string): boolean;
-    addClass(node: IElement, cls: string): IElementUtility;
-    removeClass(node: IElement, cls: string): IElementUtility;
-    replaceClass(node: IElement, oldCls: string, newCls: string, alwaysAdd?: boolean): IElementUtility;
+    addClass(node: IElement, cls: string): boolean;
+    removeClass(node: IElement, cls: string): boolean;
+    toggleClass(node: IElement, cls: string): boolean;
+    replaceClass(node: IElement, oldCls: string, newCls: string, alwaysAdd?: boolean): boolean;
     getAbs(elem: IElement): Pointer;
     setAbs(elem: IElement, pos: Pointer): IElementUtility;
 }
@@ -67,29 +68,95 @@ export declare class Component extends YA.Component {
     mask: any;
     render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
 }
-declare class TabPanel extends Component {
-    __captionElement: IElement;
-    __contentElement: IElement;
+declare class Panel extends Component {
+    _labelElement: IElement;
+    _contentElement: IElement;
     name: string;
     css: string;
     label: string;
     selected: boolean;
-    select(selected?: boolean, onlyHideSelf?: boolean): TabPanel;
-    render(descriptor: YA.INodeDescriptor, container?: IElement): any;
+    select(selected?: boolean, onlyHideSelf?: boolean): Panel;
+    render(descriptor: YA.INodeDescriptor, elementContainer?: IElement): any;
 }
-export declare class Tab extends Component {
+export declare class PanelContainer extends Component {
     static Panel: {
-        new (...args: any[]): TabPanel;
+        new (...args: any[]): Panel;
     };
-    selectedPanel: TabPanel;
-    defaultPanel: TabPanel;
+    lastSelectedPanel: Panel;
+    defaultPanel: Panel;
+    className: string;
+    _panelType: Function;
+    panels: Panel[];
+    selectedPanels: string[];
     css: string;
-    panels: TabPanel[];
-    __captionsElement: IElement;
-    __contentsElement: IElement;
     constructor();
     selected: string;
     defaultPanelName: string;
     render(descriptor: YA.INodeDescriptor, container: IElement): any;
+    /**
+     * 容器div已经创建，主要负责构建容器内部结构
+     *
+     * @param {IElement} elem
+     * @memberof PanelContainer
+     */
+    _elementCreated(elem: IElement): void;
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     *
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel: Panel, titleElem: any, cotnentElem: any): any;
+    _rendered(selectedPanels: Panel[]): void;
+    _selectPanelChanging(panel: Panel, lastSelectedPanel: Panel, selected: boolean, onlyUnselect: boolean): boolean;
+}
+export declare class Tab extends PanelContainer {
+    static Panel: {
+        new (...args: any[]): Panel;
+    };
+    __captionsElement: IElement;
+    __contentsElement: IElement;
+    constructor();
+    /**
+     * 容器div已经创建，主要负责构建容器内部结构
+     *
+     * @param {IElement} elem
+     * @memberof PanelContainer
+     */
+    _elementCreated(elem: IElement): void;
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     *
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel: Panel, labelElem: any, contentElem: any): any;
+    _rendered(selectedPanels: any): void;
+    /**
+     * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
+     *
+     * @param {Panel} panel
+     * @param {Panel} lastSelectedPanel
+     * @memberof PanelContainer
+     */
+    _selectPanelChanging(panel: Panel, lastSelectedPanel: Panel, selected: boolean, onlyUselect: boolean): boolean;
+}
+export declare class Groups extends PanelContainer {
+    static Panel: {
+        new (...args: any[]): Panel;
+    };
+    multiple: boolean;
+    expanded: boolean;
+    collapsed: boolean;
+    constructor();
+    /**
+     * 主要负责把Panel装到正确的容器element中
+     *
+     * @param {Panel} panel
+     * @memberof PanelContainer
+     */
+    _panelCreated(panel: Panel, labelElem: any, contentElem: any): IElement;
+    _rendered(selectedPanels: Panel[]): void;
+    _selectedPanelChanging(panel: Panel, oldPanel: Panel, selected: boolean): boolean;
 }
 export {};

@@ -130,20 +130,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     };
     var addClass = exports.ElementUtility.addClass = function (node, cls) {
         if (!cls)
-            return exports.ElementUtility;
+            return false;
         if (findClassAt(node.className, cls) >= 0)
-            return exports.ElementUtility;
+            return false;
         node.className += " " + cls;
-        return exports.ElementUtility;
+        return true;
     };
     var removeClass = exports.ElementUtility.removeClass = function (node, cls) {
         var clsnames = node.className;
         var at = findClassAt(clsnames, cls);
         if (at <= 0)
-            return exports.ElementUtility;
+            return false;
         var prev = clsnames.substring(0, at);
         var next = clsnames.substr(at + cls.length);
         node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+        return true;
     };
     var replaceClass = exports.ElementUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
         if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
@@ -153,12 +154,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (at <= 0) {
             if (alwaysAdd)
                 node.className = clsnames + " " + new_cls;
-            return exports.ElementUtility;
+            return true;
         }
         var prev = clsnames.substring(0, at);
         var next = clsnames.substr(at + old_cls.length);
         node.className = prev + new_cls + next;
-        return exports.ElementUtility;
+        return true;
+    };
+    var toggleClass = exports.ElementUtility.toggleClass = function (elem, cls) {
+        var at = findClassAt(elem.className, cls);
+        if (at >= 0) {
+            var prev = cls.substring(0, at);
+            var next = cls.substr(at + cls.length);
+            elem.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+            return false;
+        }
+        else {
+            elem.className += " " + cls;
+            return true;
+        }
     };
     var getAbs = exports.ElementUtility.getAbs = function getAbs(elem) {
         var p = elem;
@@ -418,54 +432,28 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             inst.mask(value);
         }
     });
-    //////////////////////////////////////////////////////////////////////////////
-    // Tab
-    //////////////////////////////////////////////////////////////////////////////
-    var TabPanel = /** @class */ (function (_super) {
-        __extends(TabPanel, _super);
-        function TabPanel() {
+    var Panel = /** @class */ (function (_super) {
+        __extends(Panel, _super);
+        function Panel() {
             return _super !== null && _super.apply(this, arguments) || this;
         }
-        TabPanel.prototype.select = function (selected, onlyHideSelf) {
-            if (selected === undefined)
-                selected = true;
-            if (selected) {
-                if (this.$parent.selectedPanel == this)
-                    return this;
-                //隐藏原先选中的tab，但不做其他工作
-                if (this.$parent.selectedPanel) {
-                    this.$parent.selectedPanel.select(false, true);
-                }
-                addClass(this.__captionElement, "selected");
-                addClass(this.__contentElement, "selected");
-                this.__contentElement.style.display = "block";
-                this.$parent.selectedPanel = this;
-                if (!this.$parent.defaultPanel)
-                    this.$parent.defaultPanel = this;
-                this.selected = true;
-            }
-            else {
-                if (this.$parent.selectedPanel !== this)
-                    return this;
-                removeClass(this.__captionElement, "selected");
-                removeClass(this.__contentElement, "selected");
-                this.__contentElement.style.display = "none";
-                this.selected = false;
-                if (!onlyHideSelf)
-                    this.$parent.defaultPanel.select();
-            }
+        Panel.prototype.select = function (selected, onlyHideSelf) {
+            var container = this.$parent;
+            if (container._selectPanelChanging(this, container.lastSelectedPanel, selected === undefined ? true : selected, onlyHideSelf) === false)
+                return this;
             return this;
         };
-        TabPanel.prototype.render = function (descriptor, container) {
+        Panel.prototype.render = function (descriptor, elementContainer) {
             var _this = this;
             var selected;
+            var panelContainer = this.$parent;
+            var className = (panelContainer.className || "panelContainer");
             YA.observableMode(YA.ObservableModes.Value, function () {
                 selected = _this.selected;
             });
-            var titleElem = this.__captionElement = exports.ElementUtility.createElement("li", { "class": "ya-tab-label" }, this.$parent.__captionsElement);
+            var titleElem = this._labelElement = exports.ElementUtility.createElement("li", { "class": className + "-label" });
             var txtElem = exports.ElementUtility.createElement("label", null, titleElem);
-            var contentElement = this.__contentElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-content" }, this.$parent.__contentsElement);
-            contentElement.style.display = "none";
+            var contentElement = this._contentElement = exports.ElementUtility.createElement("div", { "class": className + "-content" });
             YA.bindDomAttr(txtElem, "text", this.label, descriptor, this, function (elem, name, value, old) {
                 elem.innerHTML = value;
             });
@@ -483,56 +471,56 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 replaceClass(elem, old, value, true);
             });
             YA.createElements(descriptor.children, contentElement, this);
-            var rs = [titleElem, contentElement];
-            rs.$__alreadyAppendToContainer = true;
             this.selected.subscribe(function (e) {
                 _this.select(e.value);
             }, this);
+            var rs = panelContainer._panelCreated(this, titleElem, contentElement);
             if (selected)
                 this.select(true);
             return rs;
         };
         __decorate([
             YA.in_parameter()
-        ], TabPanel.prototype, "css", void 0);
+        ], Panel.prototype, "css", void 0);
         __decorate([
             YA.parameter()
-        ], TabPanel.prototype, "label", void 0);
+        ], Panel.prototype, "label", void 0);
         __decorate([
             YA.parameter()
-        ], TabPanel.prototype, "selected", void 0);
-        return TabPanel;
+        ], Panel.prototype, "selected", void 0);
+        return Panel;
     }(Component));
-    var Tab = /** @class */ (function (_super) {
-        __extends(Tab, _super);
-        function Tab() {
-            return _super.call(this) || this;
+    var PanelContainer = /** @class */ (function (_super) {
+        __extends(PanelContainer, _super);
+        function PanelContainer() {
+            var _this = _super.call(this) || this;
+            _this.selectedPanels = [];
+            _this.css = "";
+            return _this;
         }
-        Tab.prototype.render = function (descriptor, container) {
+        PanelContainer.prototype.render = function (descriptor, container) {
             var elem;
+            var className = this.className = this.className || "panelContainer";
             elem = document.createElement("div");
-            elem.className = "ya-tab";
+            elem.className = className;
             YA.bindDomAttr(elem, "className", this.css, descriptor, this, function (elem, name, value, old) {
                 replaceClass(elem, old, value, true);
             });
-            this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-tab-labels" }, elem);
-            this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-contents" }, elem);
+            this._elementCreated(elem);
             var children = descriptor.children;
-            var selectedPanel;
+            var selectedPanels = [];
             var _loop_1 = function (child) {
-                if (child.Component !== TabPanel)
+                if (this_1._panelType && child.Component !== this_1._panelType)
                     return "continue";
                 var panel = YA.createComponent(child.Component, child, null, this_1, { returnInstance: true });
                 if (!panel.name)
-                    panel.name = "tab-panel-" + YA.cid();
+                    panel.name = className + "-" + YA.cid();
                 if (!this_1.panels)
                     this_1.panels = [];
                 this_1.panels.push(panel);
                 YA.observableMode(YA.ObservableModes.Value, function () {
-                    if (!selectedPanel)
-                        selectedPanel = panel;
-                    else if (!selectedPanel.selected && panel.selected)
-                        selectedPanel = panel;
+                    if (panel.selected)
+                        selectedPanels.push(panel);
                 });
             };
             var this_1 = this;
@@ -540,25 +528,227 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var child = children_1[_i];
                 _loop_1(child);
             }
-            YA.observableMode(YA.ObservableModes.Value, function () {
-                if (selectedPanel && !selectedPanel.selected) {
-                    selectedPanel.select();
-                }
-            });
+            this._rendered(selectedPanels);
             return elem;
         };
-        Tab.Panel = TabPanel;
+        /**
+         * 容器div已经创建，主要负责构建容器内部结构
+         *
+         * @param {IElement} elem
+         * @memberof PanelContainer
+         */
+        PanelContainer.prototype._elementCreated = function (elem) { };
+        /**
+         * 主要负责把Panel装到正确的容器element中
+         *
+         * @param {Panel} panel
+         * @memberof PanelContainer
+         */
+        PanelContainer.prototype._panelCreated = function (panel, titleElem, cotnentElem) {
+        };
+        PanelContainer.prototype._rendered = function (selectedPanels) {
+        };
+        PanelContainer.prototype._selectPanelChanging = function (panel, lastSelectedPanel, selected, onlyUnselect) {
+            return true;
+        };
+        PanelContainer.Panel = Panel;
+        __decorate([
+            YA.out_parameter()
+        ], PanelContainer.prototype, "selectedPanels", void 0);
         __decorate([
             YA.in_parameter()
-        ], Tab.prototype, "css", void 0);
+        ], PanelContainer.prototype, "css", void 0);
         __decorate([
             YA.parameter()
-        ], Tab.prototype, "selected", void 0);
+        ], PanelContainer.prototype, "selected", void 0);
         __decorate([
             YA.in_parameter()
-        ], Tab.prototype, "defaultPanelName", void 0);
-        return Tab;
+        ], PanelContainer.prototype, "defaultPanelName", void 0);
+        return PanelContainer;
     }(Component));
+    exports.PanelContainer = PanelContainer;
+    var Tab = /** @class */ (function (_super) {
+        __extends(Tab, _super);
+        function Tab() {
+            return _super.call(this) || this;
+        }
+        /**
+         * 容器div已经创建，主要负责构建容器内部结构
+         *
+         * @param {IElement} elem
+         * @memberof PanelContainer
+         */
+        Tab.prototype._elementCreated = function (elem) {
+            this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-tab-labels" }, elem);
+            this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-contents" }, elem);
+        };
+        /**
+         * 主要负责把Panel装到正确的容器element中
+         *
+         * @param {Panel} panel
+         * @memberof PanelContainer
+         */
+        Tab.prototype._panelCreated = function (panel, labelElem, contentElem) {
+            this.__captionsElement.appendChild(labelElem);
+            this.__contentsElement.appendChild(contentElem);
+            contentElem.style.display = "none";
+            var rs = [labelElem, contentElem];
+            rs.$__alreadyAppendToContainer = true;
+            return rs;
+        };
+        Tab.prototype._rendered = function (selectedPanels) {
+            debugger;
+            if (selectedPanels.length) {
+                selectedPanels[selectedPanels.length - 1].select(true);
+            }
+            else {
+                if (this.panels.length) {
+                    this.panels[0].select(true);
+                }
+            }
+        };
+        /**
+         * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
+         *
+         * @param {Panel} panel
+         * @param {Panel} lastSelectedPanel
+         * @memberof PanelContainer
+         */
+        Tab.prototype._selectPanelChanging = function (panel, lastSelectedPanel, selected, onlyUselect) {
+            if (selected === undefined)
+                selected = true;
+            if (selected) {
+                if (panel === lastSelectedPanel)
+                    return false;
+                //隐藏原先选中的tab，但不做其他工作
+                if (lastSelectedPanel) {
+                    lastSelectedPanel.select(false, true);
+                }
+                addClass(panel._labelElement, "selected");
+                addClass(panel._contentElement, "selected");
+                this.lastSelectedPanel = panel;
+                if (!this.defaultPanel)
+                    this.defaultPanel = panel;
+                panel._contentElement.style.display = "block";
+                panel.selected = true;
+                this.selectedPanels = [panel.name];
+            }
+            else {
+                if (this.lastSelectedPanel !== panel)
+                    return false;
+                removeClass(panel._labelElement, "selected");
+                removeClass(panel._contentElement, "selected");
+                panel.selected = false;
+                panel._contentElement.style.display = "none";
+                if (!onlyUselect)
+                    this.$parent.defaultPanel.select();
+            }
+            return true;
+        };
+        Tab.Panel = Panel;
+        return Tab;
+    }(PanelContainer));
     exports.Tab = Tab;
+    Tab.prototype.className = "ya-tab";
+    var Groups = /** @class */ (function (_super) {
+        __extends(Groups, _super);
+        function Groups() {
+            var _this = _super.call(this) || this;
+            _this.multiple = true;
+            _this.expanded = true;
+            _this.collapsed = false;
+            return _this;
+        }
+        /**
+         * 主要负责把Panel装到正确的容器element中
+         *
+         * @param {Panel} panel
+         * @memberof PanelContainer
+         */
+        Groups.prototype._panelCreated = function (panel, labelElem, contentElem) {
+            var panelElem = exports.ElementUtility.createElement("div", { "class": this.className + "-" + "panel" });
+            panelElem.appendChild(labelElem);
+            panelElem.appendChild(contentElem);
+            return panelElem;
+        };
+        Groups.prototype._rendered = function (selectedPanels) {
+            var _this = this;
+            YA.observableMode(YA.ObservableModes.Value, function () {
+                if (_this.expanded) {
+                    for (var _i = 0, _a = _this.panels; _i < _a.length; _i++) {
+                        var pn = _a[_i];
+                        pn.select(true);
+                    }
+                }
+                else if (_this.collapsed) {
+                    for (var _b = 0, _c = _this.panels; _b < _c.length; _b++) {
+                        var pn = _c[_b];
+                        pn.select(false);
+                    }
+                }
+                else {
+                    for (var _d = 0, selectedPanels_1 = selectedPanels; _d < selectedPanels_1.length; _d++) {
+                        var pn = selectedPanels_1[_d];
+                        pn.select(true);
+                    }
+                }
+            });
+        };
+        Groups.prototype._selectedPanelChanging = function (panel, oldPanel, selected) {
+            var _this = this;
+            var elem = panel.$element;
+            if (selected === false) {
+                if (removeClass(elem, "selected")) {
+                    var panels = this.selectedPanels;
+                    if (panels) {
+                        for (var i = 0, j = panels.length; i < j; i++) {
+                            var p = panels.shift();
+                            if (p !== panel.name)
+                                panels.push(p);
+                        }
+                    }
+                    this.selectedPanels = panels;
+                }
+                return true;
+            }
+            YA.observableMode(YA.ObservableModes.Value, function () {
+                if (toggleClass(elem, "selected")) {
+                    var panels = _this.selectedPanels;
+                    if (panels)
+                        panels.push(panel.name);
+                    else
+                        panels = [panel.name];
+                    _this.selectedPanels = panels;
+                    if (!_this.multiple) {
+                        oldPanel.select(false);
+                    }
+                }
+                else {
+                    var panels = _this.selectedPanels;
+                    if (panels) {
+                        for (var i = 0, j = panels.length; i < j; i++) {
+                            var p = panels.shift();
+                            if (p !== panel.name)
+                                panels.push(p);
+                        }
+                    }
+                    _this.selectedPanels = panels;
+                }
+            });
+            return true;
+        };
+        Groups.Panel = Panel;
+        __decorate([
+            YA.parameter()
+        ], Groups.prototype, "multiple", void 0);
+        __decorate([
+            YA.in_parameter()
+        ], Groups.prototype, "expanded", void 0);
+        __decorate([
+            YA.in_parameter()
+        ], Groups.prototype, "collapsed", void 0);
+        return Groups;
+    }(PanelContainer));
+    exports.Groups = Groups;
 });
 //# sourceMappingURL=YA.dom.js.map
