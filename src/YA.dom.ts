@@ -1,7 +1,11 @@
 import * as YA from "YA.core";
-
-
-
+let Observable = YA.Observable;
+let isObservable = YA.Observable.isObservable;
+let ObservableModes = YA.ObservableModes;
+let observableMode = YA.observableMode;
+let in_parameter = YA.in_parameter;
+let out_parameter = YA.out_parameter;
+let parameter = YA.parameter;
 
 export class Size{
     w:number;
@@ -200,30 +204,30 @@ YA.attrBinders.style = function(elem:IElement,bindValue:any,vnode:YA.INodeDescri
         return;
     }
     
-    if(YA.Observable.isObservable(bindValue)){
+    if(isObservable(bindValue)){
         let value = bindValue.get(YA.ObservableModes.Value);
         if(typeof value==="string"){
             elem.style.cssText = bindValue;
         }else {
-            for(var n in value) ElementUtility.setStyle(elem,n,value[n]);
+            for(var n in value) setStyle(elem,n,value[n]);
         }
         bindValue.subscribe((e)=>{
             let value = e.value;
             if(typeof value==="string"){
                 elem.style.cssText = bindValue;
             }else {
-                for(var n in value) ElementUtility.setStyle(elem,n,value[n]);
+                for(var n in value) setStyle(elem,n,value[n]);
             }
         },compInstance);
     }else {
         for(var n in bindValue)((value,name)=>{
-            if(YA.Observable.isObservable(value)){
+            if(isObservable(value)){
                 value.subscribe((e:YA.IChangeEventArgs<any>)=>{
-                    ElementUtility.setStyle(elem,name,e.value);
+                    setStyle(elem,name,e.value);
                 },compInstance);
-                ElementUtility.setStyle(elem,name,value.get(YA.ObservableModes.Value));
+                setStyle(elem,name,value.get(YA.ObservableModes.Value));
             }else{
-                ElementUtility.setStyle(elem,name,value);
+                setStyle(elem,name,value);
             }
             
         })(bindValue[n],n);
@@ -361,7 +365,7 @@ export class Mask implements IMaskOpts{
 }
 
 YA.attrBinders.mask = function(elem:IElement,bindValue:any,vnode:YA.INodeDescriptor,compInstance:YA.IComponent){
-    if(YA.Observable.isObservable(bindValue)){
+    if(isObservable(bindValue)){
         bindValue.subscribe((e)=>{
             mask(elem,e.value);
         },compInstance);
@@ -413,309 +417,325 @@ Object.defineProperty(Component.prototype,"mask",{enumerable:false,configurable:
 
     }
 });
-
-
-
-class Panel extends Component{   
+export class Panel extends Component{
     _labelElement:IElement;
     _contentElement:IElement;
-    name:string;
-    @YA.in_parameter()
-    css:string;
-    @YA.parameter()
-    label:string;
-    @YA.parameter()
-    selected:boolean;
 
-    select(selected?:boolean,onlyHideSelf?:boolean):Panel{
-        let container = (this.$parent as PanelContainer);
-        if(container._selectPanelChanging(this,container.lastSelectedPanel,selected===undefined?true:selected,onlyHideSelf)===false)return this;
-        
-        return this;
-    }
+    name:string;
+    @in_parameter()
+    css:string;
+    @parameter()
+    label:string;
     
     render(descriptor:YA.INodeDescriptor,elementContainer?:IElement){
-        let selected:boolean;
-        let panelContainer:PanelContainer= this.$parent as PanelContainer;
-        let className = (panelContainer.className || "panelContainer");
-        YA.observableMode(YA.ObservableModes.Value,()=>{
-            selected = this.selected;
-        });
-        let titleElem = this._labelElement = ElementUtility.createElement("li",{"class":className + "-label"}) as any;
-        let txtElem = ElementUtility.createElement("label",null,titleElem);
+        
+        let panelContainer:Panels= this.$parent as Panels;
+        let className = (panelContainer._className || "panelContainer");
+        
+        let titleElem :IElement;
+        let title = (this.label as any as YA.Observable<string>).get(YA.ObservableModes.Value);
+        if(title){
+            titleElem = this._labelElement = ElementUtility.createElement("li",{"class":className + "-label"}) as any;
+            let txtElem = ElementUtility.createElement("label",null,titleElem);
+            
+            YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
+                elem.innerHTML = value;
+            });
+            
+            YA.bindDomAttr(titleElem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
+                replaceClass(elem,old, value,true);
+                //replaceClass(this.__contentElement,old,value,true);
+            });
+        }
+        
         let contentElement = this._contentElement =ElementUtility.createElement("div",{"class":className + "-content"}) as any;
         
-
-        YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
-            elem.innerHTML = value;
-        });
         
-        YA.bindDomAttr(titleElem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
-            replaceClass(elem,old, value,true);
-            //replaceClass(this.__contentElement,old,value,true);
-        });
-        let selectedAttr = descriptor.selected;
-        if(selectedAttr) selectedAttr.subscribe((e)=>{
-            this.select(e.value);
-        },this);
-        ElementUtility.attach(titleElem,"click",()=>this.select());
         YA.bindDomAttr(contentElement,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
             replaceClass(elem,old,value,true);
         });
         YA.createElements(descriptor.children,contentElement,this as any);
+        let mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Value;
+        try{
+            let rs = panelContainer._onPanelRendered(this);
+            return rs;
+        }finally{
+            Observable.accessMode= mode;
+        }
         
-
-        (this.selected as any as YA.Observable<any>).subscribe((e)=>{
-            this.select(e.value);
-        },this);
-        let rs = panelContainer._panelCreated(this,titleElem,contentElement);
-        if(selected) this.select(true);
-        return rs;
     }
 }
-export class PanelContainer extends Component{
-    static Panel:{new(...args:any[]):Panel}=Panel;
-    lastSelectedPanel:Panel;
-    defaultPanel:Panel;
-    className:string;
+export class Panels extends Component{
+    _className:string;
     
-    _panelType:Function;
-    panels:Panel[];
-    @YA.out_parameter()
-    selectedPanels:string[]=[];
-    @YA.in_parameter()
-    css:string="";
+    _panelType:Function = Panel;
 
     
-    
+    @in_parameter()
+    css:string="";
 
     constructor(){
         super();
+        Object.defineProperty(this,"$__panels__",{enumerable:false,writable:false,configurable:false,value:[]});
+    }
+    get panels(){
+        return (this as any).$__panels__;
     }
 
-    @YA.parameter()
-    selected:string;
-    @YA.in_parameter()
-    defaultPanelName:string;
+    
 
-    render(descriptor:YA.INodeDescriptor,container:IElement):any{
+    render(descriptor,container){
         let elem :IElement;
-        let className = this.className = this.className || "panelContainer";
+        let className = this._className = this._className || "panelContainer";
         elem = document.createElement("div");
         elem.className=className;
         YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
             replaceClass(elem,old, value,true);
         });
-        this._elementCreated(elem);
-
-        
-        let children = descriptor.children;
-        let selectedPanels :Panel[]=[];
-        for(let child of children){
-            if(this._panelType && (child as any).Component!==this._panelType) continue;
-            let panel = YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true}) as Panel;
-            if(!panel.name) panel.name=className +"-"+YA.cid();
-            if(!this.panels)this.panels = [];
-            this.panels.push(panel);
-            YA.observableMode(YA.ObservableModes.Value,()=>{
-                if(panel.selected) selectedPanels.push(panel);
-            });
+        let mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Value;
+        try{
+            elem = this._onRendering(elem);
+        }finally{
+            Observable.accessMode= mode;
         }
         
-        this._rendered(selectedPanels);
+        let children = descriptor.children;
+        for(let child of children){
+            if(this._panelType && (child as any).Component!==this._panelType) continue;
+            YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true});
+        }
+        mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Value;
+        try{
+            elem = this._onRendered(elem);
+        }finally{
+            Observable.accessMode= mode;
+        }
+        
+        return elem;
+    }
+    _onRendering(elem:IElement):IElement{
+        return elem;
+    }
+    _onRendered(elem:IElement):IElement{
+        return elem;
+    }
+    _onPanelRendered(panel:Panel):any{
+        if(!panel.name) panel.name ="panel-"+ YA.cid();
+        this[panel.name] = panel;
+        this.panels.push(panel);
+        return this.panels.$elements;
+    }
+
+    
+}
+
+
+class SelectablePanel extends Panel{   
+    @parameter()
+    selected:boolean=false;
+
+    constructor(){
+        super();
+    }
+
+    render(des,container){
+        let ret = super.render(des,container);
+        let selectedAttr = this.selected as any as YA.Observable<boolean>;
+        if(selectedAttr) selectedAttr.subscribe((e)=>{
+            let panels = this.$parent as SelectablePanels;
+            e.value?panels._onPanelSelecting(this):panels._onPanelUnselecting(this);
+        },this);     
+        return ret;   
+    }
+
+    
+}
+export class SelectablePanels extends Panels{
+    @in_parameter()
+    multiple:boolean=false;
+    
+    
+
+    allowNonSelect:boolean=false;
+    @parameter()
+    selected:string[]=[];
+
+    _defaultPanel:SelectablePanel;
+    _lastSelectedPanel:SelectablePanel;
+    constructor(){
+        super();
+        this._panelType = SelectablePanel;
+        this._className = "selectable-panels";
+        Object.defineProperty(this,"$__selectedPanels__",{enumerable:false,writable:false,configurable:false,value:[]});
+    }
+    get selectedPanels(){
+        return this["$__selectedPanels__"];
+    }
+
+    _onRendered(elem){
+        super._onRendered(elem);
+        observableMode(ObservableModes.Observable,()=>{
+            (this.selected as any as YA.Observable<string[]>).subscribe(e=>{
+                if(e.value && e.value.length){
+                    let selectedName = e.value[e.value.length-1];
+                    let panel = this[selectedName] as SelectablePanel;
+                    panel.update("selected",true);
+                }
+            },this);
+        });
+        let selected = this.selected;
+        if(selected){
+            for(let name of selected){
+                (this[name] as SelectablePanel).update("selected",true);
+            }
+        }
+        if(!this._lastSelectedPanel && !this.allowNonSelect){
+            if(!this._defaultPanel){
+                this._defaultPanel = this.panels[0];
+            }
+            if(this._defaultPanel)this._defaultPanel.update("selected",true);
+        }
         return elem;
     }
 
-    /**
-     * 容器div已经创建，主要负责构建容器内部结构
-     *
-     * @param {IElement} elem
-     * @memberof PanelContainer
-     */
-    _elementCreated(elem:IElement){}
-
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     * 
-     * @param {Panel} panel
-     * @memberof PanelContainer
-     */
-    _panelCreated(panel:Panel,titleElem,cotnentElem):any{
-
+    _onPanelRendered(panel:SelectablePanel){
+        super._onPanelRendered(panel);
+        if(panel.selected){
+            this._onPanelSelecting(panel);
+        }
     }
 
-    _rendered(selectedPanels:Panel[]){
-
+    
+    protected $__isChanging__;
+    _onPanelSelecting(panel:SelectablePanel):any{
+        let selectedPanels = this.selectedPanels;
+        if(!YA.array_add_unique(this.selectedPanels,panel)) return;
+        let isChanging = this.$__isChanging__;
+        this.$__isChanging__ = true;
+        let newSelects = [];
+        let selects = this.selected;
+        if(selects){
+            for(let name of selects){
+                newSelects.push(name);
+            }
+            newSelects.push(panel.name);
+        }else{
+            newSelects.push(panel.name);
+        }
+        this.selected = newSelects;
+        if(!this.multiple){
+            if(this._lastSelectedPanel && this._lastSelectedPanel.selected){
+                this._lastSelectedPanel.update("selected",false);
+            }
+        } 
+        this._lastSelectedPanel = panel;
+        if(!isChanging)this.update("selected");
+        if(panel._labelElement)addClass(panel._labelElement,"selected");
+        addClass(panel._contentElement,"selected");
+        this.$__isChanging__ = isChanging;
+        
     }
+    _onPanelUnselecting(panel:SelectablePanel):any{
+        if(!YA.array_remove(this.selectedPanels,panel)) return;
+        let isChanging = this.$__isChanging__;
+        this.$__isChanging__ = true;
+        let newSelects=[];
+        let selects = this.selected;
+        if(selects) for(let name of selects){
+            if(name!==panel.name)newSelects.push(name);
+        }
+        this.selected = newSelects;
+        if(newSelects.length===0&&!this.allowNonSelect){
+            this._defaultPanel.update("selected",true);
+        }  
+        if(!isChanging)this.update("selected");
+        this.$__isChanging__ = isChanging;
 
-
-    _selectPanelChanging(panel:Panel,lastSelectedPanel:Panel,selected:boolean,onlyUnselect:boolean):boolean{
-        return true;
+        if(panel._labelElement)removeClass(panel._labelElement,"selected");
+        removeClass(panel._contentElement,"selected");
     }
 }
 
-export class Tab extends PanelContainer{
-    static Panel:{new(...args:any[]):Panel}=Panel;
+export class TabPanel extends SelectablePanel{
+    constructor(){
+        super();
+    }
+}
+
+
+export class Tab extends SelectablePanels{
+    static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
    
     __captionsElement:IElement;
     __contentsElement:IElement;
 
     constructor(){
         super();
+        this._className = "ya-tab";
+        this._panelType = TabPanel;
+        this.allowNonSelect=false;
+        this.multiple=false;
     }
-
+    _onRendering(elem){
+        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
+        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
+        return elem;
+    }
     /**
      * 容器div已经创建，主要负责构建容器内部结构
      *
      * @param {IElement} elem
      * @memberof PanelContainer
      */
-    _elementCreated(elem:IElement){
-        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
-        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
+    _onRendered(elem:IElement){
+        super._onRendered(elem);
+        
+        return elem;
     }
 
     /**
      * 主要负责把Panel装到正确的容器element中
      * 
-     * @param {Panel} panel
+     * @param {SelectablePanel} panel
      * @memberof PanelContainer
      */
-    _panelCreated(panel:Panel,labelElem,contentElem){
-        this.__captionsElement.appendChild(labelElem);
-        this.__contentsElement.appendChild(contentElem);
-        contentElem.style.display="none";
-        let rs = [labelElem,contentElem] as any;
+    _onPanelRendered(panel:SelectablePanel){
+        super._onPanelRendered(panel);
+        this.__captionsElement.appendChild(panel._labelElement);
+        this.__contentsElement.appendChild(panel._contentElement);
+        ElementUtility.attach(panel._labelElement,"click",()=>{
+            panel.update("selected",true);
+        });
+        panel._contentElement.style.display="none";
+        let rs = [panel._labelElement,panel._contentElement] as any;
         rs.$__alreadyAppendToContainer = true;
         return rs;
     }
 
-    _rendered(selectedPanels){
-        debugger;
-        if(selectedPanels.length){
-            selectedPanels[selectedPanels.length-1].select(true);
-        }else{
-            if(this.panels.length){
-                this.panels[0].select(true);
-            }
-            
-        }
-    }
+    
 
     /**
      * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
      *
-     * @param {Panel} panel
-     * @param {Panel} lastSelectedPanel
+     * @param {SelectablePanel} panel
+     * @param {SelectablePanel} lastSelectedPanel
      * @memberof PanelContainer
      */
-    _selectPanelChanging(panel:Panel,lastSelectedPanel:Panel,selected:boolean,onlyUselect:boolean):boolean{
-        if(selected===undefined) selected =true;
-        if(selected){
-            if(panel===lastSelectedPanel)return false;
-            //隐藏原先选中的tab，但不做其他工作
-            
-            if(lastSelectedPanel){
-                lastSelectedPanel.select(false,true);
-            }
-            
-            addClass(panel._labelElement,"selected");
-            addClass(panel._contentElement,"selected");
-            this.lastSelectedPanel = panel;
-            if(!this.defaultPanel)this.defaultPanel=panel;
-            panel._contentElement.style.display="block";
-            panel.selected=true;
-            this.selectedPanels=[panel.name];
-        }else{
-            if(this.lastSelectedPanel!==panel) return false;
-            removeClass(panel._labelElement,"selected");
-            removeClass(panel._contentElement,"selected");
-            panel.selected = false;
-            panel._contentElement.style.display="none";
-            if(!onlyUselect) (this.$parent as PanelContainer).defaultPanel.select();
-        }
-        return true;
-    }
-
-}
-Tab.prototype.className = "ya-tab";
-
-export class Groups extends PanelContainer{
-    static Panel:{new(...args:any[]):Panel}=Panel;
-    @YA.parameter()
-    multiple:boolean=true;
-
-    @YA.in_parameter()
-    expanded:boolean=true;
-
-    @YA.in_parameter()
-    collapsed:boolean=false;
-   
-    constructor(){
-        super();
-    }
-
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     * 
-     * @param {Panel} panel
-     * @memberof PanelContainer
-     */
-    _panelCreated(panel:Panel,labelElem,contentElem){
-        let panelElem = ElementUtility.createElement("div",{"class":this.className+"-" + "panel"}) as IElement;
-        panelElem.appendChild(labelElem);
-        panelElem.appendChild(contentElem);
-        return panelElem;
-    }
-
-    _rendered(selectedPanels:Panel[]){
-        YA.observableMode(YA.ObservableModes.Value,()=>{
-            if(this.expanded){
-                for(let pn of this.panels) pn.select(true);
-            }else if(this.collapsed){
-                for(let pn of this.panels) pn.select(false);
-            }else{
-                for(let pn of selectedPanels) pn.select(true);
-            }
-        });
-    }
-
-    _selectedPanelChanging(panel:Panel,oldPanel:Panel,selected:boolean):boolean{
-        let elem = panel.$element as any;
-        if(selected===false){
-            if(removeClass(elem,"selected")){
-                let panels = this.selectedPanels;
-                if(panels){
-                    for(let i =0,j=panels.length;i<j;i++) {
-                        let p = panels.shift();
-                        if(p!==panel.name) panels.push(p);
-                    }
-                }
-                this.selectedPanels = panels;
-            }
-            return true;
-        }
-        YA.observableMode(YA.ObservableModes.Value,()=>{
-            if(toggleClass(elem,"selected")){
-                let panels = this.selectedPanels;
-                if(panels) panels.push(panel.name);
-                else panels = [panel.name];
-                this.selectedPanels = panels;
-                if(!this.multiple){
-                    oldPanel.select(false);
-                }
-            }else{
-                let panels = this.selectedPanels;
-                if(panels){
-                    for(let i =0,j=panels.length;i<j;i++) {
-                        let p = panels.shift();
-                        if(p!==panel.name) panels.push(p);
-                    }
-                }
-                this.selectedPanels = panels;
-            }
-        });
+    _onPanelSelecting(panel:SelectablePanel):boolean{
         
+        super._onPanelSelecting(panel);
+        panel._contentElement.style.display="block";
         return true;
     }
+
+    _onPanelUnselecting(panel:TabPanel){
+        super._onPanelUnselecting(panel);
+        panel._contentElement.style.display="none";
+    }
+
 }
+Tab.prototype._className = "ya-tab";
+

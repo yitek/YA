@@ -28,6 +28,18 @@ export function implicit(strong?:boolean|any,members?:any,value?:any){
     }
 }
 
+export function abstract(){
+    return function(proto,name){
+        let method = proto[name];
+        if(method) Object.defineProperty(method,"$__abstract__",{enumerable:false,writable:false,configurable:false,value:true});
+    };
+}
+export interface IPrivateOpts{
+    get:any;
+    set:any;
+    $isPrivateDiscriptor:boolean;
+}
+
 
 ///////////////////////////////////////////////////////////////
 // 类型判断
@@ -116,6 +128,15 @@ export function array_add_unique(arr:any[],item:any):boolean{
     arr.push(item);
     return true;
 }
+export function array_remove(arr:any[],item:any):boolean{
+    let hasItem = false;
+    for(let i = 0,j=arr.length;i<j;i++) {
+        let existed = arr.shift();
+        if(existed!==item) arr.push(existed);
+        else hasItem = true;
+    }
+    return hasItem;
+}
 ///////////////////////////////////////
 // 对象处理
 
@@ -203,7 +224,7 @@ let _cid=0;
  */
 export function cid(){
     if(_cid>2100000000) _cid= -210000000;
-    return _cid;
+    return _cid++;
 }
 
 //=======================================================================
@@ -789,7 +810,8 @@ export interface IChangeEventArgs<TData>{
     item?:IObservable<TData>,
     sender?:any,
     cancel?:boolean,
-    changes?:IChangeEventArgs<any>[]
+    changes?:IChangeEventArgs<any>[],
+    src?:any;
 }
 
 export enum ChangeTypes{
@@ -917,7 +939,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
      * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
      * @memberof Observable
      */
-    update():boolean{
+    update(src?:any):boolean{
         let newValue :any= this.$__obModifiedValue__;
         if(newValue===undefined) return true;
         this.$__obModifiedValue__=undefined;
@@ -925,8 +947,14 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         let oldValue = this.$target;
         if(newValue!==oldValue) {
             this.$__obRaw__(this.$target = newValue);
-            let evtArgs:IChangeEventArgs<TData> = {type:ChangeTypes.Value,value:newValue,old:oldValue,sender:this};
-            this.notify(evtArgs);
+            let evtArgs:IChangeEventArgs<TData> = {type:ChangeTypes.Value,value:newValue,old:oldValue,sender:this,src:src||this};
+            let mode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Value;
+            try{
+                this.notify(evtArgs);
+            }finally{
+                Observable.accessMode = mode;
+            }
             return evtArgs.cancel!==true;
         }
         return true;
@@ -1029,16 +1057,21 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         return this;
     }
 
-    update():boolean{
-        let result = super.update();
+    update(src?:any):boolean{
+        let result = super.update(src);
         if(result===false) return false;
-        observableMode(ObservableModes.Observable,()=>{
+        let mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Observable;
+        try{
             for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof Observable && proxy.$__obOwner__===this) 
                     proxy.update();
             }
-        });
+        }finally{
+            Observable.accessMode = mode;
+        }
+        
         return true;
     }
 }
@@ -1169,25 +1202,30 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         return this;
     }
 
-    update():boolean{
+    update(src?:any):boolean{
         //有3种操作
         // 用新数组代替了旧数组
         // push/pop/shift/unshift
         // 子项变更了
         
         //新数组代替了旧数组，用super处理了。？？这里逻辑有问题，如果数组赋值后又push/pop了会怎么处理？
-        if(!super.update()) return true;
+        if(!super.update(src)) return true;
         //查看子项变更
         //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
-        observableMode(ObservableModes.Observable,()=>{
+        let mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Observable;
+        try{
             for(let n in this){
                 let item = this[n];
                 //只有Observable，且所有者为自己的，才更新
                 //防止用户放别的东西在这个ObservableArray上面
                 if(item instanceof Observable && item.$__obOwner__===this)
-                    item.update();
+                    item.update(src);
             }
-        });
+        }finally{
+            Observable.accessMode= mode;
+        }
+        
         
         //处理push/pop等数组操作
         let changes = this.$_changes;
@@ -1195,49 +1233,55 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         this.$_changes = undefined;
 
         let arr = this.$target;
-        
-        for(const i in changes){
-            let change = changes[i];
-            switch(change.type){
-                case ChangeTypes.Remove:
-                    change.sender.notify(change);
-                case ChangeTypes.Push:
-                    arr.push(change.value);
-                    //this.notify(change);
-                    //if(change.cancel!==true && change.item) change.item.notify(change);
-                    break;
-                case ChangeTypes.Pop:
-                    arr.pop();
-                    //this.notify(change);
-                    if(change.cancel!==true && change.item) {
-                        change.sender = change.item;
-                        change.item.notify(change);
-                    }
-                    break;
-                case ChangeTypes.Unshift:
-                    arr.unshift(change.value);
-                    //this.notify(change);
-                    break;
-                case ChangeTypes.Shift:
-                    arr.shift();
-                    //this.notify(change);
-                    if(change.cancel!==true && change.item) {
-                        change.sender = change.item;
-                        change.item.notify(change);
-                    }
-                    break;
-                case ChangeTypes.Item:
-                    arr[change.index] = change.value;
-                    //this.notify(change);
-                    if(change.cancel!==true){
-                        let itemEvts :any= {};for(const n in change) itemEvts[n]=change[n];
-                        itemEvts.sender =change.item;
-                        itemEvts.type = ChangeTypes.Value;
-                        itemEvts.sender.notify(itemEvts);
-                    } 
-                    break;
+        mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Value;
+        try{
+            for(const i in changes){
+                let change = changes[i];
+                switch(change.type){
+                    case ChangeTypes.Remove:
+                        change.sender.notify(change);
+                    case ChangeTypes.Push:
+                        arr.push(change.value);
+                        //this.notify(change);
+                        //if(change.cancel!==true && change.item) change.item.notify(change);
+                        break;
+                    case ChangeTypes.Pop:
+                        arr.pop();
+                        //this.notify(change);
+                        if(change.cancel!==true && change.item) {
+                            change.sender = change.item;
+                            change.item.notify(change);
+                        }
+                        break;
+                    case ChangeTypes.Unshift:
+                        arr.unshift(change.value);
+                        //this.notify(change);
+                        break;
+                    case ChangeTypes.Shift:
+                        arr.shift();
+                        //this.notify(change);
+                        if(change.cancel!==true && change.item) {
+                            change.sender = change.item;
+                            change.item.notify(change);
+                        }
+                        break;
+                    case ChangeTypes.Item:
+                        arr[change.index] = change.value;
+                        //this.notify(change);
+                        if(change.cancel!==true){
+                            let itemEvts :any= {};for(const n in change) itemEvts[n]=change[n];
+                            itemEvts.sender =change.item;
+                            itemEvts.type = ChangeTypes.Value;
+                            itemEvts.sender.notify(itemEvts);
+                        } 
+                        break;
+                }
             }
+        }finally{
+            Observable.accessMode= mode;
         }
+        
         return true;
     }
     
@@ -2276,12 +2320,17 @@ function bindDomEvent(element:IElement,evtName:string,params:any,vnode:INodeDesc
             handler.apply(self,args);
         } 
         if(compInstance){
-            observableMode(ObservableModes.Proxy,()=>{
+            let mode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Proxy;
+            try{
                 for(let n in compInstance){
                     let member = compInstance[n];
-                    if(member instanceof Observable) member.update();
+                    if(member && typeof member.update==="function") member.update(compInstance);
                 }
-            });
+            }finally{
+                Observable.accessMode =mode;
+            }
+            
             
         }
     };
@@ -2328,8 +2377,8 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
                     ifAttrValue = descriptor[propname];
                     continue;
                 }
-                if(propname==="cid"){
-                    bindComponentCid(compInstance,descriptor[propname],null,container);
+                if(propname==="name"){
+                    bindComponentName(compInstance,descriptor[propname],null,container);
                     continue;
                 }
                 bindComponentAttr(compInstance,propname,descriptor[propname]);
@@ -2408,13 +2457,11 @@ function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,contain
     };
 }
 
-function bindComponentCid(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
+function bindComponentName(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
     let parent = compInstance.$parent;
     if(!parent) return;
     if(Observable.isObservable(bindValue)){
-        bindValue.subscribe((e:IChangeEventArgs<any>)=>{
-            setCid(parent,compInstance,e.value,e.old);
-        },compInstance);
+        
         bindValue = bindValue.get(ObservableModes.Value);
     }
     setCid(parent,compInstance,bindValue,undefined);
@@ -2425,7 +2472,7 @@ function setCid(parent,comp,cid,old?){
         console.warn("调用了setCID,但给的值为空,忽略该操作",cid,comp);
         return;
     }
-    comp.$cid = cid;
+    comp.name = cid;
     let existed = old?parent[old]:null;
     if(existed){
         if(existed===comp){
@@ -2484,24 +2531,24 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
                     prop.subscribe((e)=>{
                         propValue.set(e.value);
                         propValue.update();
-                    },propValue.$root.$extras);
+                    },compInstance);
                 }else {
-                    console.warn(propValue + "传入的不是observable,out未能绑定，不能联动");
+                    console.warn(propName + "传入的不是observable,out未能绑定，不能联动",propValue);
                 }
             }else if(propType==ReactiveTypes.Parameter){
                 if(isOb){
                     prop.subscribe((e)=>{
                         propValue.set(e.value);
                         propValue.update();
-                    },propValue.$root.$extras);
+                    },compInstance);
                     propValue.subscribe((e)=>{
                         prop.set(e.value);
                         prop.update();
-                    },prop.$root.$extras);
+                    },compInstance);
                     prop.set(propValue.get(ObservableModes.Value));
                 }else{
                     prop.set(propValue);
-                    console.warn(propValue + "传入的不是observable,paremeter未能绑定，不能联动");
+                    console.warn(propName + "传入的不是observable,paremeter未能绑定，不能联动",propValue);
                 }
             }else {
                 console.warn(`${propName}是私有类型,外部传入的未赋值`);
@@ -2514,6 +2561,8 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
                 compInstance[propName] = propValue;
             }
         }
+    }else{
+        compInstance[propName] = propValue;
     }
 }
 
@@ -2714,6 +2763,7 @@ export interface IComponent extends IDisposable{
     $elements: IElement[];
     $element:IElement;
     render(descriptor?:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
+    update(path:string,value?:any):IComponent;
 }
 
 function getElement(){
@@ -2788,6 +2838,47 @@ function getChildren(){
     }
     return children;
 }
+function update(path:string,value?:any,src?:any):IComponent{
+    let self = this;
+    let mode = Observable.accessMode;
+    Observable.accessMode = ObservableModes.Observable;
+    try{
+        if(typeof path==="string") {
+            let ob = DPath.getValue(self,path);
+            if(ob ){
+                if(value!==undefined && value!=Default && ob.set) ob.set(value);
+                ob.update(src);
+            }
+            
+            
+        }else{
+            for(let n in self as any){
+                let ob = self[n];
+                if(ob instanceof Observable) ob.update(value);
+            }
+            let children = self.$children;
+            if(children) for(let child of children){
+                if(child.name && self[child.name]===child)child.update(value);
+            }
+        }
+    }finally{
+        Observable.accessMode = mode;
+    }
+    
+    return self;
+}
+function subscribe(tpath:string,handler:(e)=>any,disposable?:IDisposable){
+    let self = this;
+    let mode = Observable.accessMode;
+    Observable.accessMode = ObservableModes.Observable;
+    try{
+        let ob = DPath.getValue(self,tpath);
+        if(ob instanceof Observable) ob.subscribe(handler,disposable);
+    }finally{
+        Observable.accessMode = mode;
+    }
+    return this;
+}
 function is_define(name:string,inst){
     
     while(inst){
@@ -2799,19 +2890,20 @@ function is_define(name:string,inst){
 function buildComponent(inst,proto?){
     if(!proto) proto = inst;
     if(!is_define("$element",inst)){
-        Object.defineProperty(proto,"$element",{configurable:false,enumerable:true,get:getElement,set:setElement});
+        Object.defineProperty(proto,"$element",{configurable:false,enumerable:false,get:getElement,set:setElement});
     }
     if(!is_define("$elements",inst)){
-        Object.defineProperty(proto,"$elements",{configurable:false,enumerable:true,get:getElements,set:setElements});
+        Object.defineProperty(proto,"$elements",{configurable:false,enumerable:false,get:getElements,set:setElements});
     }
     if(!is_define("$parent",inst)){
-        Object.defineProperty(proto,"$parent",{configurable:false,enumerable:true,get:getParent,set:setParent});
+        Object.defineProperty(proto,"$parent",{configurable:false,enumerable:false,get:getParent,set:setParent});
     }
     if(!is_define("$children",inst)){
-        Object.defineProperty(proto,"$children",{configurable:false,enumerable:true,get:getChildren});
+        Object.defineProperty(proto,"$children",{configurable:false,enumerable:false,get:getChildren});
     }
-    if(!inst.dispose) disposable(proto||inst);
-    
+    if(!inst.dispose||inst.dispose.$__abstract__) disposable(proto||inst);
+    if(!inst.update || inst.update.$__abstract__) proto.update = update;
+    if(!inst.subscribe || inst.subscribe.$__abstract__) proto.subscribe = subscribe;
 }
 
 export class Component extends Disposable  implements IComponent{
@@ -2826,11 +2918,20 @@ export class Component extends Disposable  implements IComponent{
     constructor(){
         super();
     }
+    @abstract()
     render(des:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[]{
+        throw new Error("abstract method");
+    }
+    @abstract()
+    update(tpath:string,value?:any,src?:any):Component{
         throw new Error("abstract method");
     }
 
     
+    @abstract()
+    subscribe(tpath:string,handler:(e)=>any,disposable?:IDisposable):Component{
+        throw new Error("abstract method");
+    }
 }
 buildComponent(Component.prototype);
 

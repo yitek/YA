@@ -68,95 +68,77 @@ export declare class Component extends YA.Component {
     mask: any;
     render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
 }
-declare class Panel extends Component {
+export declare class Panel extends Component {
     _labelElement: IElement;
     _contentElement: IElement;
     name: string;
     css: string;
     label: string;
-    selected: boolean;
-    select(selected?: boolean, onlyHideSelf?: boolean): Panel;
     render(descriptor: YA.INodeDescriptor, elementContainer?: IElement): any;
 }
-export declare class PanelContainer extends Component {
-    static Panel: {
-        new (...args: any[]): Panel;
-    };
-    lastSelectedPanel: Panel;
-    defaultPanel: Panel;
-    className: string;
+export declare class Panels extends Component {
+    _className: string;
     _panelType: Function;
-    panels: Panel[];
-    selectedPanels: string[];
     css: string;
     constructor();
-    selected: string;
-    defaultPanelName: string;
-    render(descriptor: YA.INodeDescriptor, container: IElement): any;
-    /**
-     * 容器div已经创建，主要负责构建容器内部结构
-     *
-     * @param {IElement} elem
-     * @memberof PanelContainer
-     */
-    _elementCreated(elem: IElement): void;
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     *
-     * @param {Panel} panel
-     * @memberof PanelContainer
-     */
-    _panelCreated(panel: Panel, titleElem: any, cotnentElem: any): any;
-    _rendered(selectedPanels: Panel[]): void;
-    _selectPanelChanging(panel: Panel, lastSelectedPanel: Panel, selected: boolean, onlyUnselect: boolean): boolean;
+    get panels(): any;
+    render(descriptor: any, container: any): IElement;
+    _onRendering(elem: IElement): IElement;
+    _onRendered(elem: IElement): IElement;
+    _onPanelRendered(panel: Panel): any;
 }
-export declare class Tab extends PanelContainer {
+declare class SelectablePanel extends Panel {
+    selected: boolean;
+    constructor();
+    render(des: any, container: any): any;
+}
+export declare class SelectablePanels extends Panels {
+    multiple: boolean;
+    allowNonSelect: boolean;
+    selected: string[];
+    _defaultPanel: SelectablePanel;
+    _lastSelectedPanel: SelectablePanel;
+    constructor();
+    get selectedPanels(): any;
+    _onRendered(elem: any): any;
+    _onPanelRendered(panel: SelectablePanel): void;
+    protected $__isChanging__: any;
+    _onPanelSelecting(panel: SelectablePanel): any;
+    _onPanelUnselecting(panel: SelectablePanel): any;
+}
+export declare class TabPanel extends SelectablePanel {
+    constructor();
+}
+export declare class Tab extends SelectablePanels {
     static Panel: {
-        new (...args: any[]): Panel;
+        new (...args: any[]): SelectablePanel;
     };
     __captionsElement: IElement;
     __contentsElement: IElement;
     constructor();
+    _onRendering(elem: any): any;
     /**
      * 容器div已经创建，主要负责构建容器内部结构
      *
      * @param {IElement} elem
      * @memberof PanelContainer
      */
-    _elementCreated(elem: IElement): void;
+    _onRendered(elem: IElement): IElement;
     /**
      * 主要负责把Panel装到正确的容器element中
      *
-     * @param {Panel} panel
+     * @param {SelectablePanel} panel
      * @memberof PanelContainer
      */
-    _panelCreated(panel: Panel, labelElem: any, contentElem: any): any;
-    _rendered(selectedPanels: any): void;
+    _onPanelRendered(panel: SelectablePanel): any;
     /**
      * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
      *
-     * @param {Panel} panel
-     * @param {Panel} lastSelectedPanel
+     * @param {SelectablePanel} panel
+     * @param {SelectablePanel} lastSelectedPanel
      * @memberof PanelContainer
      */
-    _selectPanelChanging(panel: Panel, lastSelectedPanel: Panel, selected: boolean, onlyUselect: boolean): boolean;
-}
-export declare class Groups extends PanelContainer {
-    static Panel: {
-        new (...args: any[]): Panel;
-    };
-    multiple: boolean;
-    expanded: boolean;
-    collapsed: boolean;
-    constructor();
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     *
-     * @param {Panel} panel
-     * @memberof PanelContainer
-     */
-    _panelCreated(panel: Panel, labelElem: any, contentElem: any): IElement;
-    _rendered(selectedPanels: Panel[]): void;
-    _selectedPanelChanging(panel: Panel, oldPanel: Panel, selected: boolean): boolean;
+    _onPanelSelecting(panel: SelectablePanel): boolean;
+    _onPanelUnselecting(panel: TabPanel): void;
 }
 export {};

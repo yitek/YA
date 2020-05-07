@@ -57,6 +57,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
     }
     exports.implicit = implicit;
+    function abstract() {
+        return function (proto, name) {
+            var method = proto[name];
+            if (method)
+                Object.defineProperty(method, "$__abstract__", { enumerable: false, writable: false, configurable: false, value: true });
+        };
+    }
+    exports.abstract = abstract;
     ///////////////////////////////////////////////////////////////
     // 类型判断
     function is_string(obj) {
@@ -156,6 +164,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return true;
     }
     exports.array_add_unique = array_add_unique;
+    function array_remove(arr, item) {
+        var hasItem = false;
+        for (var i = 0, j = arr.length; i < j; i++) {
+            var existed = arr.shift();
+            if (existed !== item)
+                arr.push(existed);
+            else
+                hasItem = true;
+        }
+        return hasItem;
+    }
+    exports.array_remove = array_remove;
     ///////////////////////////////////////
     // 对象处理
     exports.extend = function () {
@@ -250,7 +270,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     function cid() {
         if (_cid > 2100000000)
             _cid = -210000000;
-        return _cid;
+        return _cid++;
     }
     exports.cid = cid;
     var PromiseStates;
@@ -817,7 +837,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
          * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
          * @memberof Observable
          */
-        Observable.prototype.update = function () {
+        Observable.prototype.update = function (src) {
             var newValue = this.$__obModifiedValue__;
             if (newValue === undefined)
                 return true;
@@ -826,8 +846,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var oldValue = this.$target;
             if (newValue !== oldValue) {
                 this.$__obRaw__(this.$target = newValue);
-                var evtArgs = { type: ChangeTypes.Value, value: newValue, old: oldValue, sender: this };
-                this.notify(evtArgs);
+                var evtArgs = { type: ChangeTypes.Value, value: newValue, old: oldValue, sender: this, src: src || this };
+                var mode = Observable_1.accessMode;
+                Observable_1.accessMode = ObservableModes.Value;
+                try {
+                    this.notify(evtArgs);
+                }
+                finally {
+                    Observable_1.accessMode = mode;
+                }
                 return evtArgs.cancel !== true;
             }
             return true;
@@ -930,18 +957,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 this.$update();
             return this;
         };
-        ObservableObject.prototype.update = function () {
-            var _this = this;
-            var result = _super.prototype.update.call(this);
+        ObservableObject.prototype.update = function (src) {
+            var result = _super.prototype.update.call(this, src);
             if (result === false)
                 return false;
-            observableMode(ObservableModes.Observable, function () {
-                for (var n in _this) {
-                    var proxy = _this[n];
-                    if (proxy instanceof Observable && proxy.$__obOwner__ === _this)
+            var mode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Observable;
+            try {
+                for (var n in this) {
+                    var proxy = this[n];
+                    if (proxy instanceof Observable && proxy.$__obOwner__ === this)
                         proxy.update();
                 }
-            });
+            }
+            finally {
+                Observable.accessMode = mode;
+            }
             return true;
         };
         ObservableObject = __decorate([
@@ -1071,75 +1102,86 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 this.update();
             return this;
         };
-        ObservableArray.prototype.update = function () {
+        ObservableArray.prototype.update = function (src) {
             //有3种操作
             // 用新数组代替了旧数组
             // push/pop/shift/unshift
             // 子项变更了
-            var _this = this;
             //新数组代替了旧数组，用super处理了。？？这里逻辑有问题，如果数组赋值后又push/pop了会怎么处理？
-            if (!_super.prototype.update.call(this))
+            if (!_super.prototype.update.call(this, src))
                 return true;
             //查看子项变更
             //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
-            observableMode(ObservableModes.Observable, function () {
-                for (var n in _this) {
-                    var item = _this[n];
+            var mode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Observable;
+            try {
+                for (var n in this) {
+                    var item = this[n];
                     //只有Observable，且所有者为自己的，才更新
                     //防止用户放别的东西在这个ObservableArray上面
-                    if (item instanceof Observable && item.$__obOwner__ === _this)
-                        item.update();
+                    if (item instanceof Observable && item.$__obOwner__ === this)
+                        item.update(src);
                 }
-            });
+            }
+            finally {
+                Observable.accessMode = mode;
+            }
             //处理push/pop等数组操作
             var changes = this.$_changes;
             if (!changes || this.$_changes.length === 0)
                 return true;
             this.$_changes = undefined;
             var arr = this.$target;
-            for (var i in changes) {
-                var change = changes[i];
-                switch (change.type) {
-                    case ChangeTypes.Remove:
-                        change.sender.notify(change);
-                    case ChangeTypes.Push:
-                        arr.push(change.value);
-                        //this.notify(change);
-                        //if(change.cancel!==true && change.item) change.item.notify(change);
-                        break;
-                    case ChangeTypes.Pop:
-                        arr.pop();
-                        //this.notify(change);
-                        if (change.cancel !== true && change.item) {
-                            change.sender = change.item;
-                            change.item.notify(change);
-                        }
-                        break;
-                    case ChangeTypes.Unshift:
-                        arr.unshift(change.value);
-                        //this.notify(change);
-                        break;
-                    case ChangeTypes.Shift:
-                        arr.shift();
-                        //this.notify(change);
-                        if (change.cancel !== true && change.item) {
-                            change.sender = change.item;
-                            change.item.notify(change);
-                        }
-                        break;
-                    case ChangeTypes.Item:
-                        arr[change.index] = change.value;
-                        //this.notify(change);
-                        if (change.cancel !== true) {
-                            var itemEvts = {};
-                            for (var n in change)
-                                itemEvts[n] = change[n];
-                            itemEvts.sender = change.item;
-                            itemEvts.type = ChangeTypes.Value;
-                            itemEvts.sender.notify(itemEvts);
-                        }
-                        break;
+            mode = Observable.accessMode;
+            Observable.accessMode = ObservableModes.Value;
+            try {
+                for (var i in changes) {
+                    var change = changes[i];
+                    switch (change.type) {
+                        case ChangeTypes.Remove:
+                            change.sender.notify(change);
+                        case ChangeTypes.Push:
+                            arr.push(change.value);
+                            //this.notify(change);
+                            //if(change.cancel!==true && change.item) change.item.notify(change);
+                            break;
+                        case ChangeTypes.Pop:
+                            arr.pop();
+                            //this.notify(change);
+                            if (change.cancel !== true && change.item) {
+                                change.sender = change.item;
+                                change.item.notify(change);
+                            }
+                            break;
+                        case ChangeTypes.Unshift:
+                            arr.unshift(change.value);
+                            //this.notify(change);
+                            break;
+                        case ChangeTypes.Shift:
+                            arr.shift();
+                            //this.notify(change);
+                            if (change.cancel !== true && change.item) {
+                                change.sender = change.item;
+                                change.item.notify(change);
+                            }
+                            break;
+                        case ChangeTypes.Item:
+                            arr[change.index] = change.value;
+                            //this.notify(change);
+                            if (change.cancel !== true) {
+                                var itemEvts = {};
+                                for (var n in change)
+                                    itemEvts[n] = change[n];
+                                itemEvts.sender = change.item;
+                                itemEvts.type = ChangeTypes.Value;
+                                itemEvts.sender.notify(itemEvts);
+                            }
+                            break;
+                    }
                 }
+            }
+            finally {
+                Observable.accessMode = mode;
             }
             return true;
         };
@@ -2171,13 +2213,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 handler.apply(self, args);
             }
             if (compInstance) {
-                observableMode(ObservableModes.Proxy, function () {
+                var mode = Observable.accessMode;
+                Observable.accessMode = ObservableModes.Proxy;
+                try {
                     for (var n in compInstance) {
                         var member = compInstance[n];
-                        if (member instanceof Observable)
-                            member.update();
+                        if (member && typeof member.update === "function")
+                            member.update(compInstance);
                     }
-                });
+                }
+                finally {
+                    Observable.accessMode = mode;
+                }
             }
         };
         exports.ElementUtility.attach(element, evtName, finalHandler);
@@ -2219,8 +2266,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         ifAttrValue = descriptor[propname];
                         continue;
                     }
-                    if (propname === "cid") {
-                        bindComponentCid(compInstance, descriptor[propname], null, container);
+                    if (propname === "name") {
+                        bindComponentName(compInstance, descriptor[propname], null, container);
                         continue;
                     }
                     bindComponentAttr(compInstance, propname, descriptor[propname]);
@@ -2319,14 +2366,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         ;
     }
-    function bindComponentCid(compInstance, bindValue, elems, container) {
+    function bindComponentName(compInstance, bindValue, elems, container) {
         var parent = compInstance.$parent;
         if (!parent)
             return;
         if (Observable.isObservable(bindValue)) {
-            bindValue.subscribe(function (e) {
-                setCid(parent, compInstance, e.value, e.old);
-            }, compInstance);
             bindValue = bindValue.get(ObservableModes.Value);
         }
         setCid(parent, compInstance, bindValue, undefined);
@@ -2336,7 +2380,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             console.warn("调用了setCID,但给的值为空,忽略该操作", cid, comp);
             return;
         }
-        comp.$cid = cid;
+        comp.name = cid;
         var existed = old ? parent[old] : null;
         if (existed) {
             if (existed === comp) {
@@ -2400,10 +2444,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         prop.subscribe(function (e) {
                             propValue.set(e.value);
                             propValue.update();
-                        }, propValue.$root.$extras);
+                        }, compInstance);
                     }
                     else {
-                        console.warn(propValue + "传入的不是observable,out未能绑定，不能联动");
+                        console.warn(propName + "传入的不是observable,out未能绑定，不能联动", propValue);
                     }
                 }
                 else if (propType == ReactiveTypes.Parameter) {
@@ -2411,16 +2455,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         prop.subscribe(function (e) {
                             propValue.set(e.value);
                             propValue.update();
-                        }, propValue.$root.$extras);
+                        }, compInstance);
                         propValue.subscribe(function (e) {
                             prop.set(e.value);
                             prop.update();
-                        }, prop.$root.$extras);
+                        }, compInstance);
                         prop.set(propValue.get(ObservableModes.Value));
                     }
                     else {
                         prop.set(propValue);
-                        console.warn(propValue + "传入的不是observable,paremeter未能绑定，不能联动");
+                        console.warn(propName + "传入的不是observable,paremeter未能绑定，不能联动", propValue);
                     }
                 }
                 else {
@@ -2436,6 +2480,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     compInstance[propName] = propValue;
                 }
             }
+        }
+        else {
+            compInstance[propName] = propValue;
         }
     }
     function handleRenderResult(renderResult, instance, renderFn, descriptor, container) {
@@ -2688,6 +2735,53 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         return children;
     }
+    function update(path, value, src) {
+        var self = this;
+        var mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Observable;
+        try {
+            if (typeof path === "string") {
+                var ob = DPath.getValue(self, path);
+                if (ob) {
+                    if (value !== undefined && value != exports.Default && ob.set)
+                        ob.set(value);
+                    ob.update(src);
+                }
+            }
+            else {
+                for (var n in self) {
+                    var ob = self[n];
+                    if (ob instanceof Observable)
+                        ob.update(value);
+                }
+                var children = self.$children;
+                if (children)
+                    for (var _i = 0, children_1 = children; _i < children_1.length; _i++) {
+                        var child = children_1[_i];
+                        if (child.name && self[child.name] === child)
+                            child.update(value);
+                    }
+            }
+        }
+        finally {
+            Observable.accessMode = mode;
+        }
+        return self;
+    }
+    function subscribe(tpath, handler, disposable) {
+        var self = this;
+        var mode = Observable.accessMode;
+        Observable.accessMode = ObservableModes.Observable;
+        try {
+            var ob = DPath.getValue(self, tpath);
+            if (ob instanceof Observable)
+                ob.subscribe(handler, disposable);
+        }
+        finally {
+            Observable.accessMode = mode;
+        }
+        return this;
+    }
     function is_define(name, inst) {
         while (inst) {
             if (Object.getOwnPropertyDescriptor(inst, name))
@@ -2700,19 +2794,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (!proto)
             proto = inst;
         if (!is_define("$element", inst)) {
-            Object.defineProperty(proto, "$element", { configurable: false, enumerable: true, get: getElement, set: setElement });
+            Object.defineProperty(proto, "$element", { configurable: false, enumerable: false, get: getElement, set: setElement });
         }
         if (!is_define("$elements", inst)) {
-            Object.defineProperty(proto, "$elements", { configurable: false, enumerable: true, get: getElements, set: setElements });
+            Object.defineProperty(proto, "$elements", { configurable: false, enumerable: false, get: getElements, set: setElements });
         }
         if (!is_define("$parent", inst)) {
-            Object.defineProperty(proto, "$parent", { configurable: false, enumerable: true, get: getParent, set: setParent });
+            Object.defineProperty(proto, "$parent", { configurable: false, enumerable: false, get: getParent, set: setParent });
         }
         if (!is_define("$children", inst)) {
-            Object.defineProperty(proto, "$children", { configurable: false, enumerable: true, get: getChildren });
+            Object.defineProperty(proto, "$children", { configurable: false, enumerable: false, get: getChildren });
         }
-        if (!inst.dispose)
+        if (!inst.dispose || inst.dispose.$__abstract__)
             disposable(proto || inst);
+        if (!inst.update || inst.update.$__abstract__)
+            proto.update = update;
+        if (!inst.subscribe || inst.subscribe.$__abstract__)
+            proto.subscribe = subscribe;
     }
     var Component = /** @class */ (function (_super) {
         __extends(Component, _super);
@@ -2722,6 +2820,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Component.prototype.render = function (des, container) {
             throw new Error("abstract method");
         };
+        Component.prototype.update = function (tpath, value, src) {
+            throw new Error("abstract method");
+        };
+        Component.prototype.subscribe = function (tpath, handler, disposable) {
+            throw new Error("abstract method");
+        };
+        __decorate([
+            abstract()
+        ], Component.prototype, "render", null);
+        __decorate([
+            abstract()
+        ], Component.prototype, "update", null);
+        __decorate([
+            abstract()
+        ], Component.prototype, "subscribe", null);
         return Component;
     }(Disposable));
     exports.Component = Component;

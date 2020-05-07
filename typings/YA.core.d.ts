@@ -1,4 +1,10 @@
 export declare function implicit(strong?: boolean | any, members?: any, value?: any): (target: any, propName?: string) => void;
+export declare function abstract(): (proto: any, name: any) => void;
+export interface IPrivateOpts {
+    get: any;
+    set: any;
+    $isPrivateDiscriptor: boolean;
+}
 export declare function is_string(obj: any): boolean;
 export declare function is_bool(obj: any): boolean;
 export declare function is_number(obj: any): boolean;
@@ -24,6 +30,7 @@ export declare function trim(text: any): string;
 export declare function is_percent(text: any): number;
 export declare function array_index(obj: any, item: any, start?: number): number;
 export declare function array_add_unique(arr: any[], item: any): boolean;
+export declare function array_remove(arr: any[], item: any): boolean;
 export declare let extend: (...args: any[]) => any;
 export declare class DPath {
     paths: string[];
@@ -269,6 +276,7 @@ export interface IChangeEventArgs<TData> {
     sender?: any;
     cancel?: boolean;
     changes?: IChangeEventArgs<any>[];
+    src?: any;
 }
 export declare enum ChangeTypes {
     Value = 0,
@@ -310,7 +318,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
      * @returns {boolean} false=不做后继的操作。event.cancel=true会导致该函数返回false.
      * @memberof Observable
      */
-    update(): boolean;
+    update(src?: any): boolean;
     toString(): string;
     static accessMode: ObservableModes;
     static isObservable(ob: any): boolean;
@@ -329,7 +337,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     $prop(name: string): any;
     get(accessMode?: ObservableModes): any;
     set(newValue: TData | IObservable<TData>, updateImmediately?: boolean): IObservableObject<TData>;
-    update(): boolean;
+    update(src?: any): boolean;
 }
 export interface IObservableArray<TItem> extends IObservable<TItem[]> {
     [index: number]: any;
@@ -349,7 +357,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     clear(): ObservableArray<TItem>;
     get(accessMode?: ObservableModes): any;
     set(newValue: any, updateImmediately?: boolean): ObservableArray<TItem>;
-    update(): boolean;
+    update(src?: any): boolean;
 }
 export declare class ObservableSchema<TData> {
     [index: string]: any;
@@ -550,6 +558,7 @@ export interface IComponent extends IDisposable {
     $elements: IElement[];
     $element: IElement;
     render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
+    update(path: string, value?: any): IComponent;
 }
 export declare class Component extends Disposable implements IComponent {
     $cid?: string;
@@ -560,6 +569,8 @@ export declare class Component extends Disposable implements IComponent {
     $children: IComponent[];
     constructor();
     render(des: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
+    update(tpath: string, value?: any, src?: any): Component;
+    subscribe(tpath: string, handler: (e: any) => any, disposable?: IDisposable): Component;
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;

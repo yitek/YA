@@ -24,11 +24,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         TabTest.prototype.base = function (assert_statement, demoElement) {
             var TabBasComp = /** @class */ (function () {
                 function TabBasComp() {
+                    YA.observable(true, "selectPn2", this);
                 }
+                TabBasComp.prototype.changeTab = function () {
+                    var name = prompt("只能填写tp1,tp2其中一个", this.tab.selected[0]);
+                    if (name !== "tp1" && name !== "tp2") {
+                        return;
+                    }
+                    this.tab.selected = [name];
+                };
+                TabBasComp.prototype.changeAttr = function () {
+                    this.selectPn2 = confirm("Yes=显示第二个卡,No=取消第二个卡片的显示");
+                };
                 TabBasComp.prototype.render = function () {
-                    return YA.createElement(Dom.Tab, null,
-                        YA.createElement(Dom.Tab.Panel, { name: "tp-1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
-                        YA.createElement(Dom.Tab.Panel, { name: "tp-2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"));
+                    return YA.createElement("div", null,
+                        YA.createElement("input", { type: "button", onclick: this.changeTab, value: "\u901A\u8FC7\u4FEE\u6539tab.selected\u9009\u4E2D\u7B2C\u4E00\u4E2A\u5361" }),
+                        YA.createElement("input", { type: "button", onclick: this.changeAttr, value: "\u901A\u8FC7\u4FEE\u6539TabBasComp.selectPn2\u9009\u4E2D\u7B2C\u4E8C\u4E2A\u5361" }),
+                        YA.createElement(Dom.Tab, { name: "tab" },
+                            YA.createElement(Dom.Tab.Panel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
+                            YA.createElement(Dom.Tab.Panel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361", selected: this.selectPn2 }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
                 };
                 return TabBasComp;
             }());
