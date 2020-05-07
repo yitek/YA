@@ -454,13 +454,13 @@ export class Panel extends Component{
             replaceClass(elem,old,value,true);
         });
         YA.createElements(descriptor.children,contentElement,this as any);
-        let mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Value;
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
         try{
             let rs = panelContainer._onPanelRendered(this);
             return rs;
         }finally{
-            Observable.accessMode= mode;
+            Observable.readMode= mode;
         }
         
     }
@@ -491,12 +491,12 @@ export class Panels extends Component{
         YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
             replaceClass(elem,old, value,true);
         });
-        let mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Value;
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
         try{
             elem = this._onRendering(elem);
         }finally{
-            Observable.accessMode= mode;
+            Observable.readMode= mode;
         }
         
         let children = descriptor.children;
@@ -504,12 +504,12 @@ export class Panels extends Component{
             if(this._panelType && (child as any).Component!==this._panelType) continue;
             YA.createComponent((child as any).Component,child as any,elem,this,{returnInstance:true});
         }
-        mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Value;
+        mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
         try{
             elem = this._onRendered(elem);
         }finally{
-            Observable.accessMode= mode;
+            Observable.readMode= mode;
         }
         
         return elem;
@@ -556,6 +556,7 @@ export class SelectablePanel extends Panel{
 
     render(des,container){
         let ret = super.render(des,container);
+        
         let selectedAttr = this.selected as any as YA.Observable<boolean>;
         if(selectedAttr) selectedAttr.subscribe((e)=>{
             let panels = this.$parent as SelectablePanels;
@@ -579,10 +580,10 @@ export class SelectablePanels extends Panels{
     @in_parameter()
     unselectAll:boolean="" as any;
     @in_parameter()
-    style:string="tab";
+    panelStyle:string="tab";
 
     @parameter()
-    selected:string[]=[];
+    selected:string[]=("" as any);
 
     get allowMultiple(){
         let multiple;
@@ -614,19 +615,20 @@ export class SelectablePanels extends Panels{
 
     _defaultPanel:SelectablePanel;
     _lastSelectedPanel:SelectablePanel;
-    private __style__:ISeletablePanelStype;
+    private __currentStyle__:ISeletablePanelStype;
     
     static styles:{[name:string]:{new(container:SelectablePanels):ISeletablePanelStype}}={};
 
     get currentStyle(){
-        let name = this.style;
-        if(this.__style__ && this.__style__.name==name)return this.__style__;
+        let name = this.panelStyle;
         if((name as any).get) name = (name as any).get(ObservableModes.Value);
+        if(this.__currentStyle__ && this.__currentStyle__.name==name)return this.__currentStyle__;
+        
         let ctor = SelectablePanels.styles[name];
         if(!ctor)return;
-        this.__style__ = new ctor(this);
-        this.__style__.name = name;
-        return this.__style__;
+        this.__currentStyle__ = new ctor(this);
+        this.__currentStyle__.name = name;
+        return this.__currentStyle__;
     }
 
     constructor(){
@@ -644,6 +646,10 @@ export class SelectablePanels extends Panels{
         elem = super._onRendering(elem);
         let currentStyle = this.currentStyle;
         if(currentStyle) elem = currentStyle._onRendering(elem);
+        addClass(elem,"ya-selectable-panels");
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Observable;
+       
         return elem;
     }
     _onRendered(elem){
@@ -653,8 +659,32 @@ export class SelectablePanels extends Panels{
                 if(e.value && e.value.length){
                     let selectedName = e.value[e.value.length-1];
                     let panel = this[selectedName] as SelectablePanel;
-                    panel.update("selected",true);
+                    if(panel)panel.update("selected",true);
                 }
+                if(e.old && e.old.length){
+                    for(let old of e.old){
+                        if(e.value && YA.array_index(e.value,old)>=0){
+                            continue;
+                        }
+                        let panel = this[old] as SelectablePanel;
+                        if(panel)panel.update("selected",false);
+                    }                   
+                }
+            },this);
+            (this.panelStyle as any as YA.IObservable<string>).subscribe((e)=>{
+                let ctor = SelectablePanels.styles[e.value];
+                if(!ctor)return;
+                let curr = this.__currentStyle__;
+                if(curr){
+                    if(curr.name===e.value)return;
+                    curr._onExit(null);
+                }
+                let newStyle = new ctor(this);
+                newStyle.name = e.value;
+                this.__currentStyle__ = newStyle;
+                newStyle._onApply(curr);
+                
+                
             },this);
         });
         let selected = this.selected;
@@ -841,6 +871,7 @@ export class TabStyle implements ISeletablePanelStype{
         for(let li of this.__captionsElement.childNodes as any){
             let labelClicked = li["$__yaLabelClick__"];
             ElementUtility.detech(li,"click",labelClicked);
+            li["$__yaLabelClick__"]=null;
         }
     }
     _onApply(oldStyle:ISeletablePanelStype){
@@ -857,17 +888,34 @@ export class TabStyle implements ISeletablePanelStype{
         }
         for(let panel of panels){
             let elem =this._onPanelRendered(panel);
-            parent.appendChild(elem);
-        }
-        let selectedNames = panels.selected;
-        if(!selectedNames|| selectedNames.length!==1){
-            let selects = [];
-            if(selectedNames.length){
-                selects = [selectedNames[selectedNames.length-1]];
-            }else {
-                if(panels._defaultPanel)selects = [panels._defaultPanel.name];
+            if(!elem.$__alreadyAppendToContainer){
+                if(YA.is_array(elem)){
+                    for(let i=0,j=elem.length;i<j;i++) parent.appendChild(elem[i]);
+                }else{
+                    parent.appendChild(elem);
+                }
+                
             }
-            panels.update("selected",panels);
+            
+        }
+        let selectedNames = this.container.selected;
+        let selectedName;
+        if(!selectedNames || !selectedNames.length){
+            if(this.container._defaultPanel) selectedName=this.container._defaultPanel.name;
+            else{
+                this.container._defaultPanel = this.container.panels[0];
+                if(this.container._defaultPanel) selectedName=this.container._defaultPanel.name;
+            }
+        }else {
+            selectedName = selectedNames[selectedNames.length-1];
+        }
+        if(selectedName){
+            let selects = [selectedName];
+            let panel = this.container[selectedName];
+            if(panel) panel._contentElement.style.display="block";
+            this.container.update("selected",selects);
+        }else {
+            throw new Error("没有定义panel，无法转换");
         }
     }
 }
@@ -877,7 +925,7 @@ export class Tab extends SelectablePanels{
     static Panel:{new (...args:any[]):SelectablePanel} = SelectablePanel;
     constructor(){
         super();
-        this.style ="tab";
+        this.panelStyle ="tab";
     }
 }
 
@@ -908,7 +956,7 @@ export class GroupStyle implements ISeletablePanelStype{
     }
 
     _onPanelRendered(panel:SelectablePanel){
-        let elem = panel.$element = ElementUtility.createElement("div",{"class":"ya-group-item"}) as IElement;
+        let elem = panel.$element = ElementUtility.createElement("div",{"class":"ya-panel-item"}) as IElement;
         elem.appendChild(panel._labelElement);
         elem.appendChild(panel._contentElement);
         if(panel.selected===false){
@@ -938,8 +986,9 @@ export class GroupStyle implements ISeletablePanelStype{
     _onExit(newStyle:ISeletablePanelStype){
         let p = this.container.$element as IElement;
         removeClass(p as any,this.css);
-        for(let item of p.childNodes as any){
-            ElementUtility.detech(item,"click", item["$__panelLabelClick__"]);
+        for(let pn of this.container.panels){
+            ElementUtility.detech(pn._labelElement,"click", pn.$element["$__panelLabelClick__"]);
+            pn.$element["$__panelLabelClick__"]=null;
         }
     }
     _onApply(oldStyle:ISeletablePanelStype){
@@ -958,7 +1007,7 @@ export class Group extends SelectablePanels{
     static Panel:{new (...args:any[]):SelectablePanel} = SelectablePanel;
     constructor(){
         super();
-        this.style ="group";
+        this.panelStyle ="group";
     }
 }
 

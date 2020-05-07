@@ -466,14 +466,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 replaceClass(elem, old, value, true);
             });
             YA.createElements(descriptor.children, contentElement, this);
-            var mode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Value;
+            var mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
             try {
                 var rs = panelContainer._onPanelRendered(this);
                 return rs;
             }
             finally {
-                Observable.accessMode = mode;
+                Observable.readMode = mode;
             }
         };
         __decorate([
@@ -507,13 +507,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             YA.bindDomAttr(elem, "className", this.css, descriptor, this, function (elem, name, value, old) {
                 replaceClass(elem, old, value, true);
             });
-            var mode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Value;
+            var mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
             try {
                 elem = this._onRendering(elem);
             }
             finally {
-                Observable.accessMode = mode;
+                Observable.readMode = mode;
             }
             var children = descriptor.children;
             for (var _i = 0, children_1 = children; _i < children_1.length; _i++) {
@@ -522,13 +522,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     continue;
                 YA.createComponent(child.Component, child, elem, this, { returnInstance: true });
             }
-            mode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Value;
+            mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
             try {
                 elem = this._onRendered(elem);
             }
             finally {
-                Observable.accessMode = mode;
+                Observable.readMode = mode;
             }
             return elem;
         };
@@ -582,8 +582,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _this.noselect = "";
             _this.selectAll = "";
             _this.unselectAll = "";
-            _this.style = "tab";
-            _this.selected = [];
+            _this.panelStyle = "tab";
+            _this.selected = "";
             _this._panelType = SelectablePanel;
             Object.defineProperty(_this, "$__selectedPanels__", { enumerable: false, writable: false, configurable: false, value: [] });
             Object.defineProperty(_this, "$__styleName__", { enumerable: false, writable: false, configurable: false, value: [] });
@@ -637,17 +637,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         });
         Object.defineProperty(SelectablePanels.prototype, "currentStyle", {
             get: function () {
-                var name = this.style;
-                if (this.__style__ && this.__style__.name == name)
-                    return this.__style__;
+                var name = this.panelStyle;
                 if (name.get)
                     name = name.get(ObservableModes.Value);
+                if (this.__currentStyle__ && this.__currentStyle__.name == name)
+                    return this.__currentStyle__;
                 var ctor = SelectablePanels.styles[name];
                 if (!ctor)
                     return;
-                this.__style__ = new ctor(this);
-                this.__style__.name = name;
-                return this.__style__;
+                this.__currentStyle__ = new ctor(this);
+                this.__currentStyle__.name = name;
+                return this.__currentStyle__;
             },
             enumerable: true,
             configurable: true
@@ -664,6 +664,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var currentStyle = this.currentStyle;
             if (currentStyle)
                 elem = currentStyle._onRendering(elem);
+            addClass(elem, "ya-selectable-panels");
+            var mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Observable;
             return elem;
         };
         SelectablePanels.prototype._onRendered = function (elem) {
@@ -674,8 +677,35 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     if (e.value && e.value.length) {
                         var selectedName = e.value[e.value.length - 1];
                         var panel = _this[selectedName];
-                        panel.update("selected", true);
+                        if (panel)
+                            panel.update("selected", true);
                     }
+                    if (e.old && e.old.length) {
+                        for (var _i = 0, _a = e.old; _i < _a.length; _i++) {
+                            var old = _a[_i];
+                            if (e.value && YA.array_index(e.value, old) >= 0) {
+                                continue;
+                            }
+                            var panel = _this[old];
+                            if (panel)
+                                panel.update("selected", false);
+                        }
+                    }
+                }, _this);
+                _this.panelStyle.subscribe(function (e) {
+                    var ctor = SelectablePanels.styles[e.value];
+                    if (!ctor)
+                        return;
+                    var curr = _this.__currentStyle__;
+                    if (curr) {
+                        if (curr.name === e.value)
+                            return;
+                        curr._onExit(null);
+                    }
+                    var newStyle = new ctor(_this);
+                    newStyle.name = e.value;
+                    _this.__currentStyle__ = newStyle;
+                    newStyle._onApply(curr);
                 }, _this);
             });
             var selected = this.selected;
@@ -834,7 +864,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ], SelectablePanels.prototype, "unselectAll", void 0);
         __decorate([
             in_parameter()
-        ], SelectablePanels.prototype, "style", void 0);
+        ], SelectablePanels.prototype, "panelStyle", void 0);
         __decorate([
             parameter()
         ], SelectablePanels.prototype, "selected", void 0);
@@ -886,6 +916,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var li = _a[_i];
                 var labelClicked = li["$__yaLabelClick__"];
                 exports.ElementUtility.detech(li, "click", labelClicked);
+                li["$__yaLabelClick__"] = null;
             }
         };
         TabStyle.prototype._onApply = function (oldStyle) {
@@ -904,19 +935,39 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var _i = 0, panels_1 = panels; _i < panels_1.length; _i++) {
                 var panel = panels_1[_i];
                 var elem = this._onPanelRendered(panel);
-                parent.appendChild(elem);
+                if (!elem.$__alreadyAppendToContainer) {
+                    if (YA.is_array(elem)) {
+                        for (var i = 0, j = elem.length; i < j; i++)
+                            parent.appendChild(elem[i]);
+                    }
+                    else {
+                        parent.appendChild(elem);
+                    }
+                }
             }
-            var selectedNames = panels.selected;
-            if (!selectedNames || selectedNames.length !== 1) {
-                var selects = [];
-                if (selectedNames.length) {
-                    selects = [selectedNames[selectedNames.length - 1]];
-                }
+            var selectedNames = this.container.selected;
+            var selectedName;
+            if (!selectedNames || !selectedNames.length) {
+                if (this.container._defaultPanel)
+                    selectedName = this.container._defaultPanel.name;
                 else {
-                    if (panels._defaultPanel)
-                        selects = [panels._defaultPanel.name];
+                    this.container._defaultPanel = this.container.panels[0];
+                    if (this.container._defaultPanel)
+                        selectedName = this.container._defaultPanel.name;
                 }
-                panels.update("selected", panels);
+            }
+            else {
+                selectedName = selectedNames[selectedNames.length - 1];
+            }
+            if (selectedName) {
+                var selects = [selectedName];
+                var panel = this.container[selectedName];
+                if (panel)
+                    panel._contentElement.style.display = "block";
+                this.container.update("selected", selects);
+            }
+            else {
+                throw new Error("没有定义panel，无法转换");
             }
         };
         return TabStyle;
@@ -927,7 +978,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(Tab, _super);
         function Tab() {
             var _this = _super.call(this) || this;
-            _this.style = "tab";
+            _this.panelStyle = "tab";
             return _this;
         }
         Tab.Panel = SelectablePanel;
@@ -949,7 +1000,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return elem;
         };
         GroupStyle.prototype._onPanelRendered = function (panel) {
-            var elem = panel.$element = exports.ElementUtility.createElement("div", { "class": "ya-group-item" });
+            var elem = panel.$element = exports.ElementUtility.createElement("div", { "class": "ya-panel-item" });
             elem.appendChild(panel._labelElement);
             elem.appendChild(panel._contentElement);
             if (panel.selected === false) {
@@ -976,9 +1027,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         GroupStyle.prototype._onExit = function (newStyle) {
             var p = this.container.$element;
             removeClass(p, this.css);
-            for (var _i = 0, _a = p.childNodes; _i < _a.length; _i++) {
-                var item = _a[_i];
-                exports.ElementUtility.detech(item, "click", item["$__panelLabelClick__"]);
+            for (var _i = 0, _a = this.container.panels; _i < _a.length; _i++) {
+                var pn = _a[_i];
+                exports.ElementUtility.detech(pn._labelElement, "click", pn.$element["$__panelLabelClick__"]);
+                pn.$element["$__panelLabelClick__"] = null;
             }
         };
         GroupStyle.prototype._onApply = function (oldStyle) {
@@ -1000,7 +1052,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(Group, _super);
         function Group() {
             var _this = _super.call(this) || this;
-            _this.style = "group";
+            _this.panelStyle = "group";
             return _this;
         }
         Group.Panel = SelectablePanel;

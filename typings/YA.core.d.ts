@@ -261,8 +261,8 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $isset?: boolean;
     $root?: IObservable<any>;
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
-    update(): boolean;
+    set(newValue: TData, src?: any): IObservable<TData>;
+    update(src?: any): boolean;
 }
 export declare function observableMode(mode: ObservableModes, statement: () => any): any;
 export declare function proxyMode(statement: () => any): any;
@@ -311,7 +311,7 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
         (val?: TData): any;
     } | TData, index?: any, initValue?: any);
     get(accessMode?: ObservableModes): TData | IObservable<TData> | ObservableSchema<TData>;
-    set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
+    set(newValue: TData, src?: any): IObservable<TData>;
     /**
      * 更新数据，引发事件，事件会刷新页面
      *
@@ -320,7 +320,8 @@ export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> 
      */
     update(src?: any): boolean;
     toString(): string;
-    static accessMode: ObservableModes;
+    static readMode: ObservableModes;
+    static writeMode: ObservableModes;
     static isObservable(ob: any): boolean;
 }
 export interface IObservableObject<TData extends {
@@ -336,7 +337,7 @@ export declare class ObservableObject<TData> extends Observable<TData> implement
     } | TData, index?: any, initValue?: any);
     $prop(name: string): any;
     get(accessMode?: ObservableModes): any;
-    set(newValue: TData | IObservable<TData>, updateImmediately?: boolean): IObservableObject<TData>;
+    set(newValue: TData | IObservable<TData>, src?: any): IObservableObject<TData>;
     update(src?: any): boolean;
 }
 export interface IObservableArray<TItem> extends IObservable<TItem[]> {
@@ -356,7 +357,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
     toString(): string;
     clear(): ObservableArray<TItem>;
     get(accessMode?: ObservableModes): any;
-    set(newValue: any, updateImmediately?: boolean): ObservableArray<TItem>;
+    set(newValue: any, src?: any): ObservableArray<TItem>;
     update(src?: any): boolean;
 }
 export declare class ObservableSchema<TData> {
@@ -558,7 +559,7 @@ export interface IComponent extends IDisposable {
     $elements: IElement[];
     $element: IElement;
     render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
-    update(path: string, value?: any): IComponent;
+    update(path?: any, value?: any, src?: any): IComponent;
 }
 export declare class Component extends Disposable implements IComponent {
     $cid?: string;

@@ -125,3 +125,93 @@ ul{
     }
 
 }
+
+.ya-selectable-panels{
+    
+
+    &>ul.ya-panel-labels{
+        padding:0 $titleHeight*0.2;
+        height:$titleHeight;
+        
+    }
+    li.ya-panel-label{
+        display: inline-block;
+        position: relative;
+        max-width:200px;
+        min-width:60px;
+        height:$titleHeight;
+        overflow: hidden;
+        
+        color:lighten($titleFrontColor,35%);
+        margin-left:-$titleHeight*0.3;
+        padding:0 $titleHeight 0 0;
+        cursor: pointer;
+        z-index:0;
+        &:first-child{
+            margin-left:0;
+        }
+        &::after{
+            position:absolute;
+            top:-$titleHeight;
+            right:0;
+            
+            height:$titleHeight;
+            content:"";
+            border-bottom:$titleHeight solid $titleBackendColor;
+            border-right:$titleHeight solid transparent;
+            border-left: 0;
+            
+        }
+        &>label{
+            display: inline-block;
+            height:$titleHeight;
+            cursor: pointer;
+            background-color: $titleBackendColor;
+            font-weight: bold;
+            padding:$padding;
+        }
+       
+        &.selected{
+            color:$titleFrontColor;
+            z-index:1;
+           
+        }
+    }
+
+    div.ya-panel-contents{
+        margin:0;padding:9;
+        background-color: $contentBackendColor;
+    }
+
+    div.ya-tab-content{
+        padding:$padding;
+    }
+
+
+    @each $c in $liColors{
+        $i:index($liColors,$c);     
+        ul.ya-panel-labels>li.ya-panel-label:nth-child( #{$i} )
+        ,div.ya-panel-item:nth-child( #{$i})>li.ya-panel-label {  
+            border-left:$titleHeight*0.2 solid $c;
+            &:hover{
+                background-color: lighten($c,30%);
+                color:lighten($titleFrontColor,17%);
+                
+            }
+            &.selected{
+                &::after{
+                    border-bottom-color:$c;
+                    border-right-color: transparent;
+                }
+                &>label{
+                    background-color:$c;
+                }
+            }
+        }
+        div.ya-panel-contents>div:nth-child(#{$i})
+        ,div.ya-panel-item:nth-child( #{$i})>div.ya-panel-content{
+            border-top:$titleHeight*0.1 solid $c;
+        }
+    }
+
+}

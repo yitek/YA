@@ -77,9 +77,9 @@ export class TabTest {
             
             render(){
                 return <div>
-                <input type="button" onclick={this.groupStyle} value="选项卡风格" />
-                <input type="button" onclick={this.tabStyle} value="分组风格" />
-                <Dom.SelectablePanels name="pns" style={this.style}>
+                <input type="button" onclick={this.tabStyle} value="选项卡风格" />
+                <input type="button" onclick={this.groupStyle} value="分组风格" />
+                <Dom.SelectablePanels name="pns" panelStyle={this.style}>
                     <Dom.SelectablePanel name="tp1" label="第一个选项卡">第一个选项卡的内容</Dom.SelectablePanel>
                     <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
                 </Dom.SelectablePanels>

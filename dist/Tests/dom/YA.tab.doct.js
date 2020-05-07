@@ -64,9 +64,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 };
                 StyleComp.prototype.render = function () {
                     return YA.createElement("div", null,
-                        YA.createElement("input", { type: "button", onclick: this.groupStyle, value: "\u9009\u9879\u5361\u98CE\u683C" }),
-                        YA.createElement("input", { type: "button", onclick: this.tabStyle, value: "\u5206\u7EC4\u98CE\u683C" }),
-                        YA.createElement(Dom.SelectablePanels, { name: "pns", style: this.style },
+                        YA.createElement("input", { type: "button", onclick: this.tabStyle, value: "\u9009\u9879\u5361\u98CE\u683C" }),
+                        YA.createElement("input", { type: "button", onclick: this.groupStyle, value: "\u5206\u7EC4\u98CE\u683C" }),
+                        YA.createElement(Dom.SelectablePanels, { name: "pns", panelStyle: this.style },
                             YA.createElement(Dom.SelectablePanel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
                             YA.createElement(Dom.SelectablePanel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
                 };

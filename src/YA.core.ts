@@ -771,30 +771,30 @@ export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
     $isset?:boolean;
     $root?:IObservable<any>;
     get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>;
-    set(newValue:TData,updateImmediately?:boolean):IObservable<TData>;
-    update():boolean;
+    set(newValue:TData,src?:any):IObservable<TData>;
+    update(src?:any):boolean;
 }
 
 
 
 
 export function observableMode(mode:ObservableModes,statement:()=>any):any {
-    let accessMode = Observable.accessMode;
+    let accessMode = Observable.readMode;
     try{
-        Observable.accessMode=mode;
+        Observable.readMode=mode;
         return statement();
     }finally{
-        Observable.accessMode = accessMode;
+        Observable.readMode = accessMode;
     }
 }
 
 export function  proxyMode(statement:()=>any):any {
-    let accessMode = Observable.accessMode;
+    let accessMode = Observable.readMode;
     try{
-        Observable.accessMode=ObservableModes.Observable;
+        Observable.readMode=ObservableModes.Observable;
         return statement();
     }finally{
-        Observable.accessMode = accessMode;
+        Observable.readMode = accessMode;
     }
 }
 
@@ -917,19 +917,19 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     
 
     get(accessMode?:ObservableModes):TData|IObservable<TData>|ObservableSchema<TData>{
-        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode===undefined) accessMode = Observable.readMode;
         if(accessMode == ObservableModes.Raw ) return this.$__obRaw__();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
         if( accessMode == ObservableModes.Observable || accessMode == ObservableModes.Proxy ) return this as IObservable<TData>;
         return (this.$__obModifiedValue__===undefined)?this.$target:(this.$__obModifiedValue__===Undefined?undefined:this.$__obModifiedValue__);
     }
 
-    set(newValue:TData,updateImmediately?:boolean):IObservable<TData>{
+    set(newValue:TData,src?:any):IObservable<TData>{
         this.$isset=true;
         if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
-        if(Observable.accessMode===ObservableModes.Raw) {this.$__obRaw__.call(this,newValue);return this;}
+        if(Observable.writeMode===ObservableModes.Raw) {this.$__obRaw__.call(this,newValue);return this;}
         this.$__obModifiedValue__=newValue===undefined?Undefined:newValue;
-        if(updateImmediately) this.update();
+        if(src!==undefined) this.update(src);
         return this;
     }
 
@@ -948,12 +948,12 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         if(newValue!==oldValue) {
             this.$__obRaw__(this.$target = newValue);
             let evtArgs:IChangeEventArgs<TData> = {type:ChangeTypes.Value,value:newValue,old:oldValue,sender:this,src:src||this};
-            let mode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Value;
+            let mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
             try{
                 this.notify(evtArgs);
             }finally{
-                Observable.accessMode = mode;
+                Observable.readMode = mode;
             }
             return evtArgs.cancel!==true;
         }
@@ -965,7 +965,8 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         let  currentValue = this.get(ObservableModes.Default);
         return currentValue===undefined || currentValue===null?"":currentValue.toString();
     }
-    static accessMode:ObservableModes = ObservableModes.Default; 
+    static readMode:ObservableModes = ObservableModes.Default; 
+    static writeMode:ObservableModes = ObservableModes.Default;
     static isObservable(ob:any):boolean{
         if(!ob)return false;
         return ob.subscribe && ob.get && ob.set && ob.update;
@@ -1023,7 +1024,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     }
 
     get(accessMode?:ObservableModes):any{
-        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode===undefined) accessMode = Observable.readMode;
         if(accessMode=== ObservableModes.Raw ) return this.$__obRaw__();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
         if(accessMode===ObservableModes.Value){
@@ -1041,35 +1042,39 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         return this;
     }
 
-    set(newValue:TData|IObservable<TData>,updateImmediately?:boolean):IObservableObject<TData>{
+    set(newValue:TData|IObservable<TData>,src?:any):IObservableObject<TData>{
         this.$isset = true;
         if(newValue && Observable.isObservable(newValue)) newValue = (newValue as IObservable<TData>).get(ObservableModes.Value) as TData;
         super.set(newValue as TData||null);
-        if(!newValue) return this;
-        proxyMode(()=>{
+        if(!newValue ) return this;
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Observable;
+        try{
             for(const n in this){
-                if(n==="constructor" || n[0]==="$") continue;
+                if(n==="constructor" || n[0]==="$" ||n[0]==="_") continue;
                 let proxy :any= this[n];
                 if(Observable.isObservable(proxy)) proxy.set((newValue as any)[n] as any);
             }
-        });
-        if(updateImmediately) this.$update();
+        }finally{
+            Observable.readMode = mode;
+        }
+        if(src!==undefined) this.$update(src);
         return this;
     }
 
     update(src?:any):boolean{
         let result = super.update(src);
         if(result===false) return false;
-        let mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Observable;
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Observable;
         try{
             for(const n in this){
                 let proxy :any= this[n];
                 if(proxy instanceof Observable && proxy.$__obOwner__===this) 
-                    proxy.update();
+                    proxy.update(src);
             }
         }finally{
-            Observable.accessMode = mode;
+            Observable.readMode = mode;
         }
         
         return true;
@@ -1160,25 +1165,29 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
     }
 
     get(accessMode?:ObservableModes):any{
-        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode===undefined) accessMode = Observable.readMode;
         if(accessMode=== ObservableModes.Raw ) return this.$__obRaw__();
         if( accessMode == ObservableModes.Schema ) return this.$schema;
         if(accessMode===ObservableModes.Value){
-            return observableMode(ObservableModes.Observable,()=>{
+            let  mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Observable;
+            try{
                 let rs = [] as any;
                 for(const n in this){
-                    if(n==="constructor" || n[0]==="$") continue;
+                    if(n==="constructor" || n[0]==="$"|| n[0]==="_") continue;
                     let prop = this[n];
                     rs.push(prop.get(ObservableModes.Value));
                 }
                 return rs;
-            });
+            }finally{
+                Observable.readMode = mode;
+            }
         }
         
         return this;
     }
 
-    set(newValue:any,updateImmediately?:boolean):ObservableArray<TItem>{
+    set(newValue:any,src?:any):ObservableArray<TItem>{
         this.$isset = true;
         if(newValue && Observable.isObservable(newValue)) newValue = newValue.get(ObservableModes.Value);
         else {
@@ -1192,13 +1201,10 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         newValue || (newValue=[]);
         this.clear();
         super.set(newValue);
-        if(Observable.accessMode=== ObservableModes.Raw){
-            return this;
-        }
-        
+                
         for(const i in newValue)makeArrayItem(this,i as any as number);;
         this.$_length = newValue.length;
-        if(updateImmediately) this.update();
+        if(src!==undefined) this.update(src);
         return this;
     }
 
@@ -1212,8 +1218,8 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         if(!super.update(src)) return true;
         //查看子项变更
         //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
-        let mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Observable;
+        let mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Observable;
         try{
             for(let n in this){
                 let item = this[n];
@@ -1223,7 +1229,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                     item.update(src);
             }
         }finally{
-            Observable.accessMode= mode;
+            Observable.readMode= mode;
         }
         
         
@@ -1233,8 +1239,8 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         this.$_changes = undefined;
 
         let arr = this.$target;
-        mode = Observable.accessMode;
-        Observable.accessMode = ObservableModes.Value;
+        mode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
         try{
             for(const i in changes){
                 let change = changes[i];
@@ -1279,7 +1285,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                 }
             }
         }finally{
-            Observable.accessMode= mode;
+            Observable.readMode= mode;
         }
         
         return true;
@@ -1288,7 +1294,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
 }
 Object.defineProperty(ObservableArray.prototype,"length",{
     enumerable:false,configurable:false,get:function(){
-        if(Observable.accessMode===ObservableModes.Proxy || Observable.accessMode===ObservableModes.Observable){
+        if(Observable.readMode===ObservableModes.Proxy || Observable.readMode===ObservableModes.Observable){
             if(!this.$__length__) {
                 let len = new Observable((val)=>{
                     if(val===undefined) return this.$_length;
@@ -1340,6 +1346,7 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
                 }else{
                     ob =  (factory as any).call(this);
                 }
+                if(typeof this.dispose==="function") ob.$extras.disposeOwner=this;
                 Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
             } 
             
@@ -1355,6 +1362,7 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
                 }else{
                     ob =  (factory as any).call(this);
                 }
+                if(typeof this.dispose==="function") ob.$extras.disposeOwner=this;
                 Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
             } else return ob.set(val);
         }
@@ -1591,7 +1599,7 @@ export class ObservableProxy implements IObservable<any> {
         }
     }
     get(accessMode?:ObservableModes):any{
-        if(accessMode===undefined) accessMode = Observable.accessMode;
+        if(accessMode===undefined) accessMode = Observable.readMode;
         if(accessMode===ObservableModes.Proxy) return this;
         let ob :IObservable<any>;
         if(this.$parent){
@@ -2320,17 +2328,7 @@ function bindDomEvent(element:IElement,evtName:string,params:any,vnode:INodeDesc
             handler.apply(self,args);
         } 
         if(compInstance){
-            let mode = Observable.accessMode;
-            Observable.accessMode = ObservableModes.Proxy;
-            try{
-                for(let n in compInstance){
-                    let member = compInstance[n];
-                    if(member && typeof member.update==="function") member.update(compInstance);
-                }
-            }finally{
-                Observable.accessMode =mode;
-            }
-            
+            compInstance.update(compInstance); 
             
         }
     };
@@ -2349,11 +2347,11 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
     let renderResult:any;
     let renderFn:any = componentType;
     let xmode = _jsxMode;
-    let omode = Observable.accessMode;
+    let omode = Observable.readMode;
     let ifAttrValue;
     try{
         _jsxMode = JSXModes.vnode;
-        Observable.accessMode = ObservableModes.Proxy;
+        Observable.readMode = ObservableModes.Proxy;
         compInstance = new componentType(descriptor,container);
         // object-component
         if(typeof compInstance.render==='function'){
@@ -2384,7 +2382,7 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
                 bindComponentAttr(compInstance,propname,descriptor[propname]);
             };
             renderFn = compInstance.render;
-            Observable.accessMode = ObservableModes.Proxy;
+            Observable.readMode = ObservableModes.Proxy;
             renderResult = renderFn.call(compInstance,descriptor,container);
         }else {
             renderResult = compInstance;
@@ -2392,7 +2390,7 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
         }
     }finally{
         _jsxMode = xmode;
-        Observable.accessMode = omode;
+        Observable.readMode = omode;
     }
 
 
@@ -2503,15 +2501,7 @@ function setCid(parent,comp,cid,old?){
 }
 
 
-/**
- * 
- *
- * @param {IViewModel} viewModel
- * @param {IComponent} subComponent
- * @param {string} subAttrName
- * @param {*} bindValue
- */
-function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any){
+function bindComponentAttr(compInstance:IComponent,propName:string,bindValue:any){
     //找到组件的属性
     let prop = compInstance[propName];
     // TODO:找到组件名
@@ -2522,47 +2512,51 @@ function bindComponentAttr(compInstance:IComponent,propName:string,propValue:any
             let meta:IComponentMeta = compInstance.$meta || {};
             //获取属性的类型
             let propType :ReactiveTypes = meta.reactives?meta.reactives[propName].type:ReactiveTypes.In;
-            let isOb = Observable.isObservable(propValue);
+            let isOb = Observable.isObservable(bindValue);
             if(propType===ReactiveTypes.In){
-                if(isOb) prop.set(propValue.get(ObservableModes.Value));
-                else prop.set(propValue);
+                if(isOb) {
+                    prop.set(bindValue.get(ObservableModes.Value));
+                    bindValue.subscribe((e)=>{
+                        prop.set(e.value,compInstance);
+                    },compInstance);
+                }
+                else {
+                    prop.set(bindValue);
+                }
             }else if(propType==ReactiveTypes.Out){
                 if(isOb){
                     prop.subscribe((e)=>{
-                        propValue.set(e.value);
-                        propValue.update();
-                    },compInstance);
+                        bindValue.set(e.value,compInstance);
+                    },bindValue.$extras.disposeOwner);
                 }else {
-                    console.warn(propName + "传入的不是observable,out未能绑定，不能联动",propValue);
+                    console.warn(propName + "右值不是observable,其值变化后无法按期望out出去",bindValue);
                 }
             }else if(propType==ReactiveTypes.Parameter){
                 if(isOb){
                     prop.subscribe((e)=>{
-                        propValue.set(e.value);
-                        propValue.update();
+                        bindValue.set(e.value,compInstance);
+                    },bindValue.$extras.disposeOwner);
+                    bindValue.subscribe((e)=>{
+                        prop.set(e.value,bindValue.$extras.disposeOwner);
                     },compInstance);
-                    propValue.subscribe((e)=>{
-                        prop.set(e.value);
-                        prop.update();
-                    },compInstance);
-                    prop.set(propValue.get(ObservableModes.Value));
+                    prop.set(bindValue.get(ObservableModes.Value));
                 }else{
-                    prop.set(propValue);
-                    console.warn(propName + "传入的不是observable,paremeter未能绑定，不能联动",propValue);
+                    prop.set(bindValue);
+                    console.warn(propName + "右值不是observable,当该属性变化后，无法按期望传出",bindValue);
                 }
             }else {
                 console.warn(`${propName}是私有类型,外部传入的未赋值`);
             }
         }else {
-            if(Observable.isObservable(propValue)){
-                compInstance[propName] = propValue.get(ObservableModes.Value);
-                propValue.subscribe(e=>compInstance[propName] =e.value,compInstance);
+            if(Observable.isObservable(bindValue)){
+                compInstance[propName] = bindValue.get(ObservableModes.Value);
+                //bindValue.subscribe(e=>compInstance[propName] =e.value,compInstance);
             }else {
-                compInstance[propName] = propValue;
+                compInstance[propName] = bindValue;
             }
         }
     }else{
-        compInstance[propName] = propValue;
+        compInstance[propName] = bindValue;
     }
 }
 
@@ -2626,7 +2620,7 @@ class Computed extends Subject<IChangeEventArgs<any>> implements IObservable<any
         Object.defineProperty(this,"$cid",{enumerable:false,writable:false,configurable:false,value:"$computed_"+cid()});
     }
     get(mode?:ObservableModes){
-        if(mode===undefined) mode = Observable.accessMode;
+        if(mode===undefined) mode = Observable.readMode;
         if(mode===ObservableModes.Proxy || mode===ObservableModes.Observable)return this;
         let args = [];
         for(let dep of this.parameters){
@@ -2763,7 +2757,7 @@ export interface IComponent extends IDisposable{
     $elements: IElement[];
     $element:IElement;
     render(descriptor?:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
-    update(path:string,value?:any):IComponent;
+    update(path?:any,value?:any,src?:any):IComponent;
 }
 
 function getElement(){
@@ -2838,10 +2832,10 @@ function getChildren(){
     }
     return children;
 }
-function update(path:string,value?:any,src?:any):IComponent{
+function update(path:any,value?:any,src?:any):IComponent{
     let self = this;
-    let mode = Observable.accessMode;
-    Observable.accessMode = ObservableModes.Observable;
+    let mode = Observable.readMode;
+    Observable.readMode = ObservableModes.Observable;
     try{
         if(typeof path==="string") {
             let ob = DPath.getValue(self,path);
@@ -2854,28 +2848,28 @@ function update(path:string,value?:any,src?:any):IComponent{
         }else{
             for(let n in self as any){
                 let ob = self[n];
-                if(ob instanceof Observable) ob.update(value);
+                if(ob instanceof Observable) ob.update(path||this);
             }
             let children = self.$children;
             if(children) for(let child of children){
-                if(child.name && self[child.name]===child)child.update(value);
+                if(child.name && self[child.name]===child)child.update(path||this);
             }
         }
     }finally{
-        Observable.accessMode = mode;
+        Observable.readMode = mode;
     }
     
     return self;
 }
 function subscribe(tpath:string,handler:(e)=>any,disposable?:IDisposable){
     let self = this;
-    let mode = Observable.accessMode;
-    Observable.accessMode = ObservableModes.Observable;
+    let mode = Observable.readMode;
+    Observable.readMode = ObservableModes.Observable;
     try{
         let ob = DPath.getValue(self,tpath);
         if(ob instanceof Observable) ob.subscribe(handler,disposable);
     }finally{
-        Observable.accessMode = mode;
+        Observable.readMode = mode;
     }
     return this;
 }

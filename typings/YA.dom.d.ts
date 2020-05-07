@@ -110,13 +110,13 @@ export declare class SelectablePanels extends Panels {
     noselect: boolean;
     selectAll: boolean;
     unselectAll: boolean;
-    style: string;
+    panelStyle: string;
     selected: string[];
     get allowMultiple(): any;
     get allowNoselect(): any;
     _defaultPanel: SelectablePanel;
     _lastSelectedPanel: SelectablePanel;
-    private __style__;
+    private __currentStyle__;
     static styles: {
         [name: string]: {
             new (container: SelectablePanels): ISeletablePanelStype;
