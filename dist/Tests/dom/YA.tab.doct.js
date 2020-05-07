@@ -51,6 +51,32 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
+        TabTest.prototype.style = function (assert_statement, demoElement) {
+            var StyleComp = /** @class */ (function () {
+                function StyleComp() {
+                    YA.observable("group", "style", this);
+                }
+                StyleComp.prototype.groupStyle = function () {
+                    this.style = "group";
+                };
+                StyleComp.prototype.tabStyle = function () {
+                    this.style = "tab";
+                };
+                StyleComp.prototype.render = function () {
+                    return YA.createElement("div", null,
+                        YA.createElement("input", { type: "button", onclick: this.groupStyle, value: "\u9009\u9879\u5361\u98CE\u683C" }),
+                        YA.createElement("input", { type: "button", onclick: this.tabStyle, value: "\u5206\u7EC4\u98CE\u683C" }),
+                        YA.createElement(Dom.SelectablePanels, { name: "pns", style: this.style },
+                            YA.createElement(Dom.SelectablePanel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
+                            YA.createElement(Dom.SelectablePanel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
+                };
+                return StyleComp;
+            }());
+            YA.createComponent(StyleComp, null, demoElement);
+            assert_statement(function (assert) {
+                //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+            });
+        };
         __decorate([
             doct_1.doct({
                 title: "基本用法",
@@ -59,12 +85,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ]
             })
         ], TabTest.prototype, "base", null);
+        __decorate([
+            doct_1.doct({
+                title: "风格切换",
+                descriptions: [
+                    ""
+                ]
+            })
+        ], TabTest.prototype, "style", null);
         TabTest = __decorate([
             doct_1.doct({
                 title: "YA.dom.tab",
                 descriptions: [
                     "选项卡"
-                ]
+                ],
+                debugging: "style"
             })
         ], TabTest);
         return TabTest;

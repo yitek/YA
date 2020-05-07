@@ -6,6 +6,7 @@ import * as Dom from "../../YA.dom";
     ,descriptions:[
         "选项卡"
     ]
+    ,debugging:"style"
 })
 export class TabTest {
     constructor(){
@@ -47,6 +48,46 @@ export class TabTest {
         }
 
         YA.createComponent(TabBasComp,null,demoElement);
+
+        assert_statement((assert:TAssert)=>{
+            //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+        });
+    }
+
+    @doct({
+        title:"风格切换"
+        ,descriptions:[
+            ""
+        ]
+    })
+    style(assert_statement:TAssertStatement,demoElement?:any){
+        class StyleComp{
+            
+            style:string;
+           
+            constructor(){
+                YA.observable("group","style",this);
+            }
+            groupStyle(){
+                this.style="group";
+            }
+            tabStyle(){
+                this.style="tab";
+            }
+            
+            render(){
+                return <div>
+                <input type="button" onclick={this.groupStyle} value="选项卡风格" />
+                <input type="button" onclick={this.tabStyle} value="分组风格" />
+                <Dom.SelectablePanels name="pns" style={this.style}>
+                    <Dom.SelectablePanel name="tp1" label="第一个选项卡">第一个选项卡的内容</Dom.SelectablePanel>
+                    <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
+                </Dom.SelectablePanels>
+                </div>;
+            }
+        }
+
+        YA.createComponent(StyleComp,null,demoElement);
 
         assert_statement((assert:TAssert)=>{
             //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");

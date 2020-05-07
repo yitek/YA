@@ -44,10 +44,10 @@ ul{
 .ya-tab{
     
 
-    &>ul.ya-tab-labels{
+    &>ul.ya-panel-labels{
         padding:0 $titleHeight*0.2;
         height:$titleHeight;
-        &>li.ya-tab-label{
+        &>li.ya-panel-label{
             display: inline-block;
             position: relative;
             max-width:200px;
@@ -91,7 +91,7 @@ ul{
             }
         }
     }
-    &>div.ya-tab-contents{
+    &>div.ya-panel-contents{
         margin:0;padding:9;
         background-color: $contentBackendColor;
         &>div.ya-tab-content{
@@ -102,7 +102,7 @@ ul{
 
     @each $c in $liColors{
         $i:index($liColors,$c);     
-        &>ul.ya-tab-labels>li:nth-child( #{$i} ){  
+        &>ul.ya-panel-labels>li:nth-child( #{$i} ){  
             border-left:$titleHeight*0.2 solid $c;
             &:hover{
                 background-color: lighten($c,30%);
@@ -119,7 +119,7 @@ ul{
                 }
             }
         }
-        &>div.ya-tab-contents>div:nth-child(#{$i}){
+        &>div.ya-panel-contents>div:nth-child(#{$i}){
             border-top:$titleHeight*0.1 solid $c;
         }
     }

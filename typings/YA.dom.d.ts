@@ -77,7 +77,6 @@ export declare class Panel extends Component {
     render(descriptor: YA.INodeDescriptor, elementContainer?: IElement): any;
 }
 export declare class Panels extends Component {
-    _className: string;
     _panelType: Function;
     css: string;
     constructor();
@@ -87,58 +86,105 @@ export declare class Panels extends Component {
     _onRendered(elem: IElement): IElement;
     _onPanelRendered(panel: Panel): any;
 }
-declare class SelectablePanel extends Panel {
+export interface ISeletablePanelStype {
+    name: string;
+    multiple: boolean;
+    noselect: boolean;
+    css: string;
+    container: SelectablePanels;
+    _onRendering(elem: IElement): IElement;
+    _onRendered(elem: IElement): IElement;
+    _onPanelRendered(panel: Panel): any;
+    _onPanelSelecting(panel: SelectablePanel): any;
+    _onPanelUnselecting(panel: SelectablePanel): any;
+    _onApply(lastStyle: ISeletablePanelStype): any;
+    _onExit(newStype: ISeletablePanelStype): any;
+}
+export declare class SelectablePanel extends Panel {
     selected: boolean;
     constructor();
     render(des: any, container: any): any;
 }
 export declare class SelectablePanels extends Panels {
     multiple: boolean;
-    allowNonSelect: boolean;
+    noselect: boolean;
+    selectAll: boolean;
+    unselectAll: boolean;
+    style: string;
     selected: string[];
+    get allowMultiple(): any;
+    get allowNoselect(): any;
     _defaultPanel: SelectablePanel;
     _lastSelectedPanel: SelectablePanel;
+    private __style__;
+    static styles: {
+        [name: string]: {
+            new (container: SelectablePanels): ISeletablePanelStype;
+        };
+    };
+    get currentStyle(): ISeletablePanelStype;
     constructor();
     get selectedPanels(): any;
+    _onRendering(elem: any): any;
     _onRendered(elem: any): any;
-    _onPanelRendered(panel: SelectablePanel): void;
+    _onPanelRendered(panel: SelectablePanel): any;
     protected $__isChanging__: any;
     _onPanelSelecting(panel: SelectablePanel): any;
     _onPanelUnselecting(panel: SelectablePanel): any;
 }
-export declare class TabPanel extends SelectablePanel {
-    constructor();
+export declare class TabStyle implements ISeletablePanelStype {
+    private __captionsElement;
+    private __contentsElement;
+    name: string;
+    multiple: boolean;
+    noselect: boolean;
+    container: SelectablePanels;
+    css: string;
+    constructor(container: SelectablePanels);
+    _onRendering(elem: any): any;
+    _onRendered(elem: any): any;
+    _onPanelRendered(panel: SelectablePanel): any;
+    _onPanelSelecting(panel: SelectablePanel): boolean;
+    _onPanelUnselecting(panel: SelectablePanel): void;
+    _onExit(newStyle: ISeletablePanelStype): void;
+    _onApply(oldStyle: ISeletablePanelStype): void;
 }
 export declare class Tab extends SelectablePanels {
     static Panel: {
         new (...args: any[]): SelectablePanel;
     };
-    __captionsElement: IElement;
-    __contentsElement: IElement;
     constructor();
-    _onRendering(elem: any): any;
-    /**
-     * 容器div已经创建，主要负责构建容器内部结构
-     *
-     * @param {IElement} elem
-     * @memberof PanelContainer
-     */
-    _onRendered(elem: IElement): IElement;
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     *
-     * @param {SelectablePanel} panel
-     * @memberof PanelContainer
-     */
-    _onPanelRendered(panel: SelectablePanel): any;
-    /**
-     * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
-     *
-     * @param {SelectablePanel} panel
-     * @param {SelectablePanel} lastSelectedPanel
-     * @memberof PanelContainer
-     */
-    _onPanelSelecting(panel: SelectablePanel): boolean;
-    _onPanelUnselecting(panel: TabPanel): void;
 }
-export {};
+export declare class GroupStyle implements ISeletablePanelStype {
+    name: string;
+    multiple: boolean;
+    noselect: boolean;
+    container: SelectablePanels;
+    css: string;
+    constructor(container: SelectablePanels);
+    _onRendering(elem: any): any;
+    _onRendered(elem: any): any;
+    _onPanelRendered(panel: SelectablePanel): IElement;
+    _onPanelSelecting(panel: SelectablePanel): boolean;
+    _onPanelUnselecting(panel: SelectablePanel): void;
+    _onExit(newStyle: ISeletablePanelStype): void;
+    _onApply(oldStyle: ISeletablePanelStype): void;
+}
+export declare class Group extends SelectablePanels {
+    static Panel: {
+        new (...args: any[]): SelectablePanel;
+    };
+    constructor();
+}
+export declare class GroupPanel extends SelectablePanel {
+    constructor();
+}
+export declare class Group1 extends SelectablePanels {
+    selectAll: boolean;
+    unselectAll: boolean;
+    constructor();
+    _onRendered(elem: IElement): IElement;
+    _onPanelRendered(panel: SelectablePanel): IElement;
+    _onPanelSelecting(panel: SelectablePanel): boolean;
+    _onPanelUnselecting(panel: SelectablePanel): void;
+}

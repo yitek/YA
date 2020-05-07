@@ -442,15 +442,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     var Panel = /** @class */ (function (_super) {
         __extends(Panel, _super);
         function Panel() {
-            return _super !== null && _super.apply(this, arguments) || this;
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.label = "";
+            return _this;
         }
         Panel.prototype.render = function (descriptor, elementContainer) {
             var panelContainer = this.$parent;
-            var className = (panelContainer._className || "panelContainer");
             var titleElem;
             var title = this.label.get(YA.ObservableModes.Value);
             if (title) {
-                titleElem = this._labelElement = exports.ElementUtility.createElement("li", { "class": className + "-label" });
+                titleElem = this._labelElement = exports.ElementUtility.createElement("li", { "class": "ya-panel-label" });
                 var txtElem = exports.ElementUtility.createElement("label", null, titleElem);
                 YA.bindDomAttr(txtElem, "text", this.label, descriptor, this, function (elem, name, value, old) {
                     elem.innerHTML = value;
@@ -460,7 +461,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     //replaceClass(this.__contentElement,old,value,true);
                 });
             }
-            var contentElement = this._contentElement = exports.ElementUtility.createElement("div", { "class": className + "-content" });
+            var contentElement = this._contentElement = exports.ElementUtility.createElement("div", { "class": "ya-panel-content" });
             YA.bindDomAttr(contentElement, "className", this.css, descriptor, this, function (elem, name, value, old) {
                 replaceClass(elem, old, value, true);
             });
@@ -502,9 +503,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         });
         Panels.prototype.render = function (descriptor, container) {
             var elem;
-            var className = this._className = this._className || "panelContainer";
             elem = document.createElement("div");
-            elem.className = className;
             YA.bindDomAttr(elem, "className", this.css, descriptor, this, function (elem, name, value, old) {
                 replaceClass(elem, old, value, true);
             });
@@ -521,7 +520,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var child = children_1[_i];
                 if (this._panelType && child.Component !== this._panelType)
                     continue;
-                YA.createComponent(child.Component, child, null, this, { returnInstance: true });
+                YA.createComponent(child.Component, child, elem, this, { returnInstance: true });
             }
             mode = Observable.accessMode;
             Observable.accessMode = ObservableModes.Value;
@@ -556,7 +555,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(SelectablePanel, _super);
         function SelectablePanel() {
             var _this = _super.call(this) || this;
-            _this.selected = false;
+            _this.selected = "";
             return _this;
         }
         SelectablePanel.prototype.render = function (des, container) {
@@ -575,18 +574,84 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ], SelectablePanel.prototype, "selected", void 0);
         return SelectablePanel;
     }(Panel));
+    exports.SelectablePanel = SelectablePanel;
     var SelectablePanels = /** @class */ (function (_super) {
         __extends(SelectablePanels, _super);
         function SelectablePanels() {
             var _this = _super.call(this) || this;
-            _this.multiple = false;
-            _this.allowNonSelect = false;
+            _this.noselect = "";
+            _this.selectAll = "";
+            _this.unselectAll = "";
+            _this.style = "tab";
             _this.selected = [];
             _this._panelType = SelectablePanel;
-            _this._className = "selectable-panels";
             Object.defineProperty(_this, "$__selectedPanels__", { enumerable: false, writable: false, configurable: false, value: [] });
+            Object.defineProperty(_this, "$__styleName__", { enumerable: false, writable: false, configurable: false, value: [] });
             return _this;
         }
+        Object.defineProperty(SelectablePanels.prototype, "allowMultiple", {
+            get: function () {
+                var multiple;
+                var currentStyle = this.currentStyle;
+                if (currentStyle) {
+                    if (currentStyle.multiple !== undefined)
+                        multiple = currentStyle.multiple;
+                    if (multiple === true) {
+                        var v = this.multiple;
+                        multiple = v === "" ? true : v;
+                    }
+                    else
+                        multiple = false;
+                }
+                else {
+                    multiple = this.multiple;
+                    if (multiple === undefined)
+                        multiple = false;
+                }
+                return multiple;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SelectablePanels.prototype, "allowNoselect", {
+            get: function () {
+                var allowNoselect;
+                var currentStyle = this.currentStyle;
+                if (currentStyle) {
+                    if (currentStyle.noselect !== undefined)
+                        allowNoselect = currentStyle.noselect;
+                    if (allowNoselect === true) {
+                        allowNoselect = this.noselect;
+                        if (allowNoselect === "")
+                            allowNoselect = true;
+                    }
+                    else
+                        allowNoselect = false;
+                }
+                else
+                    allowNoselect = false;
+                return allowNoselect;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(SelectablePanels.prototype, "currentStyle", {
+            get: function () {
+                var name = this.style;
+                if (this.__style__ && this.__style__.name == name)
+                    return this.__style__;
+                if (name.get)
+                    name = name.get(ObservableModes.Value);
+                var ctor = SelectablePanels.styles[name];
+                if (!ctor)
+                    return;
+                this.__style__ = new ctor(this);
+                this.__style__.name = name;
+                return this.__style__;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(SelectablePanels.prototype, "selectedPanels", {
             get: function () {
                 return this["$__selectedPanels__"];
@@ -594,6 +659,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             enumerable: true,
             configurable: true
         });
+        SelectablePanels.prototype._onRendering = function (elem) {
+            elem = _super.prototype._onRendering.call(this, elem);
+            var currentStyle = this.currentStyle;
+            if (currentStyle)
+                elem = currentStyle._onRendering(elem);
+            return elem;
+        };
         SelectablePanels.prototype._onRendered = function (elem) {
             var _this = this;
             _super.prototype._onRendered.call(this, elem);
@@ -613,24 +685,77 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     this[name_1].update("selected", true);
                 }
             }
-            if (!this._lastSelectedPanel && !this.allowNonSelect) {
+            if (!this._lastSelectedPanel && !this.allowNoselect) {
                 if (!this._defaultPanel) {
                     this._defaultPanel = this.panels[0];
                 }
                 if (this._defaultPanel)
                     this._defaultPanel.update("selected", true);
             }
+            if (this.selectAll === true) {
+                var children = this.$children;
+                if (children)
+                    for (var _a = 0, children_2 = children; _a < children_2.length; _a++) {
+                        var child = children_2[_a];
+                        child.update("selected", true);
+                    }
+                this.unselectAll = false;
+            }
+            if (this.unselectAll === true) {
+                var children = this.$children;
+                if (children)
+                    for (var _b = 0, children_3 = children; _b < children_3.length; _b++) {
+                        var child = children_3[_b];
+                        child.update("selected", false);
+                    }
+            }
+            observableMode(ObservableModes.Observable, function () {
+                _this.selectAll.subscribe(function (e) {
+                    if (!_this.allowMultiple || !e.value)
+                        return;
+                    var children = _this.$children;
+                    if (children)
+                        for (var _i = 0, children_4 = children; _i < children_4.length; _i++) {
+                            var child = children_4[_i];
+                            child.update("selected", true);
+                        }
+                    _this.unselectAll = false;
+                }, _this);
+                _this.unselectAll.subscribe(function (e) {
+                    if (!_this.allowNoselect || !e.value)
+                        return;
+                    var children = _this.$children;
+                    if (children)
+                        for (var _i = 0, children_5 = children; _i < children_5.length; _i++) {
+                            var child = children_5[_i];
+                            child.update("selected", false);
+                        }
+                    _this.selectAll = false;
+                }, _this);
+            });
+            if (this.currentStyle)
+                elem = this.currentStyle._onRendered(elem);
             return elem;
         };
         SelectablePanels.prototype._onPanelRendered = function (panel) {
-            _super.prototype._onPanelRendered.call(this, panel);
-            if (panel.selected) {
+            var rs = _super.prototype._onPanelRendered.call(this, panel);
+            if (this.currentStyle)
+                rs = this.currentStyle._onPanelRendered(panel);
+            var isSelected = panel.selected;
+            if (isSelected === "") {
+                if (this.allowMultiple)
+                    isSelected = true;
+                else
+                    isSelected = false;
+            }
+            if (isSelected) {
                 this._onPanelSelecting(panel);
             }
+            return rs;
         };
         SelectablePanels.prototype._onPanelSelecting = function (panel) {
             var selectedPanels = this.selectedPanels;
-            if (!YA.array_add_unique(this.selectedPanels, panel))
+            if (!YA.array_add_unique(selectedPanels, panel))
                 return;
             var isChanging = this.$__isChanging__;
             this.$__isChanging__ = true;
@@ -647,7 +772,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 newSelects.push(panel.name);
             }
             this.selected = newSelects;
-            if (!this.multiple) {
+            if (!this.allowMultiple) {
                 if (this._lastSelectedPanel && this._lastSelectedPanel.selected) {
                     this._lastSelectedPanel.update("selected", false);
                 }
@@ -659,6 +784,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 addClass(panel._labelElement, "selected");
             addClass(panel._contentElement, "selected");
             this.$__isChanging__ = isChanging;
+            if (this.currentStyle)
+                this.currentStyle._onPanelSelecting(panel);
         };
         SelectablePanels.prototype._onPanelUnselecting = function (panel) {
             if (!YA.array_remove(this.selectedPanels, panel))
@@ -674,8 +801,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         newSelects.push(name_3);
                 }
             this.selected = newSelects;
-            if (newSelects.length === 0 && !this.allowNonSelect) {
-                this._defaultPanel.update("selected", true);
+            if (newSelects.length === 0) {
+                if (!this.allowNoselect) {
+                    if (!this._defaultPanel) {
+                        this._defaultPanel = this.panels[0];
+                    }
+                    if (this._defaultPanel)
+                        this._defaultPanel.update("selected", true);
+                }
             }
             if (!isChanging)
                 this.update("selected");
@@ -683,87 +816,285 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (panel._labelElement)
                 removeClass(panel._labelElement, "selected");
             removeClass(panel._contentElement, "selected");
+            if (this.currentStyle)
+                this.currentStyle._onPanelUnselecting(panel);
         };
+        SelectablePanels.styles = {};
         __decorate([
             in_parameter()
         ], SelectablePanels.prototype, "multiple", void 0);
+        __decorate([
+            in_parameter()
+        ], SelectablePanels.prototype, "noselect", void 0);
+        __decorate([
+            in_parameter()
+        ], SelectablePanels.prototype, "selectAll", void 0);
+        __decorate([
+            in_parameter()
+        ], SelectablePanels.prototype, "unselectAll", void 0);
+        __decorate([
+            in_parameter()
+        ], SelectablePanels.prototype, "style", void 0);
         __decorate([
             parameter()
         ], SelectablePanels.prototype, "selected", void 0);
         return SelectablePanels;
     }(Panels));
     exports.SelectablePanels = SelectablePanels;
-    var TabPanel = /** @class */ (function (_super) {
-        __extends(TabPanel, _super);
-        function TabPanel() {
-            return _super.call(this) || this;
+    var TabStyle = /** @class */ (function () {
+        function TabStyle(container) {
+            this.container = container;
+            this.multiple = false;
+            this.noselect = false;
+            this.css = "ya-tab";
         }
-        return TabPanel;
-    }(SelectablePanel));
-    exports.TabPanel = TabPanel;
-    var Tab = /** @class */ (function (_super) {
-        __extends(Tab, _super);
-        function Tab() {
-            var _this = _super.call(this) || this;
-            _this._className = "ya-tab";
-            _this._panelType = TabPanel;
-            _this.allowNonSelect = false;
-            _this.multiple = false;
-            return _this;
-        }
-        Tab.prototype._onRendering = function (elem) {
-            this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-tab-labels" }, elem);
-            this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-tab-contents" }, elem);
+        TabStyle.prototype._onRendering = function (elem) {
+            addClass(elem, this.css);
+            this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-panel-labels" }, elem);
+            this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-panel-contents" }, elem);
             return elem;
         };
-        /**
-         * 容器div已经创建，主要负责构建容器内部结构
-         *
-         * @param {IElement} elem
-         * @memberof PanelContainer
-         */
-        Tab.prototype._onRendered = function (elem) {
-            _super.prototype._onRendered.call(this, elem);
+        TabStyle.prototype._onRendered = function (elem) {
             return elem;
         };
-        /**
-         * 主要负责把Panel装到正确的容器element中
-         *
-         * @param {SelectablePanel} panel
-         * @memberof PanelContainer
-         */
-        Tab.prototype._onPanelRendered = function (panel) {
-            _super.prototype._onPanelRendered.call(this, panel);
+        TabStyle.prototype._onPanelRendered = function (panel) {
             this.__captionsElement.appendChild(panel._labelElement);
             this.__contentsElement.appendChild(panel._contentElement);
-            exports.ElementUtility.attach(panel._labelElement, "click", function () {
+            var labelClicked = function () {
                 panel.update("selected", true);
-            });
+            };
+            exports.ElementUtility.attach(panel._labelElement, "click", labelClicked);
+            panel._labelElement["$__yaLabelClick__"] = labelClicked;
             panel._contentElement.style.display = "none";
             var rs = [panel._labelElement, panel._contentElement];
             rs.$__alreadyAppendToContainer = true;
             return rs;
         };
-        /**
-         * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
-         *
-         * @param {SelectablePanel} panel
-         * @param {SelectablePanel} lastSelectedPanel
-         * @memberof PanelContainer
-         */
-        Tab.prototype._onPanelSelecting = function (panel) {
-            _super.prototype._onPanelSelecting.call(this, panel);
+        TabStyle.prototype._onPanelSelecting = function (panel) {
             panel._contentElement.style.display = "block";
             return true;
         };
-        Tab.prototype._onPanelUnselecting = function (panel) {
-            _super.prototype._onPanelUnselecting.call(this, panel);
+        TabStyle.prototype._onPanelUnselecting = function (panel) {
             panel._contentElement.style.display = "none";
         };
-        Tab.Panel = TabPanel;
+        TabStyle.prototype._onExit = function (newStyle) {
+            var p = this.__captionsElement.parentNode;
+            p.removeChild(this.__captionsElement);
+            p.removeChild(this.__contentsElement);
+            removeClass(this.container.$element, this.css);
+            for (var _i = 0, _a = this.__captionsElement.childNodes; _i < _a.length; _i++) {
+                var li = _a[_i];
+                var labelClicked = li["$__yaLabelClick__"];
+                exports.ElementUtility.detech(li, "click", labelClicked);
+            }
+        };
+        TabStyle.prototype._onApply = function (oldStyle) {
+            var panels = this.container.panels;
+            var parent = this.container.$element;
+            parent.innerHTML = "";
+            addClass(parent, this.css);
+            if (!this.__captionsElement) {
+                this.__captionsElement = exports.ElementUtility.createElement("ul", { "class": "ya-panel-labels" }, parent);
+                this.__contentsElement = exports.ElementUtility.createElement("div", { "class": "ya-panel-contents" }, parent);
+            }
+            else {
+                parent.appendChild(this.__captionsElement);
+                parent.appendChild(this.__contentsElement);
+            }
+            for (var _i = 0, panels_1 = panels; _i < panels_1.length; _i++) {
+                var panel = panels_1[_i];
+                var elem = this._onPanelRendered(panel);
+                parent.appendChild(elem);
+            }
+            var selectedNames = panels.selected;
+            if (!selectedNames || selectedNames.length !== 1) {
+                var selects = [];
+                if (selectedNames.length) {
+                    selects = [selectedNames[selectedNames.length - 1]];
+                }
+                else {
+                    if (panels._defaultPanel)
+                        selects = [panels._defaultPanel.name];
+                }
+                panels.update("selected", panels);
+            }
+        };
+        return TabStyle;
+    }());
+    exports.TabStyle = TabStyle;
+    SelectablePanels.styles["tab"] = TabStyle;
+    var Tab = /** @class */ (function (_super) {
+        __extends(Tab, _super);
+        function Tab() {
+            var _this = _super.call(this) || this;
+            _this.style = "tab";
+            return _this;
+        }
+        Tab.Panel = SelectablePanel;
         return Tab;
     }(SelectablePanels));
     exports.Tab = Tab;
-    Tab.prototype._className = "ya-tab";
+    var GroupStyle = /** @class */ (function () {
+        function GroupStyle(container) {
+            this.container = container;
+            this.multiple = true;
+            this.noselect = true;
+            this.css = "ya-group";
+        }
+        GroupStyle.prototype._onRendering = function (elem) {
+            addClass(elem, this.css);
+            return elem;
+        };
+        GroupStyle.prototype._onRendered = function (elem) {
+            return elem;
+        };
+        GroupStyle.prototype._onPanelRendered = function (panel) {
+            var elem = panel.$element = exports.ElementUtility.createElement("div", { "class": "ya-group-item" });
+            elem.appendChild(panel._labelElement);
+            elem.appendChild(panel._contentElement);
+            if (panel.selected === false) {
+                panel._contentElement.style.display = "none";
+            }
+            else {
+                addClass(elem, "selected");
+            }
+            var onclick = elem["$__panelLabelClick__"] = function () {
+                panel.update("selected", !hasClass(elem, "selected"));
+            };
+            exports.ElementUtility.attach(panel._labelElement, "click", onclick);
+            return elem;
+        };
+        GroupStyle.prototype._onPanelSelecting = function (panel) {
+            addClass(panel.$element, "selected");
+            panel._contentElement.style.display = "block";
+            return true;
+        };
+        GroupStyle.prototype._onPanelUnselecting = function (panel) {
+            removeClass(panel.$element, "selected");
+            panel._contentElement.style.display = "none";
+        };
+        GroupStyle.prototype._onExit = function (newStyle) {
+            var p = this.container.$element;
+            removeClass(p, this.css);
+            for (var _i = 0, _a = p.childNodes; _i < _a.length; _i++) {
+                var item = _a[_i];
+                exports.ElementUtility.detech(item, "click", item["$__panelLabelClick__"]);
+            }
+        };
+        GroupStyle.prototype._onApply = function (oldStyle) {
+            var panels = this.container.panels;
+            var parent = this.container.$element;
+            parent.innerHTML = "";
+            addClass(parent, this.css);
+            for (var _i = 0, panels_2 = panels; _i < panels_2.length; _i++) {
+                var panel = panels_2[_i];
+                var elem = this._onPanelRendered(panel);
+                parent.appendChild(elem);
+            }
+        };
+        return GroupStyle;
+    }());
+    exports.GroupStyle = GroupStyle;
+    SelectablePanels.styles["group"] = GroupStyle;
+    var Group = /** @class */ (function (_super) {
+        __extends(Group, _super);
+        function Group() {
+            var _this = _super.call(this) || this;
+            _this.style = "group";
+            return _this;
+        }
+        Group.Panel = SelectablePanel;
+        return Group;
+    }(SelectablePanels));
+    exports.Group = Group;
+    var GroupPanel = /** @class */ (function (_super) {
+        __extends(GroupPanel, _super);
+        function GroupPanel() {
+            return _super.call(this) || this;
+        }
+        return GroupPanel;
+    }(SelectablePanel));
+    exports.GroupPanel = GroupPanel;
+    var Group1 = /** @class */ (function (_super) {
+        __extends(Group1, _super);
+        function Group1() {
+            var _this = _super.call(this) || this;
+            //static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
+            _this.selectAll = true;
+            _this.unselectAll = false;
+            _this._panelType = SelectablePanel;
+            _this.noselect = true;
+            _this.multiple = true;
+            return _this;
+        }
+        Group1.prototype._onRendered = function (elem) {
+            var _this = this;
+            if (this.selectAll === true) {
+                var children = this.$children;
+                if (children)
+                    for (var _i = 0, children_6 = children; _i < children_6.length; _i++) {
+                        var child = children_6[_i];
+                        child.update("selected", true);
+                    }
+            }
+            if (this.unselectAll === true) {
+                var children = this.$children;
+                if (children)
+                    for (var _a = 0, children_7 = children; _a < children_7.length; _a++) {
+                        var child = children_7[_a];
+                        child.update("selected", false);
+                    }
+            }
+            observableMode(ObservableModes.Observable, function () {
+                _this.selectAll.subscribe(function (e) {
+                    var children = _this.$children;
+                    if (children)
+                        for (var _i = 0, children_8 = children; _i < children_8.length; _i++) {
+                            var child = children_8[_i];
+                            child.update("selected", true);
+                        }
+                }, _this);
+                _this.unselectAll.subscribe(function (e) {
+                    var children = _this.$children;
+                    if (children)
+                        for (var _i = 0, children_9 = children; _i < children_9.length; _i++) {
+                            var child = children_9[_i];
+                            child.update("selected", false);
+                        }
+                }, _this);
+            });
+            return elem;
+        };
+        Group1.prototype._onPanelRendered = function (panel) {
+            _super.prototype._onPanelRendered.call(this, panel);
+            var elem = exports.ElementUtility.createElement("div", { "class": "group" });
+            elem.appendChild(panel._labelElement);
+            elem.appendChild(panel._contentElement);
+            panel._contentElement.style.display = "none";
+            exports.ElementUtility.attach(panel._labelElement, "click", function () {
+                panel.update("selected", !hasClass(elem, "selected"));
+            });
+            return elem;
+        };
+        Group1.prototype._onPanelSelecting = function (panel) {
+            _super.prototype._onPanelSelecting.call(this, panel);
+            addClass(panel.$element, "selected");
+            panel._contentElement.style.display = "block";
+            return true;
+        };
+        Group1.prototype._onPanelUnselecting = function (panel) {
+            _super.prototype._onPanelUnselecting.call(this, panel);
+            removeClass(panel.$element, "selected");
+            panel._contentElement.style.display = "none";
+        };
+        __decorate([
+            in_parameter()
+        ], Group1.prototype, "selectAll", void 0);
+        __decorate([
+            in_parameter()
+        ], Group1.prototype, "unselectAll", void 0);
+        return Group1;
+    }(SelectablePanels));
+    exports.Group1 = Group1;
 });
 //# sourceMappingURL=YA.dom.js.map

@@ -425,17 +425,16 @@ export class Panel extends Component{
     @in_parameter()
     css:string;
     @parameter()
-    label:string;
+    label:string="";
     
     render(descriptor:YA.INodeDescriptor,elementContainer?:IElement){
         
         let panelContainer:Panels= this.$parent as Panels;
-        let className = (panelContainer._className || "panelContainer");
         
         let titleElem :IElement;
         let title = (this.label as any as YA.Observable<string>).get(YA.ObservableModes.Value);
         if(title){
-            titleElem = this._labelElement = ElementUtility.createElement("li",{"class":className + "-label"}) as any;
+            titleElem = this._labelElement = ElementUtility.createElement("li",{"class":"ya-panel-label"}) as any;
             let txtElem = ElementUtility.createElement("label",null,titleElem);
             
             YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
@@ -448,7 +447,7 @@ export class Panel extends Component{
             });
         }
         
-        let contentElement = this._contentElement =ElementUtility.createElement("div",{"class":className + "-content"}) as any;
+        let contentElement = this._contentElement =ElementUtility.createElement("div",{"class":"ya-panel-content"}) as any;
         
         
         YA.bindDomAttr(contentElement,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
@@ -467,8 +466,7 @@ export class Panel extends Component{
     }
 }
 export class Panels extends Component{
-    _className:string;
-    
+        
     _panelType:Function = Panel;
 
     
@@ -487,9 +485,9 @@ export class Panels extends Component{
 
     render(descriptor,container){
         let elem :IElement;
-        let className = this._className = this._className || "panelContainer";
+        
         elem = document.createElement("div");
-        elem.className=className;
+        
         YA.bindDomAttr(elem,"className",this.css,descriptor,this as any,(elem:IElement,name,value,old)=>{
             replaceClass(elem,old, value,true);
         });
@@ -504,7 +502,7 @@ export class Panels extends Component{
         let children = descriptor.children;
         for(let child of children){
             if(this._panelType && (child as any).Component!==this._panelType) continue;
-            YA.createComponent((child as any).Component,child as any,null,this,{returnInstance:true});
+            YA.createComponent((child as any).Component,child as any,elem,this,{returnInstance:true});
         }
         mode = Observable.accessMode;
         Observable.accessMode = ObservableModes.Value;
@@ -532,10 +530,25 @@ export class Panels extends Component{
     
 }
 
+export interface ISeletablePanelStype{
+    name:string;
+    multiple:boolean;
+    noselect:boolean;
+    css:string;
+    container:SelectablePanels;
+    
+    _onRendering(elem:IElement):IElement;
+    _onRendered(elem:IElement):IElement;
+    _onPanelRendered(panel:Panel):any;
+    _onPanelSelecting(panel:SelectablePanel):any;
+    _onPanelUnselecting(panel:SelectablePanel):any;
+    _onApply(lastStyle:ISeletablePanelStype);
+    _onExit(newStype:ISeletablePanelStype);
+}
 
-class SelectablePanel extends Panel{   
+export class SelectablePanel extends Panel{   
     @parameter()
-    selected:boolean=false;
+    selected:boolean=("" as any);
 
     constructor(){
         super();
@@ -555,26 +568,84 @@ class SelectablePanel extends Panel{
 }
 export class SelectablePanels extends Panels{
     @in_parameter()
-    multiple:boolean=false;
+    multiple:boolean;
     
+    @in_parameter()
+    noselect:boolean="" as any;
     
+    @in_parameter()
+    selectAll:boolean="" as any;
 
-    allowNonSelect:boolean=false;
+    @in_parameter()
+    unselectAll:boolean="" as any;
+    @in_parameter()
+    style:string="tab";
+
     @parameter()
     selected:string[]=[];
 
+    get allowMultiple(){
+        let multiple;
+        let currentStyle = this.currentStyle;
+        if(currentStyle) {
+            if(currentStyle.multiple!==undefined) multiple=currentStyle.multiple;
+            if(multiple===true){
+                let v = this.multiple;
+                multiple = v===("" as any)?true:v;
+            }else multiple=false;
+        }else{
+            multiple = this.multiple;
+            if(multiple===undefined)multiple=false;
+        }
+        return multiple;
+    }
+    get allowNoselect(){
+        let allowNoselect;
+        let currentStyle = this.currentStyle;
+        if(currentStyle) {
+            if(currentStyle.noselect!==undefined) allowNoselect=currentStyle.noselect;
+            if(allowNoselect===true){
+                allowNoselect = this.noselect;
+                if(allowNoselect===("" as any)) allowNoselect = true;
+            }else allowNoselect=false;
+        }else allowNoselect=false;
+        return allowNoselect;
+    }
+
     _defaultPanel:SelectablePanel;
     _lastSelectedPanel:SelectablePanel;
+    private __style__:ISeletablePanelStype;
+    
+    static styles:{[name:string]:{new(container:SelectablePanels):ISeletablePanelStype}}={};
+
+    get currentStyle(){
+        let name = this.style;
+        if(this.__style__ && this.__style__.name==name)return this.__style__;
+        if((name as any).get) name = (name as any).get(ObservableModes.Value);
+        let ctor = SelectablePanels.styles[name];
+        if(!ctor)return;
+        this.__style__ = new ctor(this);
+        this.__style__.name = name;
+        return this.__style__;
+    }
+
     constructor(){
         super();
         this._panelType = SelectablePanel;
-        this._className = "selectable-panels";
+        
         Object.defineProperty(this,"$__selectedPanels__",{enumerable:false,writable:false,configurable:false,value:[]});
+        Object.defineProperty(this,"$__styleName__",{enumerable:false,writable:false,configurable:false,value:[]});
     }
     get selectedPanels(){
         return this["$__selectedPanels__"];
     }
-
+    
+    _onRendering(elem){
+        elem = super._onRendering(elem);
+        let currentStyle = this.currentStyle;
+        if(currentStyle) elem = currentStyle._onRendering(elem);
+        return elem;
+    }
     _onRendered(elem){
         super._onRendered(elem);
         observableMode(ObservableModes.Observable,()=>{
@@ -591,28 +662,70 @@ export class SelectablePanels extends Panels{
             for(let name of selected){
                 (this[name] as SelectablePanel).update("selected",true);
             }
-        }
-        if(!this._lastSelectedPanel && !this.allowNonSelect){
+        }        
+
+        if(!this._lastSelectedPanel && !this.allowNoselect){
             if(!this._defaultPanel){
                 this._defaultPanel = this.panels[0];
             }
             if(this._defaultPanel)this._defaultPanel.update("selected",true);
         }
+
+        if(this.selectAll===true){
+            let children = this.$children;
+            if(children) for(let child of children){
+                (child as GroupPanel).update("selected",true);
+            }
+            this.unselectAll=false;
+        }
+        if(this.unselectAll===true){
+            let children = this.$children;
+            if(children) for(let child of children){
+                (child as GroupPanel).update("selected",false);
+            }
+        }
+        observableMode(ObservableModes.Observable,()=>{
+            (this.selectAll as any as YA.Observable<string[]>).subscribe(e=>{
+                if(!this.allowMultiple || !e.value)return;
+                let children = this.$children;
+                if(children) for(let child of children){
+                    (child as GroupPanel).update("selected",true);
+                }
+                this.unselectAll=false;
+            },this);
+            (this.unselectAll as any as YA.Observable<string[]>).subscribe(e=>{
+                if(!this.allowNoselect || !e.value)return;
+                let children = this.$children;
+                if(children) for(let child of children){
+                    (child as GroupPanel).update("selected",false);
+                }
+                this.selectAll=false;
+            },this);
+        });
+
+        if(this.currentStyle) elem = this.currentStyle._onRendered(elem);
         return elem;
     }
 
     _onPanelRendered(panel:SelectablePanel){
-        super._onPanelRendered(panel);
-        if(panel.selected){
+        let rs = super._onPanelRendered(panel);
+        
+        if(this.currentStyle) rs = this.currentStyle._onPanelRendered(panel);
+        let isSelected = panel.selected;
+        if(isSelected===("" as any)){
+            if(this.allowMultiple) isSelected=true;
+            else isSelected=false;
+        }
+        if(isSelected){
             this._onPanelSelecting(panel);
         }
+        return rs;
     }
 
-    
     protected $__isChanging__;
     _onPanelSelecting(panel:SelectablePanel):any{
         let selectedPanels = this.selectedPanels;
-        if(!YA.array_add_unique(this.selectedPanels,panel)) return;
+        if(!YA.array_add_unique(selectedPanels,panel)) return;
         let isChanging = this.$__isChanging__;
         this.$__isChanging__ = true;
         let newSelects = [];
@@ -626,7 +739,8 @@ export class SelectablePanels extends Panels{
             newSelects.push(panel.name);
         }
         this.selected = newSelects;
-        if(!this.multiple){
+        
+        if(!this.allowMultiple){
             if(this._lastSelectedPanel && this._lastSelectedPanel.selected){
                 this._lastSelectedPanel.update("selected",false);
             }
@@ -636,7 +750,7 @@ export class SelectablePanels extends Panels{
         if(panel._labelElement)addClass(panel._labelElement,"selected");
         addClass(panel._contentElement,"selected");
         this.$__isChanging__ = isChanging;
-        
+        if(this.currentStyle) this.currentStyle._onPanelSelecting(panel);
     }
     _onPanelUnselecting(panel:SelectablePanel):any{
         if(!YA.array_remove(this.selectedPanels,panel)) return;
@@ -648,94 +762,281 @@ export class SelectablePanels extends Panels{
             if(name!==panel.name)newSelects.push(name);
         }
         this.selected = newSelects;
-        if(newSelects.length===0&&!this.allowNonSelect){
-            this._defaultPanel.update("selected",true);
+        if(newSelects.length===0){
+            
+            if(!this.allowNoselect){
+                if(!this._defaultPanel){
+                    this._defaultPanel = this.panels[0];
+                }
+                if(this._defaultPanel)this._defaultPanel.update("selected",true);
+            }
+            
         }  
         if(!isChanging)this.update("selected");
         this.$__isChanging__ = isChanging;
 
         if(panel._labelElement)removeClass(panel._labelElement,"selected");
         removeClass(panel._contentElement,"selected");
+        if(this.currentStyle) this.currentStyle._onPanelUnselecting(panel);
     }
 }
 
-export class TabPanel extends SelectablePanel{
-    constructor(){
-        super();
-    }
-}
+export class TabStyle implements ISeletablePanelStype{
+    private __captionsElement:IElement;
+    private __contentsElement:IElement;
+    name:string;
+    multiple:boolean;
+    noselect:boolean;
+    container:SelectablePanels;
+    css:string;
 
-
-export class Tab extends SelectablePanels{
-    static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
-   
-    __captionsElement:IElement;
-    __contentsElement:IElement;
-
-    constructor(){
-        super();
-        this._className = "ya-tab";
-        this._panelType = TabPanel;
-        this.allowNonSelect=false;
+    constructor(container:SelectablePanels){
+        this.container = container;
         this.multiple=false;
+        this.noselect = false;
+        this.css="ya-tab";
+        
     }
+
     _onRendering(elem){
-        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-tab-labels"},elem) as any;
-        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-tab-contents"},elem) as any;
+        addClass(elem,this.css);
+        this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-panel-labels"},elem) as any;
+        this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-panel-contents"},elem) as any;
         return elem;
     }
-    /**
-     * 容器div已经创建，主要负责构建容器内部结构
-     *
-     * @param {IElement} elem
-     * @memberof PanelContainer
-     */
-    _onRendered(elem:IElement){
-        super._onRendered(elem);
+    _onRendered(elem){
         
         return elem;
     }
 
-    /**
-     * 主要负责把Panel装到正确的容器element中
-     * 
-     * @param {SelectablePanel} panel
-     * @memberof PanelContainer
-     */
     _onPanelRendered(panel:SelectablePanel){
-        super._onPanelRendered(panel);
+        
         this.__captionsElement.appendChild(panel._labelElement);
         this.__contentsElement.appendChild(panel._contentElement);
-        ElementUtility.attach(panel._labelElement,"click",()=>{
+        let labelClicked = ()=>{
             panel.update("selected",true);
-        });
+        };
+        ElementUtility.attach(panel._labelElement,"click",labelClicked);
+        panel._labelElement["$__yaLabelClick__"] = labelClicked;
         panel._contentElement.style.display="none";
         let rs = [panel._labelElement,panel._contentElement] as any;
         rs.$__alreadyAppendToContainer = true;
         return rs;
     }
 
-    
-
-    /**
-     * 主要负责panel的elemeent的操作，panel自身的状态已经处于selected
-     *
-     * @param {SelectablePanel} panel
-     * @param {SelectablePanel} lastSelectedPanel
-     * @memberof PanelContainer
-     */
     _onPanelSelecting(panel:SelectablePanel):boolean{
-        
-        super._onPanelSelecting(panel);
         panel._contentElement.style.display="block";
         return true;
     }
 
-    _onPanelUnselecting(panel:TabPanel){
-        super._onPanelUnselecting(panel);
+    _onPanelUnselecting(panel:SelectablePanel){
         panel._contentElement.style.display="none";
     }
 
+    _onExit(newStyle:ISeletablePanelStype){
+        let p = this.__captionsElement.parentNode;
+        p.removeChild(this.__captionsElement);
+        p.removeChild(this.__contentsElement);
+        removeClass(this.container.$element as any,this.css);
+        for(let li of this.__captionsElement.childNodes as any){
+            let labelClicked = li["$__yaLabelClick__"];
+            ElementUtility.detech(li,"click",labelClicked);
+        }
+    }
+    _onApply(oldStyle:ISeletablePanelStype){
+        let panels = this.container.panels;
+        let parent = this.container.$element as IElement;
+        parent.innerHTML="";
+        addClass(parent,this.css);
+        if(!this.__captionsElement){
+            this.__captionsElement = ElementUtility.createElement("ul",{"class":"ya-panel-labels"},parent) as any;
+            this.__contentsElement = ElementUtility.createElement("div",{"class":"ya-panel-contents"},parent) as any;
+        }else {
+            parent.appendChild(this.__captionsElement);
+            parent.appendChild(this.__contentsElement);
+        }
+        for(let panel of panels){
+            let elem =this._onPanelRendered(panel);
+            parent.appendChild(elem);
+        }
+        let selectedNames = panels.selected;
+        if(!selectedNames|| selectedNames.length!==1){
+            let selects = [];
+            if(selectedNames.length){
+                selects = [selectedNames[selectedNames.length-1]];
+            }else {
+                if(panels._defaultPanel)selects = [panels._defaultPanel.name];
+            }
+            panels.update("selected",panels);
+        }
+    }
 }
-Tab.prototype._className = "ya-tab";
+SelectablePanels.styles["tab"] = TabStyle;
 
+export class Tab extends SelectablePanels{
+    static Panel:{new (...args:any[]):SelectablePanel} = SelectablePanel;
+    constructor(){
+        super();
+        this.style ="tab";
+    }
+}
+
+
+export class GroupStyle implements ISeletablePanelStype{
+    name:string;
+    multiple:boolean;
+    noselect:boolean;
+    container:SelectablePanels;
+    css:string;
+
+    constructor(container:SelectablePanels){
+        this.container = container;
+        this.multiple=true;
+        this.noselect = true;
+       
+        this.css="ya-group";
+        
+    }
+
+    _onRendering(elem){
+        addClass(elem,this.css);
+        return elem;
+    }
+    _onRendered(elem){
+        
+        return elem;
+    }
+
+    _onPanelRendered(panel:SelectablePanel){
+        let elem = panel.$element = ElementUtility.createElement("div",{"class":"ya-group-item"}) as IElement;
+        elem.appendChild(panel._labelElement);
+        elem.appendChild(panel._contentElement);
+        if(panel.selected===false){
+            panel._contentElement.style.display="none";
+        }else {
+            addClass(elem,"selected");
+        }
+        let onclick = elem["$__panelLabelClick__"] = ()=>{
+            panel.update("selected",!hasClass(elem,"selected"));
+        };
+        ElementUtility.attach(panel._labelElement,"click",onclick);
+        
+        return elem;
+    }
+
+    _onPanelSelecting(panel:SelectablePanel):boolean{
+        addClass(panel.$element as IElement,"selected");
+        panel._contentElement.style.display="block";
+        return true;
+    }
+
+    _onPanelUnselecting(panel:SelectablePanel){
+        removeClass(panel.$element as IElement,"selected");
+        panel._contentElement.style.display="none";
+    }
+
+    _onExit(newStyle:ISeletablePanelStype){
+        let p = this.container.$element as IElement;
+        removeClass(p as any,this.css);
+        for(let item of p.childNodes as any){
+            ElementUtility.detech(item,"click", item["$__panelLabelClick__"]);
+        }
+    }
+    _onApply(oldStyle:ISeletablePanelStype){
+        let panels = this.container.panels;
+        let parent = this.container.$element as IElement;
+        parent.innerHTML="";
+        addClass(parent,this.css);
+        for(let panel of panels){
+            let elem =this._onPanelRendered(panel);
+            parent.appendChild(elem);
+        }
+    }
+}
+SelectablePanels.styles["group"] = GroupStyle;
+export class Group extends SelectablePanels{
+    static Panel:{new (...args:any[]):SelectablePanel} = SelectablePanel;
+    constructor(){
+        super();
+        this.style ="group";
+    }
+}
+
+
+export class GroupPanel extends SelectablePanel{
+    constructor(){
+        super();
+    }
+}
+export class Group1 extends SelectablePanels{
+    //static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
+    @in_parameter()
+    selectAll:boolean=true;
+
+    @in_parameter()
+    unselectAll:boolean=false;
+
+    constructor(){
+        super();
+        this._panelType = SelectablePanel;
+        this.noselect=true;
+        this.multiple=true;
+    }
+
+    _onRendered(elem:IElement):IElement{
+        if(this.selectAll===true){
+            let children = this.$children;
+            if(children) for(let child of children){
+                (child as GroupPanel).update("selected",true);
+            }
+        }
+        if(this.unselectAll===true){
+            let children = this.$children;
+            if(children) for(let child of children){
+                (child as GroupPanel).update("selected",false);
+            }
+        }
+        observableMode(ObservableModes.Observable,()=>{
+            (this.selectAll as any as YA.Observable<string[]>).subscribe(e=>{
+                let children = this.$children;
+                if(children) for(let child of children){
+                    (child as GroupPanel).update("selected",true);
+                }
+            },this);
+            (this.unselectAll as any as YA.Observable<string[]>).subscribe(e=>{
+                let children = this.$children;
+                if(children) for(let child of children){
+                    (child as GroupPanel).update("selected",false);
+                }
+            },this);
+        });
+        return elem;
+    }
+
+    _onPanelRendered(panel:SelectablePanel){
+        super._onPanelRendered(panel);
+        let elem = ElementUtility.createElement("div",{"class":"group"}) as IElement;
+        elem.appendChild(panel._labelElement);
+        elem.appendChild(panel._contentElement);
+        panel._contentElement.style.display="none";
+        ElementUtility.attach(panel._labelElement,"click",()=>{
+            panel.update("selected",!hasClass(elem,"selected"));
+        });
+        
+        return elem;
+    }
+
+    _onPanelSelecting(panel:SelectablePanel):boolean{
+        
+        super._onPanelSelecting(panel);
+        addClass(panel.$element as any,"selected");
+        panel._contentElement.style.display="block";
+        return true;
+    }
+
+    _onPanelUnselecting(panel:SelectablePanel){
+        super._onPanelUnselecting(panel);
+        removeClass(panel.$element as any,"selected");
+        panel._contentElement.style.display="none";
+    }
+}
