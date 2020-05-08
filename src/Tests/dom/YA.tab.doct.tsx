@@ -64,6 +64,7 @@ export class TabTest {
         class StyleComp{
             
             style:string;
+            pns:Dom.SelectablePanels;
            
             constructor(){
                 YA.observable("group","style",this);
@@ -74,11 +75,20 @@ export class TabTest {
             tabStyle(){
                 this.style="tab";
             }
+            selectAll(){
+                this.pns.selectAll = true;
+            }
+
+            selectNone(){
+                this.pns.unselectAll = true;
+            }
             
             render(){
                 return <div>
                 <input type="button" onclick={this.tabStyle} value="选项卡风格" />
                 <input type="button" onclick={this.groupStyle} value="分组风格" />
+                <input type="button" onclick={this.selectAll} value="全选" />
+                <input type="button" onclick={this.selectNone} value="全不选" />
                 <Dom.SelectablePanels name="pns" panelStyle={this.style}>
                     <Dom.SelectablePanel name="tp1" label="第一个选项卡">第一个选项卡的内容</Dom.SelectablePanel>
                     <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>

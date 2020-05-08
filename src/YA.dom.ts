@@ -605,7 +605,7 @@ export class SelectablePanel extends Panel{
 }
 export class SelectablePanels extends Panels{
     @in_parameter()
-    multiple:boolean;
+    multiple:boolean="" as any;
     
     @in_parameter()
     noselect:boolean="" as any;
@@ -757,7 +757,13 @@ export class SelectablePanels extends Panels{
                 if(children) for(let child of children){
                     (child as SelectablePanel).update("selected",true);
                 }
-                this.unselectAll=false;
+                let mode = Observable.writeMode;
+                Observable.writeMode = ObservableModes.Raw;
+                try{
+                    this.unselectAll=false;
+                }finally{
+                    Observable.writeMode=mode;
+                }
             },this);
             (this.unselectAll as any as YA.Observable<string[]>).subscribe(e=>{
                 if(!this.allowNoselect || !e.value)return;
@@ -765,7 +771,14 @@ export class SelectablePanels extends Panels{
                 if(children) for(let child of children){
                     (child as SelectablePanel).update("selected",false);
                 }
-                this.selectAll=false;
+                let mode = Observable.writeMode;
+                Observable.writeMode = ObservableModes.Raw;
+                try{
+                    this.selectAll=false;
+                }finally{
+                    Observable.writeMode=mode;
+                }
+                
             },this);
         });
 

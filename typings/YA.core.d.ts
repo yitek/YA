@@ -252,7 +252,8 @@ export declare enum ObservableModes {
      * 行为基本等同Observable,但如果该变量是Proxy,则会返回Proxy
      */
     Proxy = 4,
-    Schema = 5
+    Schema = 5,
+    Immediate = 6
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
     $type: DataTypes;

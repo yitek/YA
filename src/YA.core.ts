@@ -760,7 +760,8 @@ export enum ObservableModes{
      * 行为基本等同Observable,但如果该变量是Proxy,则会返回Proxy
      */
     Proxy,
-    Schema
+    Schema,
+    Immediate
 }
 
 
@@ -901,7 +902,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
                 //ctor(initValue)
                 this.$target=init as TData;
                 //this.$__obExtras__ = index;
-                this.$__obRaw__ =(val:TData)=>val===undefined?init:init=val;
+                this.$__obRaw__ =(val:TData)=>val===undefined?this.$target:this.$target=val;
             }
         }
         if(this.$target instanceof Observable) 
@@ -927,9 +928,9 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
     set(newValue:TData,src?:any):IObservable<TData>{
         this.$isset=true;
         if(newValue && newValue instanceof Observable) newValue = newValue.get(ObservableModes.Value);
-        if(Observable.writeMode===ObservableModes.Raw) {this.$__obRaw__.call(this,newValue);return this;}
+        if(Observable.writeMode===ObservableModes.Raw) {this.$__obRaw__.call(this,this.$target=newValue);this.$__obModifiedValue__=undefined;return this;}
         this.$__obModifiedValue__=newValue===undefined?Undefined:newValue;
-        if(src!==undefined) this.update(src);
+        if(src!==undefined || Observable.writeMode===ObservableModes.Immediate) this.update(src);
         return this;
     }
 
@@ -948,12 +949,15 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
         if(newValue!==oldValue) {
             this.$__obRaw__(this.$target = newValue);
             let evtArgs:IChangeEventArgs<TData> = {type:ChangeTypes.Value,value:newValue,old:oldValue,sender:this,src:src||this};
-            let mode = Observable.readMode;
+            let rmode = Observable.readMode;
             Observable.readMode = ObservableModes.Value;
+            let wmode = Observable.writeMode;
+            Observable.writeMode = ObservableModes.Immediate;
             try{
                 this.notify(evtArgs);
             }finally{
-                Observable.readMode = mode;
+                Observable.readMode = rmode;
+                Observable.writeMode= wmode;
             }
             return evtArgs.cancel!==true;
         }
@@ -1047,34 +1051,42 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
         if(newValue && Observable.isObservable(newValue)) newValue = (newValue as IObservable<TData>).get(ObservableModes.Value) as TData;
         super.set(newValue as TData||null);
         if(!newValue ) return this;
-        let mode = Observable.readMode;
-        Observable.readMode = ObservableModes.Observable;
-        try{
-            for(const n in this){
-                if(n==="constructor" || n[0]==="$" ||n[0]==="_") continue;
-                let proxy :any= this[n];
-                if(Observable.isObservable(proxy)) proxy.set((newValue as any)[n] as any);
+        
+        for(const n in this){
+            if(n==="constructor" || n[0]==="$" ||n[0]==="_") continue;
+            let ob:IObservable<any>;
+            let mode = Observable.readMode;
+            Observable.readMode = ObservableModes.Observable;
+            try{
+                ob = this[n];
+            }finally{
+                Observable.readMode = mode;
             }
-        }finally{
-            Observable.readMode = mode;
+            if(Observable.isObservable(ob)) ob.set((newValue as any)[n] as any);
         }
-        if(src!==undefined) this.$update(src);
+        if(src!==undefined || ObservableModes.Immediate === Observable.writeMode) this.update(src);
         return this;
     }
 
     update(src?:any):boolean{
         let result = super.update(src);
         if(result===false) return false;
-        let mode = Observable.readMode;
-        Observable.readMode = ObservableModes.Observable;
+        
         try{
             for(const n in this){
-                let proxy :any= this[n];
-                if(proxy instanceof Observable && proxy.$__obOwner__===this) 
-                    proxy.update(src);
+                let ob:IObservable<any>;
+                let mode = Observable.readMode;
+                Observable.readMode = ObservableModes.Observable;
+                try{
+                    ob= this[n];
+                }finally{
+                    Observable.readMode = mode;
+                }
+                if(ob instanceof Observable && ob.$__obOwner__===this) 
+                ob.update(src);
             }
         }finally{
-            Observable.readMode = mode;
+            
         }
         
         return true;
@@ -1204,7 +1216,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                 
         for(const i in newValue)makeArrayItem(this,i as any as number);;
         this.$_length = newValue.length;
-        if(src!==undefined) this.update(src);
+        if(src!==undefined || Observable.writeMode===ObservableModes.Immediate) this.update(src);
         return this;
     }
 
@@ -1218,18 +1230,24 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         if(!super.update(src)) return true;
         //查看子项变更
         //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
-        let mode = Observable.readMode;
-        Observable.readMode = ObservableModes.Observable;
+        
         try{
             for(let n in this){
-                let item = this[n];
+                let mode = Observable.readMode;
+                Observable.readMode = ObservableModes.Observable;
+                let ob:IObservable<any>;
+                try{
+                    ob = this[n];
+                }finally{
+                    Observable.readMode= mode;
+                } 
                 //只有Observable，且所有者为自己的，才更新
                 //防止用户放别的东西在这个ObservableArray上面
-                if(item instanceof Observable && item.$__obOwner__===this)
-                    item.update(src);
+                if(ob instanceof Observable && ob.$__obOwner__===this)
+                ob.update(src);
             }
         }finally{
-            Observable.readMode= mode;
+           
         }
         
         
@@ -1239,8 +1257,9 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         this.$_changes = undefined;
 
         let arr = this.$target;
-        mode = Observable.readMode;
+        let rmode = Observable.readMode;
         Observable.readMode = ObservableModes.Value;
+        let wmode = Observable.writeMode;
         try{
             for(const i in changes){
                 let change = changes[i];
@@ -1285,7 +1304,8 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
                 }
             }
         }finally{
-            Observable.readMode= mode;
+            Observable.readMode= rmode;
+            Observable.writeMode = wmode;
         }
         
         return true;
@@ -2341,18 +2361,27 @@ export interface ComponentCreationOpts{
     noGarbaging?:boolean;
 }
 export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement,compParent?:IComponent,opts?:ComponentCreationOpts):IElement[]|IElement|IComponent{
-    
-    //获取到vnode，attr-value得到的应该是schema
+    let xmode = _jsxMode;
+    let ormode = Observable.readMode;
+    let owmode = Observable.writeMode;
     let compInstance :any;
+    try{
+        _jsxMode = JSXModes.vnode;
+        Observable.readMode = ObservableModes.Proxy;
+        Observable.writeMode = ObservableModes.Raw;
+        compInstance = new componentType(descriptor,container);
+    }finally{
+        _jsxMode = xmode;
+        Observable.readMode = ormode;
+        Observable.writeMode =owmode;
+    }
+
     let renderResult:any;
     let renderFn:any = componentType;
-    let xmode = _jsxMode;
-    let omode = Observable.readMode;
     let ifAttrValue;
     try{
         _jsxMode = JSXModes.vnode;
         Observable.readMode = ObservableModes.Proxy;
-        compInstance = new componentType(descriptor,container);
         // object-component
         if(typeof compInstance.render==='function'){
             buildComponent(compInstance,componentType.prototype);
@@ -2370,7 +2399,7 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
             
             //绑定属性
             for(const propname in descriptor){
-                if(propname==="tag" || propname==="children") continue;
+                if(propname==="tag" || propname==="children" || propname==="Component") continue;
                 if(propname==="if") {
                     ifAttrValue = descriptor[propname];
                     continue;
@@ -2382,7 +2411,6 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
                 bindComponentAttr(compInstance,propname,descriptor[propname]);
             };
             renderFn = compInstance.render;
-            Observable.readMode = ObservableModes.Proxy;
             renderResult = renderFn.call(compInstance,descriptor,container);
         }else {
             renderResult = compInstance;
@@ -2390,7 +2418,7 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
         }
     }finally{
         _jsxMode = xmode;
-        Observable.readMode = omode;
+        Observable.readMode = ormode;
     }
 
 

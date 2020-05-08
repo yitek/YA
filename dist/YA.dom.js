@@ -617,6 +617,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(SelectablePanels, _super);
         function SelectablePanels() {
             var _this = _super.call(this) || this;
+            _this.multiple = "";
             _this.noselect = "";
             _this.selectAll = "";
             _this.unselectAll = "";
@@ -787,7 +788,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                             var child = children_4[_i];
                             child.update("selected", true);
                         }
-                    _this.unselectAll = false;
+                    var mode = Observable.writeMode;
+                    Observable.writeMode = ObservableModes.Raw;
+                    try {
+                        _this.unselectAll = false;
+                    }
+                    finally {
+                        Observable.writeMode = mode;
+                    }
                 }, _this);
                 _this.unselectAll.subscribe(function (e) {
                     if (!_this.allowNoselect || !e.value)
@@ -798,7 +806,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                             var child = children_5[_i];
                             child.update("selected", false);
                         }
-                    _this.selectAll = false;
+                    var mode = Observable.writeMode;
+                    Observable.writeMode = ObservableModes.Raw;
+                    try {
+                        _this.selectAll = false;
+                    }
+                    finally {
+                        Observable.writeMode = mode;
+                    }
                 }, _this);
             });
             if (this.currentStyle)

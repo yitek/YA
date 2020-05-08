@@ -713,6 +713,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
          */
         ObservableModes[ObservableModes["Proxy"] = 4] = "Proxy";
         ObservableModes[ObservableModes["Schema"] = 5] = "Schema";
+        ObservableModes[ObservableModes["Immediate"] = 6] = "Immediate";
     })(ObservableModes = exports.ObservableModes || (exports.ObservableModes = {}));
     function observableMode(mode, statement) {
         var accessMode = Observable.readMode;
@@ -795,7 +796,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     //ctor(initValue)
                     _this.$target = init;
                     //this.$__obExtras__ = index;
-                    _this.$__obRaw__ = function (val) { return val === undefined ? init : init = val; };
+                    _this.$__obRaw__ = function (val) { return val === undefined ? _this.$target : _this.$target = val; };
                 }
             }
             if (_this.$target instanceof Observable_1)
@@ -823,11 +824,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (newValue && newValue instanceof Observable_1)
                 newValue = newValue.get(ObservableModes.Value);
             if (Observable_1.writeMode === ObservableModes.Raw) {
-                this.$__obRaw__.call(this, newValue);
+                this.$__obRaw__.call(this, this.$target = newValue);
+                this.$__obModifiedValue__ = undefined;
                 return this;
             }
             this.$__obModifiedValue__ = newValue === undefined ? Undefined : newValue;
-            if (src !== undefined)
+            if (src !== undefined || Observable_1.writeMode === ObservableModes.Immediate)
                 this.update(src);
             return this;
         };
@@ -847,13 +849,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (newValue !== oldValue) {
                 this.$__obRaw__(this.$target = newValue);
                 var evtArgs = { type: ChangeTypes.Value, value: newValue, old: oldValue, sender: this, src: src || this };
-                var mode = Observable_1.readMode;
+                var rmode = Observable_1.readMode;
                 Observable_1.readMode = ObservableModes.Value;
+                var wmode = Observable_1.writeMode;
+                Observable_1.writeMode = ObservableModes.Immediate;
                 try {
                     this.notify(evtArgs);
                 }
                 finally {
-                    Observable_1.readMode = mode;
+                    Observable_1.readMode = rmode;
+                    Observable_1.writeMode = wmode;
                 }
                 return evtArgs.cancel !== true;
             }
@@ -944,39 +949,45 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             _super.prototype.set.call(this, newValue || null);
             if (!newValue)
                 return this;
-            var mode = Observable.readMode;
-            Observable.readMode = ObservableModes.Observable;
-            try {
-                for (var n in this) {
-                    if (n === "constructor" || n[0] === "$" || n[0] === "_")
-                        continue;
-                    var proxy = this[n];
-                    if (Observable.isObservable(proxy))
-                        proxy.set(newValue[n]);
+            for (var n in this) {
+                if (n === "constructor" || n[0] === "$" || n[0] === "_")
+                    continue;
+                var ob = void 0;
+                var mode = Observable.readMode;
+                Observable.readMode = ObservableModes.Observable;
+                try {
+                    ob = this[n];
                 }
+                finally {
+                    Observable.readMode = mode;
+                }
+                if (Observable.isObservable(ob))
+                    ob.set(newValue[n]);
             }
-            finally {
-                Observable.readMode = mode;
-            }
-            if (src !== undefined)
-                this.$update(src);
+            if (src !== undefined || ObservableModes.Immediate === Observable.writeMode)
+                this.update(src);
             return this;
         };
         ObservableObject.prototype.update = function (src) {
             var result = _super.prototype.update.call(this, src);
             if (result === false)
                 return false;
-            var mode = Observable.readMode;
-            Observable.readMode = ObservableModes.Observable;
             try {
                 for (var n in this) {
-                    var proxy = this[n];
-                    if (proxy instanceof Observable && proxy.$__obOwner__ === this)
-                        proxy.update(src);
+                    var ob = void 0;
+                    var mode = Observable.readMode;
+                    Observable.readMode = ObservableModes.Observable;
+                    try {
+                        ob = this[n];
+                    }
+                    finally {
+                        Observable.readMode = mode;
+                    }
+                    if (ob instanceof Observable && ob.$__obOwner__ === this)
+                        ob.update(src);
                 }
             }
             finally {
-                Observable.readMode = mode;
             }
             return true;
         };
@@ -1104,7 +1115,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 makeArrayItem(this, i);
             ;
             this.$_length = newValue.length;
-            if (src !== undefined)
+            if (src !== undefined || Observable.writeMode === ObservableModes.Immediate)
                 this.update(src);
             return this;
         };
@@ -1118,19 +1129,24 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return true;
             //查看子项变更
             //如果子项是value类型，直接获取会得到值，而不是期望的Observable,所以要强制访问Observable
-            var mode = Observable.readMode;
-            Observable.readMode = ObservableModes.Observable;
             try {
                 for (var n in this) {
-                    var item = this[n];
+                    var mode = Observable.readMode;
+                    Observable.readMode = ObservableModes.Observable;
+                    var ob = void 0;
+                    try {
+                        ob = this[n];
+                    }
+                    finally {
+                        Observable.readMode = mode;
+                    }
                     //只有Observable，且所有者为自己的，才更新
                     //防止用户放别的东西在这个ObservableArray上面
-                    if (item instanceof Observable && item.$__obOwner__ === this)
-                        item.update(src);
+                    if (ob instanceof Observable && ob.$__obOwner__ === this)
+                        ob.update(src);
                 }
             }
             finally {
-                Observable.readMode = mode;
             }
             //处理push/pop等数组操作
             var changes = this.$_changes;
@@ -1138,8 +1154,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return true;
             this.$_changes = undefined;
             var arr = this.$target;
-            mode = Observable.readMode;
+            var rmode = Observable.readMode;
             Observable.readMode = ObservableModes.Value;
+            var wmode = Observable.writeMode;
             try {
                 for (var i in changes) {
                     var change = changes[i];
@@ -1187,7 +1204,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             }
             finally {
-                Observable.readMode = mode;
+                Observable.readMode = rmode;
+                Observable.writeMode = wmode;
             }
             return true;
         };
@@ -2231,17 +2249,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }
     exports.EVENT = {};
     function createComponent(componentType, descriptor, container, compParent, opts) {
-        //获取到vnode，attr-value得到的应该是schema
+        var xmode = _jsxMode;
+        var ormode = Observable.readMode;
+        var owmode = Observable.writeMode;
         var compInstance;
+        try {
+            _jsxMode = JSXModes.vnode;
+            Observable.readMode = ObservableModes.Proxy;
+            Observable.writeMode = ObservableModes.Raw;
+            compInstance = new componentType(descriptor, container);
+        }
+        finally {
+            _jsxMode = xmode;
+            Observable.readMode = ormode;
+            Observable.writeMode = owmode;
+        }
         var renderResult;
         var renderFn = componentType;
-        var xmode = _jsxMode;
-        var omode = Observable.readMode;
         var ifAttrValue;
         try {
             _jsxMode = JSXModes.vnode;
             Observable.readMode = ObservableModes.Proxy;
-            compInstance = new componentType(descriptor, container);
             // object-component
             if (typeof compInstance.render === 'function') {
                 buildComponent(compInstance, componentType.prototype);
@@ -2259,7 +2287,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 //绑定属性
                 for (var propname in descriptor) {
-                    if (propname === "tag" || propname === "children")
+                    if (propname === "tag" || propname === "children" || propname === "Component")
                         continue;
                     if (propname === "if") {
                         ifAttrValue = descriptor[propname];
@@ -2273,7 +2301,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
                 ;
                 renderFn = compInstance.render;
-                Observable.readMode = ObservableModes.Proxy;
                 renderResult = renderFn.call(compInstance, descriptor, container);
             }
             else {
@@ -2283,7 +2310,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         finally {
             _jsxMode = xmode;
-            Observable.readMode = omode;
+            Observable.readMode = ormode;
         }
         var elems = handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
         if (exports.ElementUtility.isElement(elems))
