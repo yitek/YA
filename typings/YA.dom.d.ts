@@ -176,15 +176,3 @@ export declare class Group extends SelectablePanels {
     };
     constructor();
 }
-export declare class GroupPanel extends SelectablePanel {
-    constructor();
-}
-export declare class Group1 extends SelectablePanels {
-    selectAll: boolean;
-    unselectAll: boolean;
-    constructor();
-    _onRendered(elem: IElement): IElement;
-    _onPanelRendered(panel: SelectablePanel): IElement;
-    _onPanelSelecting(panel: SelectablePanel): boolean;
-    _onPanelUnselecting(panel: SelectablePanel): void;
-}

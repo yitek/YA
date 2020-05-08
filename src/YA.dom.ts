@@ -101,7 +101,7 @@ function findClassAt(clsnames:string,cls:string):number{
             if(!emptyStringRegx.test(prev)){at = clsnames.indexOf(cls,at+len);continue;}
         }
         if((at+len)!==clsnames.length){
-            let next = clsnames[at+length];
+            let next = clsnames[at+len];
             if(!emptyStringRegx.test(next)){at = clsnames.indexOf(cls,at+len);continue;}
         }
         return at;
@@ -151,6 +151,42 @@ let toggleClass = ElementUtility.toggleClass = function(elem:IElement,cls:string
     }else{
         elem.className += " " + cls;
         return true;
+    }
+}
+
+
+let show = ElementUtility.show = (elem:IElement,immeditately?:boolean):IElementUtility=>{
+    let value = (elem as any).$__displayValue__;
+    if(!value||value=="none") value = "";
+    (elem as any).style.display=value;
+    return ElementUtility;
+}
+let hide = ElementUtility.hide = (elem:IElement,immeditately?:boolean):IElementUtility=>{
+    let old = getStyle(elem,"display");
+    if(old && old!=="none")(elem as any).$__displayValue__ = old;
+    (elem as any).style.display="none";
+    return ElementUtility;
+};
+
+let restoredDisplay=(elem:IElement,visible:boolean)=>{
+    let curr = getStyle(elem,"display");
+    let store = (elem as any).$__storedDisplay__;
+    if(visible===false){
+        if(store!==undefined) {
+            elem.style.display =store;
+            (elem as any).$__storedDisplay__=undefined;
+        }else{
+            elem.style.display = "none";
+            (elem as any).$__storedDisplay__=curr;
+        }
+    }else{
+        if(store!==undefined) {
+            elem.style.display =store;
+            (elem as any).$__storedDisplay__=undefined;
+        }else{
+            elem.style.display = "";
+            (elem as any).$__storedDisplay__=curr;
+        }
     }
 }
 
@@ -704,14 +740,14 @@ export class SelectablePanels extends Panels{
         if(this.selectAll===true){
             let children = this.$children;
             if(children) for(let child of children){
-                (child as GroupPanel).update("selected",true);
+                (child as SelectablePanel).update("selected",true);
             }
             this.unselectAll=false;
         }
         if(this.unselectAll===true){
             let children = this.$children;
             if(children) for(let child of children){
-                (child as GroupPanel).update("selected",false);
+                (child as SelectablePanel).update("selected",false);
             }
         }
         observableMode(ObservableModes.Observable,()=>{
@@ -719,7 +755,7 @@ export class SelectablePanels extends Panels{
                 if(!this.allowMultiple || !e.value)return;
                 let children = this.$children;
                 if(children) for(let child of children){
-                    (child as GroupPanel).update("selected",true);
+                    (child as SelectablePanel).update("selected",true);
                 }
                 this.unselectAll=false;
             },this);
@@ -727,7 +763,7 @@ export class SelectablePanels extends Panels{
                 if(!this.allowNoselect || !e.value)return;
                 let children = this.$children;
                 if(children) for(let child of children){
-                    (child as GroupPanel).update("selected",false);
+                    (child as SelectablePanel).update("selected",false);
                 }
                 this.selectAll=false;
             },this);
@@ -776,9 +812,9 @@ export class SelectablePanels extends Panels{
             }
         } 
         this._lastSelectedPanel = panel;
-        if(!isChanging)this.update("selected");
         if(panel._labelElement)addClass(panel._labelElement,"selected");
         addClass(panel._contentElement,"selected");
+        if(!isChanging)this.update("selected");
         this.$__isChanging__ = isChanging;
         if(this.currentStyle) this.currentStyle._onPanelSelecting(panel);
     }
@@ -864,6 +900,7 @@ export class TabStyle implements ISeletablePanelStype{
     }
 
     _onExit(newStyle:ISeletablePanelStype){
+
         let p = this.__captionsElement.parentNode;
         p.removeChild(this.__captionsElement);
         p.removeChild(this.__contentsElement);
@@ -957,8 +994,11 @@ export class GroupStyle implements ISeletablePanelStype{
 
     _onPanelRendered(panel:SelectablePanel){
         let elem = panel.$element = ElementUtility.createElement("div",{"class":"ya-panel-item"}) as IElement;
-        elem.appendChild(panel._labelElement);
-        elem.appendChild(panel._contentElement);
+        elem.appendChild(panel._labelElement) as IElement;
+
+        let wrapper = ElementUtility.createElement("div",{"class":"ya-panel-contents"},elem);
+        
+        (wrapper as any).appendChild(panel._contentElement);
         if(panel.selected===false){
             panel._contentElement.style.display="none";
         }else {
@@ -974,6 +1014,7 @@ export class GroupStyle implements ISeletablePanelStype{
 
     _onPanelSelecting(panel:SelectablePanel):boolean{
         addClass(panel.$element as IElement,"selected");
+        //panel._contentElement.style.display="block";
         panel._contentElement.style.display="block";
         return true;
     }
@@ -1011,81 +1052,3 @@ export class Group extends SelectablePanels{
     }
 }
 
-
-export class GroupPanel extends SelectablePanel{
-    constructor(){
-        super();
-    }
-}
-export class Group1 extends SelectablePanels{
-    //static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
-    @in_parameter()
-    selectAll:boolean=true;
-
-    @in_parameter()
-    unselectAll:boolean=false;
-
-    constructor(){
-        super();
-        this._panelType = SelectablePanel;
-        this.noselect=true;
-        this.multiple=true;
-    }
-
-    _onRendered(elem:IElement):IElement{
-        if(this.selectAll===true){
-            let children = this.$children;
-            if(children) for(let child of children){
-                (child as GroupPanel).update("selected",true);
-            }
-        }
-        if(this.unselectAll===true){
-            let children = this.$children;
-            if(children) for(let child of children){
-                (child as GroupPanel).update("selected",false);
-            }
-        }
-        observableMode(ObservableModes.Observable,()=>{
-            (this.selectAll as any as YA.Observable<string[]>).subscribe(e=>{
-                let children = this.$children;
-                if(children) for(let child of children){
-                    (child as GroupPanel).update("selected",true);
-                }
-            },this);
-            (this.unselectAll as any as YA.Observable<string[]>).subscribe(e=>{
-                let children = this.$children;
-                if(children) for(let child of children){
-                    (child as GroupPanel).update("selected",false);
-                }
-            },this);
-        });
-        return elem;
-    }
-
-    _onPanelRendered(panel:SelectablePanel){
-        super._onPanelRendered(panel);
-        let elem = ElementUtility.createElement("div",{"class":"group"}) as IElement;
-        elem.appendChild(panel._labelElement);
-        elem.appendChild(panel._contentElement);
-        panel._contentElement.style.display="none";
-        ElementUtility.attach(panel._labelElement,"click",()=>{
-            panel.update("selected",!hasClass(elem,"selected"));
-        });
-        
-        return elem;
-    }
-
-    _onPanelSelecting(panel:SelectablePanel):boolean{
-        
-        super._onPanelSelecting(panel);
-        addClass(panel.$element as any,"selected");
-        panel._contentElement.style.display="block";
-        return true;
-    }
-
-    _onPanelUnselecting(panel:SelectablePanel){
-        super._onPanelUnselecting(panel);
-        removeClass(panel.$element as any,"selected");
-        panel._contentElement.style.display="none";
-    }
-}

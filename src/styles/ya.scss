@@ -1,7 +1,17 @@
+//背景底色调
+$backgroundColor:#f6f6f6;
+//主色调
+$mainColor:#000;
+//容器面板背景色
+$panelContentColor:#fff;
+$panelBackendColor:#f6f6f6;
+//阴影函数
+$shadowColor: rgba(36, 37, 38, 0.08);
+
 $fontSize:14px;
-$margin:6px;
-$padding:6px;
-$borderRadius:6px;
+$margin:8px;
+$padding:8px;
+$borderRadius:8px;
 
 $titleHeight:31px;
 
@@ -11,7 +21,7 @@ $borderColor:#666;
 $titleBackendColor:#ccc;
 $titleFrontColor:#060606;
 
-$contentBackendColor:#efefef;
+$contentBackendColor:#fff;
 
 
 $liColors:#f5ad1b,#5f89ce,#94bf45,#da8ec5,#78bfc2,#bec278,#8e78c2,#c27878;
@@ -23,6 +33,24 @@ $liColors:#f5ad1b,#5f89ce,#94bf45,#da8ec5,#78bfc2,#bec278,#8e78c2,#c27878;
     padding:0;
     margin:0;
     font-size:14px;
+}
+html,body{
+    background-color: $backgroundColor;
+}
+.backgroundColor{
+    background-color: $backgroundColor;
+}
+.shadowBox{
+    padding:$padding;
+    box-shadow: 2px 4px $margin*2 $shadowColor;
+    border:1px solid $contentBackendColor;
+    
+    border-bottom-left-radius: $padding;
+    border-bottom-right-radius: $padding;
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+    &:hover{
+        box-shadow: 2px 4px $margin*3 darken($shadowColor,70%);
+    }
 }
 ul{
     list-style: none;
@@ -41,98 +69,45 @@ ul{
         
     }
 }
-.ya-tab{
-    
 
-    &>ul.ya-panel-labels{
-        padding:0 $titleHeight*0.2;
-        height:$titleHeight;
+
+.ya-selectable-panels{
+    background-color: $panelBackendColor;
+    padding:$padding;
+    border:1px solid $panelContentColor;
+    border-radius: $padding;
+    div.ya-panel-item{
+        margin:$margin*2 $margin;
         &>li.ya-panel-label{
-            display: inline-block;
-            position: relative;
-            max-width:200px;
-            min-width:60px;
-            height:$titleHeight;
-            overflow: hidden;
-            
-            color:lighten($titleFrontColor,35%);
-            margin-left:-$titleHeight*0.3;
-            padding:0 $titleHeight 0 0;
-            cursor: pointer;
-            z-index:0;
-            &:first-child{
-                margin-left:0;
-            }
-            &::after{
-                position:absolute;
-                top:-$titleHeight;
-                right:0;
-                
-                height:$titleHeight;
-                content:"";
-                border-bottom:$titleHeight solid $titleBackendColor;
-                border-right:$titleHeight solid transparent;
-                border-left: 0;
-                
-            }
+            display:block;
+            margin-left:$padding;
             &>label{
-                display: inline-block;
-                height:$titleHeight;
-                cursor: pointer;
-                background-color: $titleBackendColor;
-                font-weight: bold;
-                padding:$padding;
-            }
-           
-            &.selected{
-                color:$titleFrontColor;
-                z-index:1;
-               
+                display:block;
             }
         }
+        &:first-child{
+            margin-top:$margin;
+        }
+        &:last-child{
+            margin-bottom: $margin;
+        }
+    }
+    div.ya-panel-contents{
+        background-color: $panelContentColor;
+        @extend .shadowBox;
     }
     &>div.ya-panel-contents{
-        margin:0;padding:9;
-        background-color: $contentBackendColor;
-        &>div.ya-tab-content{
+        padding:0;
+        border-top:0;
+        &>div.ya-panel-content{
             padding:$padding;
         }
     }
-
-
-    @each $c in $liColors{
-        $i:index($liColors,$c);     
-        &>ul.ya-panel-labels>li:nth-child( #{$i} ){  
-            border-left:$titleHeight*0.2 solid $c;
-            &:hover{
-                background-color: lighten($c,30%);
-                color:lighten($titleFrontColor,17%);
-                
-            }
-            &.selected{
-                &::after{
-                    border-bottom-color:$c;
-                    border-right-color: transparent;
-                }
-                &>label{
-                    background-color:$c;
-                }
-            }
-        }
-        &>div.ya-panel-contents>div:nth-child(#{$i}){
-            border-top:$titleHeight*0.1 solid $c;
-        }
-    }
-
-}
-
-.ya-selectable-panels{
     
 
     &>ul.ya-panel-labels{
-        padding:0 $titleHeight*0.2;
+        padding:0 ;
         height:$titleHeight;
-        
     }
     li.ya-panel-label{
         display: inline-block;
@@ -148,7 +123,7 @@ ul{
         cursor: pointer;
         z-index:0;
         &:first-child{
-            margin-left:0;
+            margin-left:$padding;
         }
         &::after{
             position:absolute;
@@ -178,21 +153,20 @@ ul{
         }
     }
 
-    div.ya-panel-contents{
-        margin:0;padding:9;
-        background-color: $contentBackendColor;
-    }
-
-    div.ya-tab-content{
-        padding:$padding;
-    }
-
+    
 
     @each $c in $liColors{
         $i:index($liColors,$c);     
         ul.ya-panel-labels>li.ya-panel-label:nth-child( #{$i} )
         ,div.ya-panel-item:nth-child( #{$i})>li.ya-panel-label {  
             border-left:$titleHeight*0.2 solid $c;
+            &::after{
+                border-bottom-color:lighten($c,30%);
+                border-right-color: transparent;
+            }
+            &>label{
+                background-color:lighten($c,30%);
+            }
             &:hover{
                 background-color: lighten($c,30%);
                 color:lighten($titleFrontColor,17%);
@@ -208,10 +182,22 @@ ul{
                 }
             }
         }
-        div.ya-panel-contents>div:nth-child(#{$i})
-        ,div.ya-panel-item:nth-child( #{$i})>div.ya-panel-content{
+        div.ya-panel-contents>div.ya-panel-content:nth-child(#{$i})
+        ,div.ya-panel-item:nth-child( #{$i})>div.ya-panel-contents{
             border-top:$titleHeight*0.1 solid $c;
+            &>div.ya-panel-content{
+                border-top:0;
+            }
         }
+        
     }
 
+}
+div.ya-group.ya-selectable-panels{
+    &>div.ya-panel-item>div.ya-panel-contents{
+        padding:0;
+    }
+    &>div.selected>div.ya-panel-contents{
+        padding:$padding;
+    }
 }

@@ -122,7 +122,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             }
             if ((at + len) !== clsnames.length) {
-                var next = clsnames[at + length];
+                var next = clsnames[at + len];
                 if (!emptyStringRegx.test(next)) {
                     at = clsnames.indexOf(cls, at + len);
                     continue;
@@ -179,6 +179,44 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         else {
             elem.className += " " + cls;
             return true;
+        }
+    };
+    var show = exports.ElementUtility.show = function (elem, immeditately) {
+        var value = elem.$__displayValue__;
+        if (!value || value == "none")
+            value = "";
+        elem.style.display = value;
+        return exports.ElementUtility;
+    };
+    var hide = exports.ElementUtility.hide = function (elem, immeditately) {
+        var old = getStyle(elem, "display");
+        if (old && old !== "none")
+            elem.$__displayValue__ = old;
+        elem.style.display = "none";
+        return exports.ElementUtility;
+    };
+    var restoredDisplay = function (elem, visible) {
+        var curr = getStyle(elem, "display");
+        var store = elem.$__storedDisplay__;
+        if (visible === false) {
+            if (store !== undefined) {
+                elem.style.display = store;
+                elem.$__storedDisplay__ = undefined;
+            }
+            else {
+                elem.style.display = "none";
+                elem.$__storedDisplay__ = curr;
+            }
+        }
+        else {
+            if (store !== undefined) {
+                elem.style.display = store;
+                elem.$__storedDisplay__ = undefined;
+            }
+            else {
+                elem.style.display = "";
+                elem.$__storedDisplay__ = curr;
+            }
         }
     };
     var getAbs = exports.ElementUtility.getAbs = function getAbs(elem) {
@@ -808,11 +846,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 }
             }
             this._lastSelectedPanel = panel;
-            if (!isChanging)
-                this.update("selected");
             if (panel._labelElement)
                 addClass(panel._labelElement, "selected");
             addClass(panel._contentElement, "selected");
+            if (!isChanging)
+                this.update("selected");
             this.$__isChanging__ = isChanging;
             if (this.currentStyle)
                 this.currentStyle._onPanelSelecting(panel);
@@ -1002,7 +1040,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         GroupStyle.prototype._onPanelRendered = function (panel) {
             var elem = panel.$element = exports.ElementUtility.createElement("div", { "class": "ya-panel-item" });
             elem.appendChild(panel._labelElement);
-            elem.appendChild(panel._contentElement);
+            var wrapper = exports.ElementUtility.createElement("div", { "class": "ya-panel-contents" }, elem);
+            wrapper.appendChild(panel._contentElement);
             if (panel.selected === false) {
                 panel._contentElement.style.display = "none";
             }
@@ -1017,6 +1056,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         GroupStyle.prototype._onPanelSelecting = function (panel) {
             addClass(panel.$element, "selected");
+            //panel._contentElement.style.display="block";
             panel._contentElement.style.display = "block";
             return true;
         };
@@ -1059,94 +1099,5 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Group;
     }(SelectablePanels));
     exports.Group = Group;
-    var GroupPanel = /** @class */ (function (_super) {
-        __extends(GroupPanel, _super);
-        function GroupPanel() {
-            return _super.call(this) || this;
-        }
-        return GroupPanel;
-    }(SelectablePanel));
-    exports.GroupPanel = GroupPanel;
-    var Group1 = /** @class */ (function (_super) {
-        __extends(Group1, _super);
-        function Group1() {
-            var _this = _super.call(this) || this;
-            //static Panel:{new(...args:any[]):SelectablePanel}=TabPanel;
-            _this.selectAll = true;
-            _this.unselectAll = false;
-            _this._panelType = SelectablePanel;
-            _this.noselect = true;
-            _this.multiple = true;
-            return _this;
-        }
-        Group1.prototype._onRendered = function (elem) {
-            var _this = this;
-            if (this.selectAll === true) {
-                var children = this.$children;
-                if (children)
-                    for (var _i = 0, children_6 = children; _i < children_6.length; _i++) {
-                        var child = children_6[_i];
-                        child.update("selected", true);
-                    }
-            }
-            if (this.unselectAll === true) {
-                var children = this.$children;
-                if (children)
-                    for (var _a = 0, children_7 = children; _a < children_7.length; _a++) {
-                        var child = children_7[_a];
-                        child.update("selected", false);
-                    }
-            }
-            observableMode(ObservableModes.Observable, function () {
-                _this.selectAll.subscribe(function (e) {
-                    var children = _this.$children;
-                    if (children)
-                        for (var _i = 0, children_8 = children; _i < children_8.length; _i++) {
-                            var child = children_8[_i];
-                            child.update("selected", true);
-                        }
-                }, _this);
-                _this.unselectAll.subscribe(function (e) {
-                    var children = _this.$children;
-                    if (children)
-                        for (var _i = 0, children_9 = children; _i < children_9.length; _i++) {
-                            var child = children_9[_i];
-                            child.update("selected", false);
-                        }
-                }, _this);
-            });
-            return elem;
-        };
-        Group1.prototype._onPanelRendered = function (panel) {
-            _super.prototype._onPanelRendered.call(this, panel);
-            var elem = exports.ElementUtility.createElement("div", { "class": "group" });
-            elem.appendChild(panel._labelElement);
-            elem.appendChild(panel._contentElement);
-            panel._contentElement.style.display = "none";
-            exports.ElementUtility.attach(panel._labelElement, "click", function () {
-                panel.update("selected", !hasClass(elem, "selected"));
-            });
-            return elem;
-        };
-        Group1.prototype._onPanelSelecting = function (panel) {
-            _super.prototype._onPanelSelecting.call(this, panel);
-            addClass(panel.$element, "selected");
-            panel._contentElement.style.display = "block";
-            return true;
-        };
-        Group1.prototype._onPanelUnselecting = function (panel) {
-            _super.prototype._onPanelUnselecting.call(this, panel);
-            removeClass(panel.$element, "selected");
-            panel._contentElement.style.display = "none";
-        };
-        __decorate([
-            in_parameter()
-        ], Group1.prototype, "selectAll", void 0);
-        __decorate([
-            in_parameter()
-        ], Group1.prototype, "unselectAll", void 0);
-        return Group1;
-    }(SelectablePanels));
-    exports.Group1 = Group1;
 });
 //# sourceMappingURL=YA.dom.js.map
