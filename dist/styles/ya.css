@@ -132,307 +132,345 @@ ul {
   z-index: 1;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1), .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1), div.ya-panel-item:nth-child(1) > li.ya-panel-label {
   border-left: 6.2px solid #f5ad1b;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1)::after, .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1)::after, div.ya-panel-item:nth-child(1) > li.ya-panel-label::after {
   border-bottom-color: #fbe2ae;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1) >
+label, div.ya-panel-item:nth-child(1) > li.ya-panel-label > label {
   background-color: #fbe2ae;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1):hover, .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1):hover, div.ya-panel-item:nth-child(1) > li.ya-panel-label:hover {
   background-color: #fbe2ae;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1).selected::after, div.ya-panel-item:nth-child(1) > li.ya-panel-label.selected::after {
   border-bottom-color: #f5ad1b;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(1).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(1) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(1).selected >
+label, div.ya-panel-item:nth-child(1) > li.ya-panel-label.selected > label {
   background-color: #f5ad1b;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(1), .ya-selectable-panels div.ya-panel-item:nth-child(1) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(1), div.ya-panel-item:nth-child(1) > div.ya-panel-contents {
   border-top: 3.1px solid #f5ad1b;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(1) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(1) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(1) >
+div.ya-panel-content, div.ya-panel-item:nth-child(1) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2), .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2), div.ya-panel-item:nth-child(2) > li.ya-panel-label {
   border-left: 6.2px solid #5f89ce;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2)::after, .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2)::after, div.ya-panel-item:nth-child(2) > li.ya-panel-label::after {
   border-bottom-color: #d4dff2;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2) >
+label, div.ya-panel-item:nth-child(2) > li.ya-panel-label > label {
   background-color: #d4dff2;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2):hover, .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2):hover, div.ya-panel-item:nth-child(2) > li.ya-panel-label:hover {
   background-color: #d4dff2;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2).selected::after, div.ya-panel-item:nth-child(2) > li.ya-panel-label.selected::after {
   border-bottom-color: #5f89ce;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(2).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(2) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(2).selected >
+label, div.ya-panel-item:nth-child(2) > li.ya-panel-label.selected > label {
   background-color: #5f89ce;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(2), .ya-selectable-panels div.ya-panel-item:nth-child(2) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(2), div.ya-panel-item:nth-child(2) > div.ya-panel-contents {
   border-top: 3.1px solid #5f89ce;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(2) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(2) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(2) >
+div.ya-panel-content, div.ya-panel-item:nth-child(2) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3), .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3), div.ya-panel-item:nth-child(3) > li.ya-panel-label {
   border-left: 6.2px solid #94bf45;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3)::after, .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3)::after, div.ya-panel-item:nth-child(3) > li.ya-panel-label::after {
   border-bottom-color: #d5e6b7;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3) >
+label, div.ya-panel-item:nth-child(3) > li.ya-panel-label > label {
   background-color: #d5e6b7;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3):hover, .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3):hover, div.ya-panel-item:nth-child(3) > li.ya-panel-label:hover {
   background-color: #d5e6b7;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3).selected::after, div.ya-panel-item:nth-child(3) > li.ya-panel-label.selected::after {
   border-bottom-color: #94bf45;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(3).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(3) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(3).selected >
+label, div.ya-panel-item:nth-child(3) > li.ya-panel-label.selected > label {
   background-color: #94bf45;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(3), .ya-selectable-panels div.ya-panel-item:nth-child(3) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(3), div.ya-panel-item:nth-child(3) > div.ya-panel-contents {
   border-top: 3.1px solid #94bf45;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(3) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(3) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(3) >
+div.ya-panel-content, div.ya-panel-item:nth-child(3) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4), .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4), div.ya-panel-item:nth-child(4) > li.ya-panel-label {
   border-left: 6.2px solid #da8ec5;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4)::after, .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4)::after, div.ya-panel-item:nth-child(4) > li.ya-panel-label::after {
   border-bottom-color: white;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4) >
+label, div.ya-panel-item:nth-child(4) > li.ya-panel-label > label {
   background-color: white;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4):hover, .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4):hover, div.ya-panel-item:nth-child(4) > li.ya-panel-label:hover {
   background-color: white;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4).selected::after, div.ya-panel-item:nth-child(4) > li.ya-panel-label.selected::after {
   border-bottom-color: #da8ec5;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(4).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(4) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(4).selected >
+label, div.ya-panel-item:nth-child(4) > li.ya-panel-label.selected > label {
   background-color: #da8ec5;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(4), .ya-selectable-panels div.ya-panel-item:nth-child(4) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(4), div.ya-panel-item:nth-child(4) > div.ya-panel-contents {
   border-top: 3.1px solid #da8ec5;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(4) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(4) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(4) >
+div.ya-panel-content, div.ya-panel-item:nth-child(4) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5), .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5), div.ya-panel-item:nth-child(5) > li.ya-panel-label {
   border-left: 6.2px solid #78bfc2;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5)::after, .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5)::after, div.ya-panel-item:nth-child(5) > li.ya-panel-label::after {
   border-bottom-color: #e1f1f2;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5) >
+label, div.ya-panel-item:nth-child(5) > li.ya-panel-label > label {
   background-color: #e1f1f2;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5):hover, .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5):hover, div.ya-panel-item:nth-child(5) > li.ya-panel-label:hover {
   background-color: #e1f1f2;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5).selected::after, div.ya-panel-item:nth-child(5) > li.ya-panel-label.selected::after {
   border-bottom-color: #78bfc2;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(5).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(5) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(5).selected >
+label, div.ya-panel-item:nth-child(5) > li.ya-panel-label.selected > label {
   background-color: #78bfc2;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(5), .ya-selectable-panels div.ya-panel-item:nth-child(5) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(5), div.ya-panel-item:nth-child(5) > div.ya-panel-contents {
   border-top: 3.1px solid #78bfc2;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(5) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(5) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(5) >
+div.ya-panel-content, div.ya-panel-item:nth-child(5) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6), .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6), div.ya-panel-item:nth-child(6) > li.ya-panel-label {
   border-left: 6.2px solid #bec278;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6)::after, .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6)::after, div.ya-panel-item:nth-child(6) > li.ya-panel-label::after {
   border-bottom-color: #f1f2e1;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6) >
+label, div.ya-panel-item:nth-child(6) > li.ya-panel-label > label {
   background-color: #f1f2e1;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6):hover, .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6):hover, div.ya-panel-item:nth-child(6) > li.ya-panel-label:hover {
   background-color: #f1f2e1;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6).selected::after, div.ya-panel-item:nth-child(6) > li.ya-panel-label.selected::after {
   border-bottom-color: #bec278;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(6).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(6) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(6).selected >
+label, div.ya-panel-item:nth-child(6) > li.ya-panel-label.selected > label {
   background-color: #bec278;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(6), .ya-selectable-panels div.ya-panel-item:nth-child(6) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(6), div.ya-panel-item:nth-child(6) > div.ya-panel-contents {
   border-top: 3.1px solid #bec278;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(6) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(6) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(6) >
+div.ya-panel-content, div.ya-panel-item:nth-child(6) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7), .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7), div.ya-panel-item:nth-child(7) > li.ya-panel-label {
   border-left: 6.2px solid #8e78c2;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7)::after, .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7)::after, div.ya-panel-item:nth-child(7) > li.ya-panel-label::after {
   border-bottom-color: #e6e1f2;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7) >
+label, div.ya-panel-item:nth-child(7) > li.ya-panel-label > label {
   background-color: #e6e1f2;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7):hover, .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7):hover, div.ya-panel-item:nth-child(7) > li.ya-panel-label:hover {
   background-color: #e6e1f2;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7).selected::after, div.ya-panel-item:nth-child(7) > li.ya-panel-label.selected::after {
   border-bottom-color: #8e78c2;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(7).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(7) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(7).selected >
+label, div.ya-panel-item:nth-child(7) > li.ya-panel-label.selected > label {
   background-color: #8e78c2;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(7), .ya-selectable-panels div.ya-panel-item:nth-child(7) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(7), div.ya-panel-item:nth-child(7) > div.ya-panel-contents {
   border-top: 3.1px solid #8e78c2;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(7) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(7) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(7) >
+div.ya-panel-content, div.ya-panel-item:nth-child(7) > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8), .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8), div.ya-panel-item:nth-child(8) > li.ya-panel-label {
   border-left: 6.2px solid #c27878;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8)::after, .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8)::after, div.ya-panel-item:nth-child(8) > li.ya-panel-label::after {
   border-bottom-color: #f2e1e1;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8) >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8) >
+label, div.ya-panel-item:nth-child(8) > li.ya-panel-label > label {
   background-color: #f2e1e1;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8):hover, .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label:hover {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8):hover, div.ya-panel-item:nth-child(8) > li.ya-panel-label:hover {
   background-color: #f2e1e1;
   color: #313131;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8).selected::after, .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label.selected::after {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8).selected::after, div.ya-panel-item:nth-child(8) > li.ya-panel-label.selected::after {
   border-bottom-color: #c27878;
   border-right-color: transparent;
 }
 
-.ya-selectable-panels ul.ya-panel-labels > li.ya-panel-label:nth-child(8).selected >
-label, .ya-selectable-panels div.ya-panel-item:nth-child(8) > li.ya-panel-label.selected > label {
+ul.ya-panel-labels > li.ya-panel-label:nth-child(8).selected >
+label, div.ya-panel-item:nth-child(8) > li.ya-panel-label.selected > label {
   background-color: #c27878;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(8), .ya-selectable-panels div.ya-panel-item:nth-child(8) > div.ya-panel-contents {
+div.ya-panel-contents > div.ya-panel-content:nth-child(8), div.ya-panel-item:nth-child(8) > div.ya-panel-contents {
   border-top: 3.1px solid #c27878;
 }
 
-.ya-selectable-panels div.ya-panel-contents > div.ya-panel-content:nth-child(8) >
-div.ya-panel-content, .ya-selectable-panels div.ya-panel-item:nth-child(8) > div.ya-panel-contents > div.ya-panel-content {
+div.ya-panel-contents > div.ya-panel-content:nth-child(8) >
+div.ya-panel-content, div.ya-panel-item:nth-child(8) > div.ya-panel-contents > div.ya-panel-content {
+  border-top: 0;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label {
+  border-left: 6.2px solid #ccc;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label::after, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label::after {
+  border-bottom-color: white;
+  border-right-color: transparent;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label >
+label, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label > label {
+  background-color: white;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label:hover, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label:hover {
+  background-color: white;
+  color: #313131;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label.selected::after, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label.selected::after {
+  border-bottom-color: #ccc;
+  border-right-color: transparent;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > ul.ya-panel-labels > li.ya-panel-label.selected >
+label, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > li.ya-panel-label.selected > label {
+  background-color: #ccc;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-contents > div.ya-panel-content, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > div.ya-panel-contents {
+  border-top: 3.1px solid #ccc;
+}
+
+div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-contents > div.ya-panel-content >
+div.ya-panel-content, div.ya-selectable-panels div.ya-selectable-panels > div.ya-panel-item > div.ya-panel-contents > div.ya-panel-content {
   border-top: 0;
 }
 

@@ -85,6 +85,30 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
             });
         };
+        TabTest.prototype.composite = function (assert_statement, demoElement) {
+            var CompositeComp = /** @class */ (function () {
+                function CompositeComp() {
+                }
+                CompositeComp.prototype.render = function () {
+                    return YA.createElement("div", null,
+                        YA.createElement(Dom.Tab, { name: "tb1" },
+                            YA.createElement(Dom.SelectablePanel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" },
+                                YA.createElement(Dom.Group, null,
+                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E00\u4E2Agroup" }, "111111111111111111111111111111"),
+                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E8C\u4E2Agroup" },
+                                        YA.createElement(Dom.Tab, null,
+                                            YA.createElement(Dom.Tab.Panel, { label: "\u91CC\u9762\u7684\u9009\u9879\u53611" }, "\u91CC\u9762\u7684\u9009\u9879\u53611\u7684\u5185\u5BB9"),
+                                            YA.createElement(Dom.Tab.Panel, { label: "\u91CC\u9762\u7684\u9009\u9879\u53612" }, "\u91CC\u9762\u7684\u9009\u9879\u53612\u7684\u5185\u5BB9"))),
+                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E09\u4E2Agroup" }, "3"))),
+                            YA.createElement(Dom.SelectablePanel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
+                };
+                return CompositeComp;
+            }());
+            YA.createComponent(CompositeComp, null, demoElement);
+            assert_statement(function (assert) {
+                //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+            });
+        };
         __decorate([
             doct_1.doct({
                 title: "基本用法",
@@ -101,13 +125,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 ]
             })
         ], TabTest.prototype, "style", null);
+        __decorate([
+            doct_1.doct({
+                title: "组合测试",
+                descriptions: [
+                    ""
+                ]
+            })
+        ], TabTest.prototype, "composite", null);
         TabTest = __decorate([
             doct_1.doct({
                 title: "YA.dom.tab",
                 descriptions: [
                     "选项卡"
                 ],
-                debugging: "style"
+                debugging: "composite"
             })
         ], TabTest);
         return TabTest;

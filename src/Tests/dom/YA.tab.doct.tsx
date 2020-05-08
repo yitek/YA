@@ -6,7 +6,7 @@ import * as Dom from "../../YA.dom";
     ,descriptions:[
         "选项卡"
     ]
-    ,debugging:"style"
+    ,debugging:"composite"
 })
 export class TabTest {
     constructor(){
@@ -104,5 +104,52 @@ export class TabTest {
         });
     }
 
+    
+    @doct({
+        title:"组合测试"
+        ,descriptions:[
+            ""
+        ]
+    })
+    composite(assert_statement:TAssertStatement,demoElement?:any){
+        class CompositeComp{
+            
+            
+            render(){
+                return <div>
+                
+                <Dom.Tab name="tb1">
+                    <Dom.SelectablePanel name="tp1" label="第一个选项卡">
+                        <Dom.Group>
+                            <Dom.Group.Panel label="第一个group">
+                                111111111111111111111111111111
+                            </Dom.Group.Panel>
+                            <Dom.Group.Panel label="第二个group">
+                                <Dom.Tab>
+                                    <Dom.Tab.Panel label="里面的选项卡1">
+                                        里面的选项卡1的内容
+                                    </Dom.Tab.Panel>
+                                    <Dom.Tab.Panel label="里面的选项卡2">
+                                        里面的选项卡2的内容
+                                    </Dom.Tab.Panel>
+                                </Dom.Tab>
+                            </Dom.Group.Panel>
+                            <Dom.Group.Panel label="第三个group">
+                                3
+                            </Dom.Group.Panel>
+                        </Dom.Group>
+                    </Dom.SelectablePanel>
+                    <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
+                </Dom.Tab>
+                </div>;
+            }
+        }
+
+        YA.createComponent(CompositeComp,null,demoElement);
+
+        assert_statement((assert:TAssert)=>{
+            //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
+        });
+    }
 
 }

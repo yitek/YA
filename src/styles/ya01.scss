@@ -152,82 +152,74 @@ ul{
            
         }
     }
-    
-    
-}
 
-@each $c in $liColors{
-    $i:index($liColors,$c);     
     
-    ul.ya-panel-labels>li.ya-panel-label:nth-child( #{$i} )
-    ,div.ya-panel-item:nth-child( #{$i})>li.ya-panel-label {  
-        border-left:$titleHeight*0.2 solid $c;
-        &::after{
-            border-bottom-color:lighten($c,30%);
-            border-right-color: transparent;
-        }
-        &>label{
-            background-color:lighten($c,30%);
-        }
-        &:hover{
-            background-color: lighten($c,30%);
-            color:lighten($titleFrontColor,17%);
-            
-        }
-        &.selected{
+
+    @each $c in $liColors{
+        $i:index($liColors,$c);     
+        
+        ul.ya-panel-labels>li.ya-panel-label:nth-child( #{$i} )
+        ,div.ya-panel-item:nth-child( #{$i})>li.ya-panel-label {  
+            border-left:$titleHeight*0.2 solid $c;
             &::after{
-                border-bottom-color:$c;
+                border-bottom-color:lighten($c,30%);
                 border-right-color: transparent;
             }
             &>label{
-                background-color:$c;
+                background-color:lighten($c,30%);
+            }
+            &:hover{
+                background-color: lighten($c,30%);
+                color:lighten($titleFrontColor,17%);
+                
+            }
+            &.selected{
+                &::after{
+                    border-bottom-color:$c;
+                    border-right-color: transparent;
+                }
+                &>label{
+                    background-color:$c;
+                }
             }
         }
-    }
-    div.ya-panel-contents>div.ya-panel-content:nth-child(#{$i})
-    ,div.ya-panel-item:nth-child( #{$i})>div.ya-panel-contents{
-        border-top:$titleHeight*0.1 solid $c;
-        &>div.ya-panel-content{
-            border-top:0;
+        div.ya-panel-contents>div.ya-panel-content:nth-child(#{$i})
+        ,div.ya-panel-item:nth-child( #{$i})>div.ya-panel-contents{
+            border-top:$titleHeight*0.1 solid $c;
+            &>div.ya-panel-content{
+                border-top:0;
+            }
         }
-    }
-    
-}
-div.ya-selectable-panels div.ya-selectable-panels{
-    &>ul.ya-panel-labels>li.ya-panel-label
-    ,&>div.ya-panel-item>li.ya-panel-label {  
-        border-left:$titleHeight*0.2 solid $titleBackendColor;
-        &::after{
-            border-bottom-color:lighten($titleBackendColor,30%);
-            border-right-color: transparent;
-        }
-        &>label{
-            background-color:lighten($titleBackendColor,30%);
-        }
-        &:hover{
-            background-color: lighten($titleBackendColor,30%);
-            color:lighten($titleFrontColor,17%);
-            
-        }
-        &.selected{
+        //内层
+        div.ya-selectable-panels>div.ya-panel-contents:nth-child(#{$i})
+        ,div.ya-selectable-panels>div.ya-panel-item:nth-child(#{$i})>div.ya-selectable-panels{
+            border-left:$titleHeight*0.2 solid $c;
             &::after{
-                border-bottom-color:$titleBackendColor;
+                border-bottom-color:lighten($c,30%);
                 border-right-color: transparent;
             }
             &>label{
-                background-color:$titleBackendColor;
+                background-color:lighten($c,30%);
+            }
+            &:hover{
+                background-color: lighten($c,30%);
+                color:lighten($titleFrontColor,17%);
+                
+            }
+            &.selected{
+                &::after{
+                    border-bottom-color:$c;
+                    border-right-color: transparent;
+                }
+                &>label{
+                    background-color:$c;
+                }
             }
         }
+        
     }
-    &>div.ya-panel-contents>div.ya-panel-content
-    ,&>div.ya-panel-item>div.ya-panel-contents{
-        border-top:$titleHeight*0.1 solid $titleBackendColor;
-        &>div.ya-panel-content{
-            border-top:0;
-        }
-    }
-}
 
+}
 div.ya-group.ya-selectable-panels{
     &>div.ya-panel-item>div.ya-panel-contents{
         padding:0;
