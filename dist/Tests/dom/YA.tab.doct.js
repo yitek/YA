@@ -41,8 +41,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         YA.createElement("input", { type: "button", onclick: this.changeTab, value: "\u901A\u8FC7\u4FEE\u6539tab.selected\u9009\u4E2D\u7B2C\u4E00\u4E2A\u5361" }),
                         YA.createElement("input", { type: "button", onclick: this.changeAttr, value: "\u901A\u8FC7\u4FEE\u6539TabBasComp.selectPn2\u9009\u4E2D\u7B2C\u4E8C\u4E2A\u5361" }),
                         YA.createElement(Dom.Tab, { name: "tab" },
-                            YA.createElement(Dom.Tab.Panel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
-                            YA.createElement(Dom.Tab.Panel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361", selected: this.selectPn2 }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
+                            YA.createElement(Dom.Tab.Panel, { name: "tp1", text: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
+                            YA.createElement(Dom.Tab.Panel, { name: "tp2", text: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361", selected: this.selectPn2 }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
                 };
                 return TabBasComp;
             }());
@@ -75,8 +75,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         YA.createElement("input", { type: "button", onclick: this.selectAll, value: "\u5168\u9009" }),
                         YA.createElement("input", { type: "button", onclick: this.selectNone, value: "\u5168\u4E0D\u9009" }),
                         YA.createElement(Dom.SelectablePanels, { name: "pns", panelStyle: this.style },
-                            YA.createElement(Dom.SelectablePanel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
-                            YA.createElement(Dom.SelectablePanel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
+                            YA.createElement(Dom.SelectablePanel, { name: "tp1", text: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9"),
+                            YA.createElement(Dom.SelectablePanel, { name: "tp2", text: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
                 };
                 return StyleComp;
             }());
@@ -92,15 +92,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 CompositeComp.prototype.render = function () {
                     return YA.createElement("div", null,
                         YA.createElement(Dom.Tab, { name: "tb1" },
-                            YA.createElement(Dom.SelectablePanel, { name: "tp1", label: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" },
+                            YA.createElement(Dom.SelectablePanel, { name: "tp1", text: "\u7B2C\u4E00\u4E2A\u9009\u9879\u5361" },
                                 YA.createElement(Dom.Group, null,
-                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E00\u4E2Agroup" }, "111111111111111111111111111111"),
-                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E8C\u4E2Agroup" },
+                                    YA.createElement(Dom.Group.Panel, { text: "\u7B2C\u4E00\u4E2Agroup" }, "111111111111111111111111111111"),
+                                    YA.createElement(Dom.Group.Panel, { text: "\u7B2C\u4E8C\u4E2Agroup" },
                                         YA.createElement(Dom.Tab, null,
-                                            YA.createElement(Dom.Tab.Panel, { label: "\u91CC\u9762\u7684\u9009\u9879\u53611" }, "\u91CC\u9762\u7684\u9009\u9879\u53611\u7684\u5185\u5BB9"),
-                                            YA.createElement(Dom.Tab.Panel, { label: "\u91CC\u9762\u7684\u9009\u9879\u53612" }, "\u91CC\u9762\u7684\u9009\u9879\u53612\u7684\u5185\u5BB9"))),
-                                    YA.createElement(Dom.Group.Panel, { label: "\u7B2C\u4E09\u4E2Agroup" }, "3"))),
-                            YA.createElement(Dom.SelectablePanel, { name: "tp2", label: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
+                                            YA.createElement(Dom.Tab.Panel, { text: "\u91CC\u9762\u7684\u9009\u9879\u53611" }, "\u91CC\u9762\u7684\u9009\u9879\u53611\u7684\u5185\u5BB9"),
+                                            YA.createElement(Dom.Tab.Panel, { text: "\u91CC\u9762\u7684\u9009\u9879\u53612" }, "\u91CC\u9762\u7684\u9009\u9879\u53612\u7684\u5185\u5BB9"))),
+                                    YA.createElement(Dom.Group.Panel, { text: "\u7B2C\u4E09\u4E2Agroup" }, "3"))),
+                            YA.createElement(Dom.SelectablePanel, { name: "tp2", text: "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361" }, "\u7B2C\u4E8C\u4E2A\u9009\u9879\u5361\u7684\u5185\u5BB9")));
                 };
                 return CompositeComp;
             }());

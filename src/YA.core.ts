@@ -1350,7 +1350,7 @@ function makeArrayItem<TItem>(obArray:ObservableArray<TItem>,index:number){
     });
 }
 
-function defineObservableProperty(target:any,name:string,factory:ObservableSchema<any>|{(initData?:any):IObservable<any>}){
+function defineObservableProperty(target:any,name:string,factory:ObservableSchema<any>|{(initData?:any):IObservable<any>},onSetting?:(value)=>any){
     let schema = factory instanceof ObservableSchema?factory :undefined;
     let private_name = "$__" + name + "__";
     Object.defineProperty(target,name,{
@@ -1373,6 +1373,7 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
             return ob.get();
         },
         set:function(val){
+            if(onSetting) val = onSetting.call(this,val);
             let ob = this[private_name];
             if(!ob){
                 if(schema){
@@ -1384,7 +1385,8 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
                 }
                 if(typeof this.dispose==="function") ob.$extras.disposeOwner=this;
                 Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
-            } else return ob.set(val);
+            }
+            return ob.set(val);
         }
     });
 }
@@ -1489,22 +1491,22 @@ export class ObservableSchema<TData>{
         return this;
     }
 
-    defineProp<TProp>(propname:string,initValue?:TProp):ObservableSchema<TProp>{
+    defineProp<TProp>(propname:string,initValue?:TProp,onSetting?:(value)=>any):ObservableSchema<TProp>{
         if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
         let private_prop_name = "$__" + propname + "__";
         let self = this;
         
         Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
-        defineObservableProperty(this.$obCtor.prototype,propname,propSchema);
+        defineObservableProperty(this.$obCtor.prototype,propname,propSchema,onSetting);
         defineObservableProperty(this.$proxyCtor.prototype,propname,function(initData){
             return new propSchema.$proxyCtor(self,this);
-        }); 
+        },onSetting); 
         return propSchema;
     }
 
  
-    asArray():ObservableSchema<TData>{
+    asArray(itemSchema?:any):ObservableSchema<TData>{
         if(this.$type===DataTypes.Array) return this;
         if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
         this.$type = DataTypes.Array;
@@ -1514,13 +1516,19 @@ export class ObservableSchema<TData>{
                 super(init as any,index,initValue);
             }
         };
-        if(this.$initData){
-            let item = this.$initData.shift();
-            if(item) {
-                this.$itemSchema = new ObservableSchema(item,-1,this);
-                if(!item[ObservableSchema.schemaToken])this.$initData.unshift(item);
+        if(itemSchema instanceof ObservableSchema){
+            this.$itemSchema = itemSchema;
+        }else {
+            if(itemSchema===undefined){
+                itemSchema = this.$initData && this.$initData.shift ? this.$initData.shift():undefined;
+                this.$itemSchema = new ObservableSchema(itemSchema,-1,this);
+                if(!itemSchema[ObservableSchema.schemaToken])this.$initData.unshift(itemSchema);
+            }else{
+                itemSchema[ObservableSchema.schemaToken]=true;
+                this.$itemSchema = new ObservableSchema(itemSchema,-1,this);
             }
         }
+        
         if(!this.$itemSchema) this.$itemSchema = new ObservableSchema(undefined,-1,this);
         _ObservableArray.prototype.$schema= this as any;
         this.$obCtor=_ObservableArray;

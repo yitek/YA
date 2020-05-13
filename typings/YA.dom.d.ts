@@ -73,12 +73,13 @@ export declare class Panel extends Component {
     _contentElement: IElement;
     name: string;
     css: string;
-    label: string;
+    text: string;
+    width: number;
+    height: number;
     render(descriptor: YA.INodeDescriptor, elementContainer?: IElement): any;
 }
-export declare class Panels extends Component {
+export declare class Panels extends Panel {
     _panelType: Function;
-    css: string;
     constructor();
     get panels(): any;
     render(descriptor: any, container: any): IElement;

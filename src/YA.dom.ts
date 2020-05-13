@@ -461,19 +461,26 @@ export class Panel extends Component{
     @in_parameter()
     css:string;
     @parameter()
-    label:string="";
+    text:string="";
+
+    @parameter()
+    width:number;
+
+    @parameter()
+    height:number;
+
     
     render(descriptor:YA.INodeDescriptor,elementContainer?:IElement){
         
         let panelContainer:Panels= this.$parent as Panels;
         
         let titleElem :IElement;
-        let title = (this.label as any as YA.Observable<string>).get(YA.ObservableModes.Value);
+        let title = (this.text as any as YA.Observable<string>).get(YA.ObservableModes.Value);
         if(title){
             titleElem = this._labelElement = ElementUtility.createElement("li",{"class":"ya-panel-label"}) as any;
             let txtElem = ElementUtility.createElement("label",null,titleElem);
             
-            YA.bindDomAttr(txtElem,"text",this.label,descriptor,this as any,(elem:IElement,name,value,old)=>{
+            YA.bindDomAttr(txtElem,"text",this.text,descriptor,this as any,(elem:IElement,name,value,old)=>{
                 elem.innerHTML = value;
             });
             
@@ -501,13 +508,11 @@ export class Panel extends Component{
         
     }
 }
-export class Panels extends Component{
+export class Panels extends Panel{
         
     _panelType:Function = Panel;
 
     
-    @in_parameter()
-    css:string="";
 
     constructor(){
         super();
@@ -1064,4 +1069,5 @@ export class Group extends SelectablePanels{
         this.panelStyle ="group";
     }
 }
+
 

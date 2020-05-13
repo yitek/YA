@@ -40,8 +40,8 @@ export class TabTest {
                 <input type="button" onclick={this.changeTab} value="通过修改tab.selected选中第一个卡" />
                 <input type="button" onclick={this.changeAttr} value="通过修改TabBasComp.selectPn2选中第二个卡" />
                 <Dom.Tab name="tab">
-                    <Dom.Tab.Panel name="tp1" label="第一个选项卡">第一个选项卡的内容</Dom.Tab.Panel>
-                    <Dom.Tab.Panel name="tp2" label="第二个选项卡" selected={this.selectPn2}>第二个选项卡的内容</Dom.Tab.Panel>
+                    <Dom.Tab.Panel name="tp1" text="第一个选项卡">第一个选项卡的内容</Dom.Tab.Panel>
+                    <Dom.Tab.Panel name="tp2" text="第二个选项卡" selected={this.selectPn2}>第二个选项卡的内容</Dom.Tab.Panel>
                 </Dom.Tab>
                 </div>;
             }
@@ -90,8 +90,8 @@ export class TabTest {
                 <input type="button" onclick={this.selectAll} value="全选" />
                 <input type="button" onclick={this.selectNone} value="全不选" />
                 <Dom.SelectablePanels name="pns" panelStyle={this.style}>
-                    <Dom.SelectablePanel name="tp1" label="第一个选项卡">第一个选项卡的内容</Dom.SelectablePanel>
-                    <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
+                    <Dom.SelectablePanel name="tp1" text="第一个选项卡">第一个选项卡的内容</Dom.SelectablePanel>
+                    <Dom.SelectablePanel name="tp2" text="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
                 </Dom.SelectablePanels>
                 </div>;
             }
@@ -119,27 +119,27 @@ export class TabTest {
                 return <div>
                 
                 <Dom.Tab name="tb1">
-                    <Dom.SelectablePanel name="tp1" label="第一个选项卡">
+                    <Dom.SelectablePanel name="tp1" text="第一个选项卡">
                         <Dom.Group>
-                            <Dom.Group.Panel label="第一个group">
+                            <Dom.Group.Panel text="第一个group">
                                 111111111111111111111111111111
                             </Dom.Group.Panel>
-                            <Dom.Group.Panel label="第二个group">
+                            <Dom.Group.Panel text="第二个group">
                                 <Dom.Tab>
-                                    <Dom.Tab.Panel label="里面的选项卡1">
+                                    <Dom.Tab.Panel text="里面的选项卡1">
                                         里面的选项卡1的内容
                                     </Dom.Tab.Panel>
-                                    <Dom.Tab.Panel label="里面的选项卡2">
+                                    <Dom.Tab.Panel text="里面的选项卡2">
                                         里面的选项卡2的内容
                                     </Dom.Tab.Panel>
                                 </Dom.Tab>
                             </Dom.Group.Panel>
-                            <Dom.Group.Panel label="第三个group">
+                            <Dom.Group.Panel text="第三个group">
                                 3
                             </Dom.Group.Panel>
                         </Dom.Group>
                     </Dom.SelectablePanel>
-                    <Dom.SelectablePanel name="tp2" label="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
+                    <Dom.SelectablePanel name="tp2" text="第二个选项卡">第二个选项卡的内容</Dom.SelectablePanel>
                 </Dom.Tab>
                 </div>;
             }

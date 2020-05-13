@@ -481,17 +481,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(Panel, _super);
         function Panel() {
             var _this = _super !== null && _super.apply(this, arguments) || this;
-            _this.label = "";
+            _this.text = "";
             return _this;
         }
         Panel.prototype.render = function (descriptor, elementContainer) {
             var panelContainer = this.$parent;
             var titleElem;
-            var title = this.label.get(YA.ObservableModes.Value);
+            var title = this.text.get(YA.ObservableModes.Value);
             if (title) {
                 titleElem = this._labelElement = exports.ElementUtility.createElement("li", { "class": "ya-panel-label" });
                 var txtElem = exports.ElementUtility.createElement("label", null, titleElem);
-                YA.bindDomAttr(txtElem, "text", this.label, descriptor, this, function (elem, name, value, old) {
+                YA.bindDomAttr(txtElem, "text", this.text, descriptor, this, function (elem, name, value, old) {
                     elem.innerHTML = value;
                 });
                 YA.bindDomAttr(titleElem, "className", this.css, descriptor, this, function (elem, name, value, old) {
@@ -519,7 +519,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         ], Panel.prototype, "css", void 0);
         __decorate([
             parameter()
-        ], Panel.prototype, "label", void 0);
+        ], Panel.prototype, "text", void 0);
+        __decorate([
+            parameter()
+        ], Panel.prototype, "width", void 0);
+        __decorate([
+            parameter()
+        ], Panel.prototype, "height", void 0);
         return Panel;
     }(Component));
     exports.Panel = Panel;
@@ -528,7 +534,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         function Panels() {
             var _this = _super.call(this) || this;
             _this._panelType = Panel;
-            _this.css = "";
             Object.defineProperty(_this, "$__panels__", { enumerable: false, writable: false, configurable: false, value: [] });
             return _this;
         }
@@ -583,11 +588,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this.panels.push(panel);
             return this.panels.$elements;
         };
-        __decorate([
-            in_parameter()
-        ], Panels.prototype, "css", void 0);
         return Panels;
-    }(Component));
+    }(Panel));
     exports.Panels = Panels;
     var SelectablePanel = /** @class */ (function (_super) {
         __extends(SelectablePanel, _super);
