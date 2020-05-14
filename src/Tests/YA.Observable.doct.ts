@@ -16,7 +16,7 @@ export class ObservableTest {
         //1 创建一个数据代理,它的第一个参数为读/写原始值的函数
         let proxy = new YA.Observable<number>((val)=>val===undefined?raw_data:raw_data=val);
         assert_statement((assert:TAssert)=>{
-            assert(YA.DataTypes.Value,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.DataTypes[proxy.$type]}`);
+            assert(YA.ObservableTypes.Value,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.ObservableTypes[proxy.$type]}`);
             assert(12,proxy.$target,`代理的目标为当前的值:proxy.$target===12`);
             
         });

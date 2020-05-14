@@ -26,9 +26,13 @@ declare class Column extends ObservableList<Cell> implements IListNode<Column> {
     name: string;
     width: number;
     element: Dom.IElement;
+    $__frozen__: boolean;
     constructor(grid: Grid);
+    get frozen(): any;
+    set frozen(value: any);
+    _froze(): void;
     renderContent: (rowData: any[], cell: Cell) => Dom.IElement;
-    renderCaption(): void;
+    renderCaption(): HTMLDivElement;
     remove(): void;
 }
 declare class ColumnCollection extends ObservableList<Column> {
@@ -38,7 +42,10 @@ declare class Row extends ObservableList<Cell> {
     height: number;
     data: any;
     element: Dom.IElement;
+    elements: Dom.IElement[];
+    grid: Grid;
     remove(): this;
+    render(): any[];
 }
 declare class Cell implements IListNode<Cell> {
     column: Column;
@@ -53,6 +60,18 @@ export declare class Grid extends Dom.Panel {
     columns: ColumnCollection;
     rows: any;
     constructor();
+    $__element__: Dom.IElement;
+    $__frozenElement__: Dom.IElement;
+    $__normalElement__: Dom.IElement;
+    $__frozenFrozenElement__: Dom.IElement;
+    $__frozenNormalElement__: Dom.IElement;
+    normalForzenElement: any;
+    normalNormalElement: any;
+    _sureElement(): Dom.IElement;
+    _sureFrozen(): Dom.IElement;
+    _sureNormal(): Dom.IElement;
+    _sureForzenFrozen(): Dom.IElement;
+    _sureForzenNormal(): Dom.IElement;
     _columnInserted(col: Column): this;
 }
 export {};

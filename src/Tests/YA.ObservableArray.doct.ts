@@ -15,7 +15,7 @@ export class ObservableArrayTest {
         for(const n in proxy) membernames.push(n);
         
         assert_statement((assert:TAssert)=>{
-            assert(YA.DataTypes.Array,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.DataTypes[proxy.$type]}`);
+            assert(YA.ObservableTypes.Array,proxy.$type,`代理的类型为值类型:proxy.$type === YA.DataTypes.${YA.ObservableTypes[proxy.$type]}`);
             let str = proxy[0] +"," + proxy[1] + "," + proxy[2];
             assert(3,proxy.length,`代理的类型为值类型:proxy.length === 3`);
             assert("yi,yan,YA",str,"通过下标访问数组项的值:proxy[0]==='yi',proxy[1]==='yan',proxy[2]==='YA'");

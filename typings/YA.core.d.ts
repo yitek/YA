@@ -238,7 +238,7 @@ export declare class Disposable implements IDisposable {
     deteching(onDeteching?: (sender: IDisposable) => boolean): Disposable | boolean;
 }
 export declare function disposable(target: any): IDisposable;
-export declare enum DataTypes {
+export declare enum ObservableTypes {
     Value = 0,
     Object = 1,
     Array = 2
@@ -256,7 +256,7 @@ export declare enum ObservableModes {
     Immediate = 6
 }
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>> {
-    $type: DataTypes;
+    $type: ObservableTypes;
     $extras?: any;
     $target?: TData;
     $isset?: boolean;
@@ -297,7 +297,7 @@ export interface IObservableIndexable<TData extends {
     $__obModifiedValue__: any;
 }
 export declare class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData> {
-    $type: DataTypes;
+    $type: ObservableTypes;
     $target: TData;
     $extras?: any;
     $isset?: boolean;
@@ -363,7 +363,7 @@ export declare class ObservableArray<TItem> extends Observable<TItem[]> implemen
 }
 export declare class ObservableSchema<TData> {
     [index: string]: any;
-    $type: DataTypes;
+    $type: ObservableTypes;
     $index: string | number;
     $paths: string[];
     $obCtor: {
@@ -380,8 +380,8 @@ export declare class ObservableSchema<TData> {
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
     getFromRoot(root: any, mode?: ObservableModes): any;
     asObject(): ObservableSchema<TData>;
-    defineProp<TProp>(propname: string, initValue?: TProp): ObservableSchema<TProp>;
-    asArray(): ObservableSchema<TData>;
+    defineProp<TProp>(propname: string, initValue?: TProp, onSetting?: (value: any) => any): ObservableSchema<TProp>;
+    asArray(itemSchema?: any): ObservableSchema<TData>;
     initObject(ob: Observable<TData>): void;
     createObservable(val?: any): Observable<TData>;
     createProxy(): ObservableProxy;
@@ -396,7 +396,7 @@ export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData
 export declare class ObservableProxy implements IObservable<any> {
     $parent: ObservableProxy;
     $schema: ObservableSchema<any>;
-    $type: DataTypes;
+    $type: ObservableTypes;
     $extras?: any;
     $target?: any;
     $isset?: boolean;

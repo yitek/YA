@@ -696,12 +696,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.disposable = disposable;
     //defineMembers(Observable.prototype);
     //================================================================
-    var DataTypes;
-    (function (DataTypes) {
-        DataTypes[DataTypes["Value"] = 0] = "Value";
-        DataTypes[DataTypes["Object"] = 1] = "Object";
-        DataTypes[DataTypes["Array"] = 2] = "Array";
-    })(DataTypes = exports.DataTypes || (exports.DataTypes = {}));
+    var ObservableTypes;
+    (function (ObservableTypes) {
+        ObservableTypes[ObservableTypes["Value"] = 0] = "Value";
+        ObservableTypes[ObservableTypes["Object"] = 1] = "Object";
+        ObservableTypes[ObservableTypes["Array"] = 2] = "Array";
+    })(ObservableTypes = exports.ObservableTypes || (exports.ObservableTypes = {}));
     var ObservableModes;
     (function (ObservableModes) {
         ObservableModes[ObservableModes["Default"] = 0] = "Default";
@@ -802,7 +802,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (_this.$target instanceof Observable_1)
                 throw new Error("不正确的赋值");
             implicit(_this, {
-                $target: _this.$target, $type: DataTypes.Value, $schema: _this.$schema, $isset: false,
+                $target: _this.$target, $type: ObservableTypes.Value, $schema: _this.$schema, $isset: false,
                 $__obRaw__: _this.$__obRaw__, $__obIndex__: _this.$__obIndex__, $__obModifiedValue__: undefined, $__obOwner__: _this.$__obOwner__, $__obExtras__: _this.$__obExtras__
             });
             return _this;
@@ -905,7 +905,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         __extends(ObservableObject, _super);
         function ObservableObject(init, index, initValue) {
             var _this = _super.call(this, init, index, initValue) || this;
-            _this.$type = DataTypes.Object;
+            _this.$type = ObservableTypes.Object;
             if (!_this.$target)
                 _this.$__obRaw__(_this.$target = {});
             if (!_this.$schema) {
@@ -1003,7 +1003,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             var _this = this;
             var target;
             _this = _super.call(this, init, index, itemSchemaOrInitData instanceof ObservableSchema ? undefined : itemSchemaOrInitData) || this;
-            _this.$type = DataTypes.Array;
+            _this.$type = ObservableTypes.Array;
             target = _this.$target;
             if (Object.prototype.toString.call(target) !== "[object Array]")
                 _this.$__obRaw__.call(_this, target = _this.$target = []);
@@ -1253,7 +1253,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         });
     }
-    function defineObservableProperty(target, name, factory) {
+    function defineObservableProperty(target, name, factory, onSetting) {
         var schema = factory instanceof ObservableSchema ? factory : undefined;
         var private_name = "$__" + name + "__";
         Object.defineProperty(target, name, {
@@ -1279,6 +1279,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return ob.get();
             },
             set: function (val) {
+                if (onSetting)
+                    val = onSetting.call(this, val);
                 var ob = this[private_name];
                 if (!ob) {
                     if (schema) {
@@ -1295,8 +1297,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         ob.$extras.disposeOwner = this;
                     Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
                 }
-                else
-                    return ob.set(val);
+                return ob.set(val);
             }
         });
     }
@@ -1326,7 +1327,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (index !== "")
                 paths.push(index);
             implicit(this, {
-                "$type": DataTypes.Value,
+                "$type": ObservableTypes.Value,
                 "$index": index,
                 "$paths": paths,
                 "$owner": owner,
@@ -1348,7 +1349,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     this.asArray();
                 }
                 else {
-                    this.$type = DataTypes.Value;
+                    this.$type = ObservableTypes.Value;
                     this.$obCtor = Observable;
                 }
             }
@@ -1368,11 +1369,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             });
         };
         ObservableSchema.prototype.asObject = function () {
-            if (this.$type === DataTypes.Object)
+            if (this.$type === ObservableTypes.Object)
                 return this;
-            if (this.$type === DataTypes.Array)
+            if (this.$type === ObservableTypes.Array)
                 throw new Error("无法将ObservableSchema从Array转化成Object.");
-            this.$type = DataTypes.Object;
+            this.$type = ObservableTypes.Object;
             var schema = this;
             var _ObservableObject = /** @class */ (function (_super) {
                 __extends(_ObservableObject, _super);
@@ -1394,25 +1395,25 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             this.$proxyCtor = _ObservableObjectProxy;
             return this;
         };
-        ObservableSchema.prototype.defineProp = function (propname, initValue) {
-            if (this.$type !== DataTypes.Object)
+        ObservableSchema.prototype.defineProp = function (propname, initValue, onSetting) {
+            if (this.$type !== ObservableTypes.Object)
                 throw new Error("调用$defineProp之前，要首先调用$asObject");
             var propSchema = new ObservableSchema_1(initValue, propname, this);
             var private_prop_name = "$__" + propname + "__";
             var self = this;
             Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
-            defineObservableProperty(this.$obCtor.prototype, propname, propSchema);
+            defineObservableProperty(this.$obCtor.prototype, propname, propSchema, onSetting);
             defineObservableProperty(this.$proxyCtor.prototype, propname, function (initData) {
                 return new propSchema.$proxyCtor(self, this);
-            });
+            }, onSetting);
             return propSchema;
         };
-        ObservableSchema.prototype.asArray = function () {
-            if (this.$type === DataTypes.Array)
+        ObservableSchema.prototype.asArray = function (itemSchema) {
+            if (this.$type === ObservableTypes.Array)
                 return this;
-            if (this.$type === DataTypes.Object)
+            if (this.$type === ObservableTypes.Object)
                 throw new Error("无法将ObservableSchema从Object转化成Array.");
-            this.$type = DataTypes.Array;
+            this.$type = ObservableTypes.Array;
             var schema = this;
             var _ObservableArray = /** @class */ (function (_super) {
                 __extends(_ObservableArray, _super);
@@ -1422,12 +1423,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 return _ObservableArray;
             }(ObservableArray));
             ;
-            if (this.$initData) {
-                var item = this.$initData.shift();
-                if (item) {
-                    this.$itemSchema = new ObservableSchema_1(item, -1, this);
-                    if (!item[ObservableSchema_1.schemaToken])
-                        this.$initData.unshift(item);
+            if (itemSchema instanceof ObservableSchema_1) {
+                this.$itemSchema = itemSchema;
+            }
+            else {
+                if (itemSchema === undefined) {
+                    itemSchema = this.$initData && this.$initData.shift ? this.$initData.shift() : undefined;
+                    this.$itemSchema = new ObservableSchema_1(itemSchema, -1, this);
+                    if (!itemSchema[ObservableSchema_1.schemaToken])
+                        this.$initData.unshift(itemSchema);
+                }
+                else {
+                    itemSchema[ObservableSchema_1.schemaToken] = true;
+                    this.$itemSchema = new ObservableSchema_1(itemSchema, -1, this);
                 }
             }
             if (!this.$itemSchema)

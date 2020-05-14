@@ -122,6 +122,79 @@ export class Model{
     constructor(public fullname:string,public opts?:IModel){
         if(!fullname) throw new Error("未定义模型的fullname");
     }
+
+    
+    each(callback:(field:Field)=>void){
+        this.ready(()=>{
+            for(let n in this.fields) callback(this.fields[n]);
+        });
+        return this;
+    }
+
+    public buildSchema(filter?:(field:Field)=>boolean,schema?:YA.ObservableSchema<any>):YA.ObservableSchema<any>{
+        if(!schema)schema= new ObservableSchema(null);
+        this.each((field)=>{
+            if(filter && filter(field)===false) return;
+            Model.defineProp(schema,field);
+        });
+        
+        return schema;
+    }
+    public static defineProp(schema:YA.ObservableSchema<any>,field:Field){
+        if(schema.$type!==YA.ObservableTypes.Object)schema.asObject();
+        if(field.expends){
+            Model._initExpandableFieldSchema(schema,field);
+        }else if(field.expanded){
+            Model._initExpandedFieldSchema(schema,field);
+        }else{
+            schema.defineProp(field.name);
+        }
+    }
+
+    
+    private static _initExpandableFieldSchema(targetSchema:YA.ObservableSchema<any>,field:Field){
+        let setter=function(value){
+            let rmode =Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
+            try{
+                for(let n in field.expends){
+                    let expandedField = field.expends[n];
+                    this[expandedField.name] = value?value[n]:undefined;
+                }
+            }finally{
+                Observable.readMode = rmode;
+            }
+        };
+        let fieldSchema = targetSchema.defineProp(field.name,null,setter);
+        fieldSchema.asObject();
+        for(let n in field.expends){
+            let expandedField = field.expends[n];
+            fieldSchema.defineProp(expandedField.name);
+        }
+        return fieldSchema;
+    }
+
+    private static _initExpandedFieldSchema(targetSchema:YA.ObservableSchema<any>,field:Field){
+        let setter = function(value){
+            let rmode =Observable.readMode;
+            Observable.readMode = ObservableModes.Default;
+            try{
+                let collapsedValue = this[field.expanded.prinField.name];
+                if(!collapsedValue) {
+                    let newValue = {};
+                    newValue[field.expanded.relField.name]=value;
+                    this[field.expanded.prinField.name]=newValue;
+                }
+                else {
+                    collapsedValue[field.expanded.relField.name]=value;
+                }
+            }finally{
+                Observable.readMode = rmode;
+            }
+        };
+        let fieldSchema = targetSchema.defineProp(field.name,undefined,setter);
+        return fieldSchema;
+    }
    
 
     static $__caches__:{[name:string]:Model}={};
@@ -501,14 +574,19 @@ export class View extends TabView{
             this.querySchema = new ObservableSchema(null);
             querySchema.asObject();
         }
+        let listSchema;
+        if(this.kind===ViewKinds.query || this.kind ===ViewKinds.list){
+            listSchema = this.listSchema = new ObservableSchema([]);
+            listSchema.$itemSchema.asObject();
+        }
         
         this.each((fieldView)=>{
-            if(fieldView.field.expends){
-                this._initExpandableFieldSchema(schema,fieldView);
-            }else if(fieldView.field.expanded){
-                this._initExpandedFieldSchema(schema,fieldView);
-            }else{
-                schema.defineProp(fieldView.name);
+            Model.defineProp(schema,fieldView.field);
+            if(listSchema){
+                let prop = listSchema.$itemSchema.defineProp(fieldView.name);
+                if(fieldView.field.valueModel instanceof RefModel){
+                    fieldView.field.valueModel.buildSchema(null,prop);
+                }
             }
             if(fieldView.queryable!==undefined && querySchema){
                 if(fieldView.queryable==="range"){
@@ -519,56 +597,10 @@ export class View extends TabView{
                 }
             }
         });
-        if(this.kind===ViewKinds.query || this.kind ===ViewKinds.list){
-            let listSchema = this.listSchema = new ObservableSchema([]);
-            listSchema.asArray();
-        }
+        
         return schema;
     }
 
-    private _initExpandableFieldSchema(targetSchema:YA.ObservableSchema<any>,fieldView:FieldView){
-        let setter=function(value){
-            let rmode =Observable.readMode;
-            Observable.readMode = ObservableModes.Value;
-            try{
-                for(let n in fieldView.field.expends){
-                    let expandedField = fieldView.field.expends[n];
-                    this[expandedField.name] = value?value[n]:undefined;
-                }
-            }finally{
-                Observable.readMode = rmode;
-            }
-        };
-        let fieldSchema = targetSchema.defineProp(fieldView.name,null,setter);
-        fieldSchema.asObject();
-        for(let n in fieldView.field.expends){
-            let expandedField = fieldView.field.expends[n];
-            fieldSchema.defineProp(expandedField.name);
-        }
-        return fieldSchema;
-    }
-
-    private _initExpandedFieldSchema(targetSchema:YA.ObservableSchema<any>,fieldView:FieldView){
-        let setter = function(value){
-            let rmode =Observable.readMode;
-            Observable.readMode = ObservableModes.Default;
-            try{
-                let collapsedValue = this[fieldView.field.expanded.prinField.name];
-                if(!collapsedValue) {
-                    let newValue = {};
-                    newValue[fieldView.field.expanded.relField.name]=value;
-                    this[fieldView.field.expanded.prinField.name]=newValue;
-                }
-                else {
-                    collapsedValue[fieldView.field.expanded.relField.name]=value;
-                }
-            }finally{
-                Observable.readMode = rmode;
-            }
-        };
-        let fieldSchema = targetSchema.defineProp(fieldView.name,undefined,setter);
-        return fieldSchema;
-    }
 
 }
 

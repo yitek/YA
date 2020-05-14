@@ -744,7 +744,7 @@ export function disposable(target:any):IDisposable{
 
 //================================================================
 
-export enum DataTypes{
+export enum ObservableTypes{
     Value,
     Object,
     Array
@@ -766,7 +766,7 @@ export enum ObservableModes{
 
 
 export interface IObservable<TData> extends ISubject<IChangeEventArgs<TData>>{
-    $type:DataTypes;
+    $type:ObservableTypes;
     $extras?:any;
     $target?:TData;
     $isset?:boolean;
@@ -837,7 +837,7 @@ export interface IObservableIndexable<TData extends {[index in keyof object]:any
 }
 @implicit()
 export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implements IObservable<TData>{
-    $type:DataTypes;
+    $type:ObservableTypes;
 
     $target:TData;
 
@@ -909,7 +909,7 @@ export class Observable<TData> extends Subject<IChangeEventArgs<TData>> implemen
             throw new Error("不正确的赋值");
         
         implicit(this, {
-            $target:this.$target,$type:DataTypes.Value,$schema:this.$schema,$isset:false
+            $target:this.$target,$type:ObservableTypes.Value,$schema:this.$schema,$isset:false
             ,$__obRaw__:this.$__obRaw__,$__obIndex__:this.$__obIndex__,$__obModifiedValue__:undefined,$__obOwner__:this.$__obOwner__,$__obExtras__:this.$__obExtras__
         });
         
@@ -1013,7 +1013,7 @@ export class ObservableObject<TData> extends Observable<TData> implements IObser
     [index:string]:any;
     constructor(init:IObservableIndexable<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
         super(init,index,initValue);
-        this.$type = DataTypes.Object;
+        this.$type = ObservableTypes.Object;
         if(!this.$target) this.$__obRaw__(this.$target={} as any);
         if(!this.$schema){
             this.$schema = new ObservableSchema<TData>(this.$target);
@@ -1109,7 +1109,7 @@ export class ObservableArray<TItem> extends Observable<TItem[]> implements IObse
         let target:any;
         
         super(init,index,itemSchemaOrInitData instanceof ObservableSchema?undefined:itemSchemaOrInitData);
-        this.$type = DataTypes.Array;
+        this.$type = ObservableTypes.Array;
         target = this.$target;
         if(Object.prototype.toString.call(target)!=="[object Array]") this.$__obRaw__.call(this,target=this.$target=[]);
 
@@ -1407,7 +1407,7 @@ function setExtra(ob:IObservable<any>,name:string,value:any){
 @implicit()
 export class ObservableSchema<TData>{
     [index:string]:any;
-    $type:DataTypes;
+    $type:ObservableTypes;
     $index:string|number;
     
     $paths:string[];
@@ -1429,7 +1429,7 @@ export class ObservableSchema<TData>{
         if(index!=="")paths.push(index);
 
         implicit(this,{
-            "$type":DataTypes.Value
+            "$type":ObservableTypes.Value
             ,"$index":index
             ,"$paths":paths
             ,"$owner":owner
@@ -1450,7 +1450,7 @@ export class ObservableSchema<TData>{
             else if(t==="[object Array]"){
                 this.asArray();
             }else {
-                this.$type = DataTypes.Value;
+                this.$type = ObservableTypes.Value;
                 this.$obCtor = Observable;
             }
         }
@@ -1470,9 +1470,9 @@ export class ObservableSchema<TData>{
     }
 
     asObject():ObservableSchema<TData>{
-        if(this.$type===DataTypes.Object) return this;
-        if(this.$type === DataTypes.Array) throw new Error("无法将ObservableSchema从Array转化成Object.");
-        this.$type = DataTypes.Object;
+        if(this.$type===ObservableTypes.Object) return this;
+        if(this.$type === ObservableTypes.Array) throw new Error("无法将ObservableSchema从Array转化成Object.");
+        this.$type = ObservableTypes.Object;
         let schema = this;
         
         class _ObservableObject extends ObservableObject<TData>{
@@ -1492,7 +1492,7 @@ export class ObservableSchema<TData>{
     }
 
     defineProp<TProp>(propname:string,initValue?:TProp,onSetting?:(value)=>any):ObservableSchema<TProp>{
-        if(this.$type!==DataTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
+        if(this.$type!==ObservableTypes.Object) throw new Error("调用$defineProp之前，要首先调用$asObject");
         let propSchema :ObservableSchema<TProp> = new ObservableSchema<TProp>(initValue,propname,this);
         let private_prop_name = "$__" + propname + "__";
         let self = this;
@@ -1507,9 +1507,9 @@ export class ObservableSchema<TData>{
 
  
     asArray(itemSchema?:any):ObservableSchema<TData>{
-        if(this.$type===DataTypes.Array) return this;
-        if(this.$type === DataTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
-        this.$type = DataTypes.Array;
+        if(this.$type===ObservableTypes.Array) return this;
+        if(this.$type === ObservableTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
+        this.$type = ObservableTypes.Array;
         let schema = this;
         class _ObservableArray extends ObservableArray<any>{
             constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
@@ -1581,7 +1581,7 @@ function defineProxyProto(proto:any,memberNames:string[]){
 export class ObservableProxy implements IObservable<any> {
     $parent:ObservableProxy;
     $schema:ObservableSchema<any>;
-    $type:DataTypes;
+    $type:ObservableTypes;
     $extras?:any;
     $target?:any;
     $isset?:boolean;

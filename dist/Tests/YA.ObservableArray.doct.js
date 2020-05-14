@@ -28,7 +28,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var n in proxy)
                 membernames.push(n);
             assert_statement(function (assert) {
-                assert(YA.DataTypes.Array, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.DataTypes[proxy.$type]);
+                assert(YA.ObservableTypes.Array, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.ObservableTypes[proxy.$type]);
                 var str = proxy[0] + "," + proxy[1] + "," + proxy[2];
                 assert(3, proxy.length, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.length === 3");
                 assert("yi,yan,YA", str, "通过下标访问数组项的值:proxy[0]==='yi',proxy[1]==='yan',proxy[2]==='YA'");

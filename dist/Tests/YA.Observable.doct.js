@@ -26,7 +26,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             //1 创建一个数据代理,它的第一个参数为读/写原始值的函数
             var proxy = new YA.Observable(function (val) { return val === undefined ? raw_data : raw_data = val; });
             assert_statement(function (assert) {
-                assert(YA.DataTypes.Value, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.DataTypes[proxy.$type]);
+                assert(YA.ObservableTypes.Value, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.ObservableTypes[proxy.$type]);
                 assert(12, proxy.$target, "\u4EE3\u7406\u7684\u76EE\u6807\u4E3A\u5F53\u524D\u7684\u503C:proxy.$target===12");
             });
             //2 可以通过$get()获取到它的值

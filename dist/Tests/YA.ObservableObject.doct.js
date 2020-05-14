@@ -31,7 +31,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             for (var n in proxy)
                 membernames.push(n);
             assert_statement(function (assert) {
-                assert(YA.DataTypes.Object, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.DataTypes[proxy.$type]);
+                assert(YA.ObservableTypes.Object, proxy.$type, "\u4EE3\u7406\u7684\u7C7B\u578B\u4E3A\u503C\u7C7B\u578B:proxy.$type === YA.DataTypes." + YA.ObservableTypes[proxy.$type]);
                 assert("YA framework", proxy.title, "可以访问对象上的数据:proxy.title==='YA framework'");
                 assert("id,title", membernames.join(","), "可以且只可以枚举原始数据的字段:membernames=['1','title']");
             });

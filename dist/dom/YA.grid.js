@@ -29,6 +29,7 @@ var __extends = (this && this.__extends) || (function () {
         function ObservableList(nodeFactory) {
             var _this = _super.call(this) || this;
             _this.nodeFactory = nodeFactory;
+            _this.length = 0;
             return _this;
         }
         ObservableList.prototype.get = function (index) {
@@ -81,6 +82,7 @@ var __extends = (this && this.__extends) || (function () {
                 item.prev = this.last;
                 this.last = item;
             }
+            this.length++;
             return this;
         };
         ObservableList.prototype.insert = function (newCell, isBefore) {
@@ -105,6 +107,7 @@ var __extends = (this && this.__extends) || (function () {
             this.last.next = newCell;
             newCell.prev = this.last;
             this.last = newCell;
+            this.length++;
             return this;
         };
         return ObservableList;
@@ -116,17 +119,51 @@ var __extends = (this && this.__extends) || (function () {
             _this.grid = grid;
             return _this;
         }
+        Object.defineProperty(Column.prototype, "frozen", {
+            get: function () {
+                return this.$__frozen__;
+            },
+            set: function (value) {
+                var old = this.$__frozen__;
+                this.$__frozen__ = value;
+                if (old && !value) {
+                }
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Column.prototype._froze = function () {
+            var cell = this.first;
+            while (cell) {
+                var cellRow = cell.row;
+                var cols = this.grid.columns;
+                var forzenRowElement = cellRow.elements[1];
+                if (!forzenRowElement) {
+                    forzenRowElement = forzenRowElement = document.createElement("div");
+                    forzenRowElement.className = "row frozen";
+                }
+                var col = cols.first;
+                while (col) {
+                    if (!col.$__frozen__) {
+                        col.$__frozen__ = true;
+                    }
+                }
+            }
+        };
         Column.prototype.renderCaption = function () {
             var _this = this;
-            var elem = document.createElement("div");
+            var elem = this.element = document.createElement("div");
             elem.innerHTML = "<label></label><ins></ins>";
             var textOb = this.text;
             textOb.subscribe(function (e) {
                 _this.element.firstChild.innerHTML = e.value;
             }, this.grid);
             this.element.firstChild.innerHTML = textOb.get(YA.ObservableModes.Value);
+            this.element.firstChild.onclick = function () { };
+            return elem;
         };
         Column.prototype.remove = function () {
+            this.element.parentElement.removeChild(this.element);
             var cell = this.first;
             while (cell) {
                 cell.element.parentNode.removeChild(cell.element);
@@ -151,6 +188,40 @@ var __extends = (this && this.__extends) || (function () {
             this.element.parentNode.removeChild(this.element);
             return this;
         };
+        Row.prototype.render = function () {
+            var normalRow;
+            var frozenRow;
+            var cols = this.grid.columns;
+            this.first = this.last = null;
+            for (var i = 0, j = cols.length; i < j; i++) {
+                var col = cols.get(i);
+                var cell = new Cell(col, this);
+                if (!this.first)
+                    this.first = this.last = cell;
+                else {
+                    this.last.next = cell;
+                    cell.prev = this.last;
+                    this.last = cell;
+                }
+                var cellElem = cell.render();
+                if (col.frozen) {
+                    if (!frozenRow) {
+                        normalRow == document.createElement("div");
+                        normalRow.className = "row normal";
+                    }
+                    else {
+                        frozenRow == document.createElement("div");
+                        frozenRow.className = "row frozen";
+                    }
+                    frozenRow.appendChild(cellElem);
+                }
+                else {
+                    normalRow.appendChild(cellElem);
+                }
+                col = col.next;
+            }
+            return this.elements = [normalRow, frozenRow];
+        };
         return Row;
     }(ObservableList));
     var Cell = /** @class */ (function () {
@@ -160,6 +231,7 @@ var __extends = (this && this.__extends) || (function () {
         }
         Cell.prototype.render = function () {
             var cellElem = this.element = document.createElement("div");
+            cellElem.className = "cell";
             var innerElement = this.column.renderContent(this.row.data, this);
             cellElem.appendChild(innerElement);
             return cellElem;
@@ -171,6 +243,60 @@ var __extends = (this && this.__extends) || (function () {
         function Grid() {
             return _super.call(this) || this;
         }
+        Grid.prototype._sureElement = function () {
+            if (!this.$__element__) {
+                this.$__element__ = document.createElement("div");
+                this.$__element__.className = "grid";
+                this.$__element__.style.display = "table";
+            }
+            return this.$__element__;
+        };
+        Grid.prototype._sureFrozen = function () {
+            if (!this.$__frozenElement__) {
+                this.$__frozenElement__ = document.createElement("div");
+                this.$__frozenElement__.style.display = "table-row";
+                this.$__frozenElement__.className = "frozen";
+                if (this.$__normalElement__) {
+                    this.$__element__.insertBefore(this.$__frozenElement__, this.$__normalElement__);
+                }
+                else
+                    this.$__element__.appendChild(this.$__frozenElement__);
+            }
+            return this.$__frozenElement__;
+        };
+        Grid.prototype._sureNormal = function () {
+            if (!this.$__normalElement__) {
+                this.$__normalElement__ = document.createElement("div");
+                this.$__normalElement__.style.display = "table-row";
+                this.$__normalElement__.className = "normal";
+                this.$__element__.appendChild(this.$__normalElement__);
+            }
+            return this.$__normalElement__;
+        };
+        Grid.prototype._sureForzenFrozen = function () {
+            if (!this.$__frozenFrozenElement__) {
+                var frozenElement = this._sureFrozen();
+                var tb = this.$__frozenFrozenElement__ = document.createElement("table");
+                tb.style.display = "table-cell";
+                tb.className = "frozen-frozen";
+                if (this.$__frozenNormalElement__) {
+                    frozenElement.insertBefore(tb, this.$__frozenNormalElement__);
+                }
+                else
+                    frozenElement.appendChild(tb);
+            }
+            return this.$__frozenFrozenElement__;
+        };
+        Grid.prototype._sureForzenNormal = function () {
+            if (!this.$__frozenNormalElement__) {
+                var frozenElement = this._sureFrozen();
+                var tb = this.$__frozenFrozenElement__ = document.createElement("table");
+                tb.style.display = "table-cell";
+                tb.className = "frozen-normal";
+                frozenElement.appendChild(tb);
+            }
+            return this.$__frozenNormalElement__;
+        };
         Grid.prototype._columnInserted = function (col) {
             var row = this.rows.first;
             while (row) {
