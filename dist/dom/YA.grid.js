@@ -17,13 +17,13 @@ var __extends = (this && this.__extends) || (function () {
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "../YA.core", "../YA.dom"], factory);
+        define(["require", "exports", "../YA.core", "YA.dom"], factory);
     }
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var YA = require("../YA.core");
-    var Dom = require("../YA.dom");
+    var Dom = require("YA.dom");
     var ObservableList = /** @class */ (function (_super) {
         __extends(ObservableList, _super);
         function ObservableList(nodeFactory) {
@@ -307,7 +307,7 @@ var __extends = (this && this.__extends) || (function () {
             return this;
         };
         return Grid;
-    }(Dom.Panel));
+    }(Dom.Component));
     exports.Grid = Grid;
 });
 //# sourceMappingURL=YA.grid.js.map

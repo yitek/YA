@@ -11,1032 +11,31 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
 (function (factory) {
     if (typeof module === "object" && typeof module.exports === "object") {
         var v = factory(require, exports);
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "YA.core"], factory);
+        define(["require", "exports", "../YA.core"], factory);
     }
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var YA = require("YA.core");
-    var Host = YA.DomUtility;
-    var Dom = /** @class */ (function () {
-        function Dom(element) {
-            var _this = this;
-            var handleItem = function (item) {
-                if (!item)
-                    return;
-                if (typeof item === "string") {
-                    handleStr(item);
-                }
-                else if (item instanceof Dom) {
-                    for (var i = 0, j = item.length; i < j; i++) {
-                        Object.defineProperty(_this, count, { enumerable: true, writable: false, configurable: false, value: item[i] });
-                        count++;
-                    }
-                }
-                else if (Host.isElement(item, true)) {
-                    Object.defineProperty(_this, count, { enumerable: true, writable: false, configurable: false, value: item });
-                    count++;
-                }
-                else {
-                    //可能是个数组
-                    extract(item);
-                }
-            };
-            var handleStr = function (str) {
-                if (str[0] === "#") {
-                    var elem = document.getElementById(str.substr(1));
-                    if (elem) {
-                        Object.defineProperty(_this, count, { enumerable: true, writable: false, configurable: false, value: elem });
-                        //if(!(elem as any)[Dom.token]) 
-                        //    Object.defineProperty(elem,Dom.token,{enumerable:true,writable:false,configurable:false,value:this});
-                        count++;
-                    }
-                    return;
-                }
-                element_wrapper.innerHTML = str;
-                extract(element_wrapper.childNodes);
-                element_wrapper.innerHTML = "";
-            };
-            var extract = function (arr) {
-                for (var i = 0, j = arr.length; i < j; i++) {
-                    var item = arr[i];
-                    handleItem(item);
-                }
-            };
-            var count = 0;
-            if (Host.isElement(element, true)) {
-                Object.defineProperty(this, 0, { enumerable: true, writable: false, configurable: false, value: element });
-                count++;
-            }
-            else {
-                handleItem(element);
-            }
-            Object.defineProperty(this, "length", { enumerable: true, writable: false, configurable: false, value: count });
-        }
-        Dom.prototype.item = function (index) {
-            var elem = this[index];
-            var inst = elem[Dom.dom_inst_token];
-            if (!inst) {
-                return new Dom(elem);
-            }
-            return inst;
-        };
-        Dom.prototype.html = function (val) {
-            if (!this.length)
-                return val === undefined ? undefined : this;
-            if (val === undefined)
-                return this[0].innerHTML;
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].innerHTML = val;
-            return this;
-        };
-        Dom.prototype.text = function (val) {
-            if (!this.length)
-                return val === undefined ? undefined : this;
-            if (val === undefined)
-                return this[0].innerText;
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].innerText = val;
-            return this;
-        };
-        Dom.prototype.val = function (val) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (val === undefined)
-                return value.call(this, this[0]);
-            for (var i = 0, j = this.length; i < j; i++)
-                value.call(this, this[i], val);
-            return this;
-        };
-        Dom.prototype.width = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this[0].clientWidth;
-            var w = (parseFloat(value) | 0) + "px";
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].style.width = w;
-            return this;
-        };
-        Dom.prototype.height = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this[0].clientHeight;
-            var h = (parseFloat(value) | 0) + "px";
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].style.height = h;
-            return this;
-        };
-        Dom.prototype.size = function (size) {
-            if (!this.length)
-                return size === undefined ? undefined : this;
-            if (size === undefined)
-                return new Size(this[0].offsetWidth, this[0].offsetHeight);
-            var h = size.h === undefined ? undefined : (parseFloat(size.h) | 0) + "px";
-            var w = size.w === undefined ? undefined : parseFloat(size.w) + "px";
-            for (var i = 0, j = this.length; i < j; i++) {
-                var elem = this[i];
-                if (h !== undefined)
-                    elem.style.height = h;
-                if (w !== undefined)
-                    elem.style.width = w;
-            }
-            return this;
-        };
-        Dom.prototype.left = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this[0].offsetLeft;
-            var left = (parseFloat(value) | 0) + "px";
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].style.left = left;
-            return this;
-        };
-        Dom.prototype.top = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this[0].offsetTop;
-            var top = (parseFloat(value) | 0) + "px";
-            for (var i = 0, j = this.length; i < j; i++)
-                this[i].style.top = top;
-            return this;
-        };
-        Dom.prototype.pos = function (pos) {
-            if (!this.length)
-                return pos === undefined ? undefined : this;
-            if (pos === undefined)
-                return new Pointer(this[0].offsetLeft, this[0].offsetTop);
-            var x = pos.x === undefined ? undefined : (parseFloat(pos.x) | 0) + "px";
-            var y = pos.y === undefined ? undefined : (parseFloat(pos.y) | 0) + "px";
-            for (var i = 0, j = this.length; i < j; i++) {
-                if (x !== undefined) {
-                    this[i].style.left = x;
-                }
-                if (y !== undefined) {
-                    this[i].style.top = y;
-                }
-            }
-            return this;
-        };
-        Dom.prototype.abs = function (new_pos) {
-            if (!this.length)
-                return new_pos === undefined ? {} : this;
-            if (new_pos === undefined) {
-                var p = this[0];
-                if (!p)
-                    new Pointer(undefined, undefined);
-                var x = 0, y = 0;
-                while (p) {
-                    x += p.offsetLeft;
-                    y += p.offsetTop;
-                    p = p.offsetParent;
-                }
-                return new Pointer(x, y);
-            }
-            for (var i = 0, j = this.length; i < j; i++) {
-                this[i].style.position = "absolute";
-                var old_pos = this.item(i).abs();
-                if (new_pos.x !== undefined) {
-                    var x = new_pos.x - old_pos.x + this[i].clientLeft;
-                    this[i].style.left = x + "px";
-                }
-                if (new_pos.y !== undefined) {
-                    var y = new_pos.y - old_pos.y + this[i].clientTop;
-                    this[i].style.top = y + "px";
-                }
-            }
-            return this;
-        };
-        Dom.prototype.x = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this.abs().x;
-            var x = parseFloat(value);
-            var pos = new Pointer(x, undefined);
-            for (var i = 0, j = this.length; i < j; i++)
-                this.abs(pos);
-            return this;
-        };
-        Dom.prototype.y = function (value) {
-            if (!this.length)
-                return value === undefined ? undefined : this;
-            if (value === undefined)
-                return this.abs().x;
-            var y = parseFloat(value);
-            var pos = new Pointer(undefined, y);
-            for (var i = 0, j = this.length; i < j; i++)
-                this.abs(pos);
-            return this;
-        };
-        Dom.prototype.prop = function (name, value, replace) {
-            if (value === undefined) {
-                if (typeof name === "string") {
-                    return this.length ? this[0][name] : undefined;
-                }
-                else {
-                    for (var i = 0, j = this.length; i < j; i++) {
-                        var elem = this[i];
-                        for (var n in name)
-                            elem[n] = name[n];
-                    }
-                    return this;
-                }
-            }
-            else {
-                if (this.length)
-                    for (var i = 0, j = this.length; i < j; i++) {
-                        var elem = this[i];
-                        elem[name] = replace ? replace.call(elem, value, elem[name], elem) : value;
-                    }
-                return this;
-            }
-        };
-        Dom.prototype.attr = function (name, value) {
-            if (value === undefined) {
-                if (typeof name === "string") {
-                    return this.length ? this[0].getAttribute(name) : undefined;
-                }
-                else {
-                    for (var i = 0, j = this.length; i < j; i++)
-                        for (var n in name)
-                            this[i].setAttribute(n, name[n]);
-                    return this;
-                }
-            }
-            else {
-                if (this.length) {
-                    if (value === null)
-                        for (var i = 0, j = this.length; i < j; i++)
-                            this[i].removeAttribute(name);
-                    else
-                        for (var i = 0, j = this.length; i < j; i++)
-                            this[i].setAttribute(name, value);
-                }
-                return this;
-            }
-        };
-        Dom.prototype.style = function (name, value) {
-            if (value === undefined) {
-                if (typeof name === "string") {
-                    return this.length ? exports.style(this[0], name) : undefined;
-                }
-                else {
-                    for (var i = 0, j = this.length; i < j; i++)
-                        for (var n in name)
-                            exports.style(this[i], n, name[n]);
-                    return this;
-                }
-            }
-            else {
-                if (this.length) {
-                    for (var i = 0, j = this.length; i < j; i++)
-                        exports.style(this[i], name, value);
-                }
-                return this;
-            }
-        };
-        Dom.prototype.hasClass = function (cls) {
-            return this.length ? findClassAt(this[0].className, cls) >= 0 : false;
-        };
-        Dom.prototype.addClass = function (cls) {
-            for (var i = 0, j = this.length; i < j; i++) {
-                if (findClassAt(this[i].className, cls) >= 0)
-                    return this;
-                this[i].className += " " + cls;
-            }
-            return this;
-        };
-        Dom.prototype.removeClass = function (cls) {
-            for (var i = 0, j = this.length; i < j; i++) {
-                var clsnames = this[i].className;
-                var at = findClassAt(clsnames, cls);
-                if (at <= 0)
-                    return this;
-                var prev = clsnames.substring(0, at);
-                var next = clsnames.substr(at + cls.length);
-                this[i].className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
-            }
-            return this;
-        };
-        Dom.prototype.replaceClass = function (old_cls, new_cls, alwaysAdd) {
-            if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
-                return this.addClass(new_cls);
-            for (var i = 0, j = this.length; i < j; i++) {
-                var clsnames = this[i].className;
-                var at = findClassAt(clsnames, old_cls);
-                if (at <= 0) {
-                    if (alwaysAdd)
-                        this[0].className = clsnames + " " + new_cls;
-                    return this;
-                }
-                var prev = clsnames.substring(0, at);
-                var next = clsnames.substr(at + old_cls.length);
-                this[i].className = prev + new_cls + next;
-            }
-            return this;
-        };
-        Dom.prototype.on = function (eventId, listener) {
-            for (var i = 0, j = this.length; i < j; i++)
-                attach(this[i], eventId, listener);
-            return this;
-        };
-        Dom.prototype.off = function (eventId, listener) {
-            for (var i = 0, j = this.length; i < j; i++)
-                detech(this[i], eventId, listener);
-            return this;
-        };
-        Dom.prototype.ydata = function (name, value) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.prev = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.next = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.first = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.last = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.parent = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.append = function (inserted) {
-            throw new Error("Called on placehold method");
-        };
-        Dom.prototype.remove = function () {
-            for (var i = 0, j = this.length; i < j; i++) {
-                var elem = this[i];
-                if (elem.parentNode)
-                    elem.parentNode.removeChild(elem);
-            }
-            return this;
-        };
-        Dom.prototype.children = function () {
-            var elem = this[0];
-            if (elem.hasChildNodes)
-                return new Dom(elem.childNodes);
-            else
-                return new Dom();
-        };
-        Dom.prototype.each = function (callback) {
-            for (var i = 0, j = this.length; i < j; i++) {
-                if (callback(dom(this[i]), i) === false)
-                    return this;
-            }
-            return this;
-        };
-        Dom.prop = function (prop_name, getter, setter) {
-            Dom.prototype[prop_name] = function (value) {
-                if (!this.length)
-                    return value === undefined ? undefined : this;
-                if (value === undefined)
-                    return getter.call(this, this[0]);
-                for (var i = 0, j = this.length; i < j; i++) {
-                    var elem = this[i];
-                    setter.call(this, elem, value);
-                }
-                return this;
-            };
-            return Dom;
-        };
-        Dom.object = function (object_name, getter, setter) {
-            Dom.prototype[object_name] = function (name, value) {
-                if (!this.length)
-                    return value === undefined ? undefined : this;
-                if (value === undefined) {
-                    if (typeof name === "string")
-                        return getter.call(this, this[0], name);
-                    for (var n in name) {
-                        var val = name[n];
-                        for (var i = 0, j = this.length; i < j; i++) {
-                            var elem = this[i];
-                            setter.call(this, elem, name, val);
-                        }
-                    }
-                    return this;
-                }
-                for (var i = 0, j = this.length; i < j; i++) {
-                    var elem = this[i];
-                    setter.call(this, elem, name, value);
-                }
-                return this;
-            };
-            return Dom;
-        };
-        Dom.op = function (op_name, method) {
-            Dom.prototype[op_name] = function (arg1, arg2, arg3, arg4) {
-                for (var i = 0, j = this.length; i < j; i++) {
-                    var dom_1 = this[i];
-                    dom_1[op_name].call(dom_1, arg1, arg2, arg3, arg4);
-                }
-                return this;
-            };
-            return Dom;
-        };
-        Dom.element = function (name, getter, setter) {
-            Dom.prototype[name] = function (inserted) {
-                if (inserted === undefined)
-                    return getter ? new Dom(getter.call(this, this[0])) : this;
-                if (inserted === true || inserted === false)
-                    return getter ? new Dom(getter.call(this, this[0], inserted)) : this;
-                if (Host.isElement(inserted)) {
-                    setter.call(this, this[0], inserted);
-                    return this;
-                }
-                if (typeof inserted === "string") {
-                    inserted = dom(inserted);
-                }
-                if (inserted instanceof Dom) {
-                    for (var i = 0, j = this.length; i < j; i++) {
-                        var self_1 = this[i];
-                        for (var m = 0, n = inserted.length; m < n; m++) {
-                            setter.call(this, self_1, inserted[m]);
-                        }
-                    }
-                    return this;
-                }
-                console.warn("Dom." + name + "不支持该参数，未做任何操作:", inserted);
-                return this;
-            };
-            return Dom;
-        };
-        Dom.define = function (name, fn) {
-            Dom.prototype[name] = fn;
-            return Dom;
-        };
-        Dom.dom_inst_token = "_YADOM_INSTANCE";
-        Dom.dom_data_token = "_YADATA";
-        return Dom;
-    }());
-    exports.Dom = Dom;
-    function value(elem, value) {
-        if (elem.$_YA_valAccessorFn)
-            return elem.$_YA_valAccessorFn;
-        var tag = elem.tagName;
-        var fn;
-        if (tag === "INPUT") {
-            var type = elem.type;
-            if (type === "radio") {
-                fn = radioValFn;
-            }
-            else if (type === "checkbox") {
-                fn = checkboxValFn;
-            }
-            else {
-                fn = valFn;
-            }
-        }
-        else if (tag === "SELECT") {
-            fn = selectValFn;
-        }
-        else if (tag === "TEXTAREA") {
-            fn = valFn;
-        }
-        else {
-            fn = txtValFn;
-        }
-        Object.defineProperty(elem, "$_YA_valAccessorFn", {
-            enumerable: false, writable: false, configurable: false, value: fn
-        });
-        return fn.call(this, elem, value);
-    }
-    function valFn(elem, value) {
-        if (value === undefined)
-            return elem.value;
-        elem.value = value;
-        return this;
-    }
-    function radioValFn(elem, value) {
-        if (value === undefined) {
-            return elem.checked ? elem.value : null;
-        }
-        if (value === elem.value) {
-            elem.checked = true;
-            elem.setAttribute("checked", "checked");
-        }
-        else {
-            elem.checked = false;
-            elem.removeAttribute("checked");
-        }
-        return this;
-    }
-    function checkboxValFn(elem, value) {
-        if (value === undefined) {
-            return elem.checked ? elem.value : null;
-        }
-        if (value === elem.value || YA.array_index(value, elem.value)) {
-            elem.checked = true;
-            elem.setAttribute("checked", "checked");
-        }
-        else {
-            elem.checked = false;
-            elem.removeAttribute("checked");
-        }
-        return this;
-    }
-    function selectValFn(elem, value) {
-        var isMulti = elem.multiple;
-        var opts = elem.options;
-        if (value === undefined) {
-            if (isMulti) {
-                var rs = [];
-                for (var _i = 0, opts_1 = opts; _i < opts_1.length; _i++) {
-                    var opt = opts_1[_i];
-                    if (opt.selected)
-                        rs.push(opt.value);
-                }
-                return rs;
-            }
-            else {
-                var index = this[0].selectedIndex;
-                var selectedOpt = this[0].options[index];
-                return selectedOpt ? selectedOpt.value : undefined;
-            }
-        }
-        var selectedIndex = -1;
-        for (var idx in opts) {
-            var opt = opts[idx];
-            if (opt.value == value || (isMulti && YA.array_index(value, opt.value))) {
-                opt.selected = true;
-                opt.setAttribute("selected", "selected");
-                selectedIndex = idx;
-            }
-            else {
-                opt.selected = false;
-                opt.removeAttribute("selected");
-            }
-        }
-        if (!isMulti)
-            elem.selectedIndex = selectedIndex;
-        return this;
-    }
-    function txtValFn(value) {
-        if (value === undefined)
-            return this[0].nodeValue;
-        this[0].nodeValue = value;
-        return this;
-    }
-    Dom.element("prev", function (target, onlyElement) { return (onlyElement ? target.previousElementSibling : target.previousSibling); }, function (target, opEl) { return target.parentNode ? target.parentNode.insertBefore(opEl, target) : undefined; });
-    Dom.element("next", function (target, onlyElement) { return (onlyElement ? target.nextElementSibling : target.nextSibling); }, function (target, opEl) {
-        if (target.parentNode)
-            target.nextSibling ? target.parentNode.insertBefore(opEl, target.nextSibling) : target.parentNode.appendChild(opEl);
-    });
-    Dom.element("first", function (target, onlyElement) { return (onlyElement ? target.firstElementChild : target.firstChild); }, function (target, opEl) { return target.firstChild ? target.insertBefore(opEl, target.firstChild) : target.appendChild(opEl); });
-    Dom.element("last", function (target, onlyElement) { return (onlyElement ? target.lastElementChild : target.lastChild); }, function (target, opEl) { return target.appendChild(opEl); });
-    Dom.element("parent", function (target, onlyElement) { return (target.parentNode); }, function (target, opEl) { return opEl.appendChild(target); });
-    Dom.object("ydata", function (elem, name) {
-        var data = elem[Dom.dom_data_token];
-        if (!data)
-            return undefined;
-        return data[name];
-    }, function (elem, name, value) {
-        var data = elem[Dom.dom_data_token];
-        if (!data)
-            Object.defineProperty(elem, Dom.dom_data_token, { enumerable: false, writable: false, configurable: false, value: data = {} });
-        data[name] = value;
-        return this;
-    });
-    Dom.element("append", null, function (target, opEl) { return target.appendChild(opEl); });
-    var element_wrapper = document.createElement("div");
-    var attach;
-    var detech;
-    if (element_wrapper.addEventListener) {
-        attach = function (elem, eventId, listener) { elem.addEventListener(eventId, listener, false); return this; };
-        detech = function (elem, eventId, listener) { elem.removeEventListener(eventId, listener, false); return this; };
-    }
-    else if (element_wrapper.attachEvent) {
-        attach = function (elem, eventId, listener) { elem.attachEvent('on' + eventId, listener); return this; };
-        detech = function (elem, eventId, listener) { elem.detechEvent('on' + eventId, listener); return this; };
-    }
-    if (element_wrapper.currentStyle) {
-        exports.style = function (obj, attr, value) {
-            if (value === undefined)
-                return obj.currentStyle[attr];
-            var convertor = styleConvertors[attr];
-            obj.style[attr] = convertor ? convertor(value) : value;
-        };
-    }
-    else {
-        exports.style = function (obj, attr, value) {
-            if (value === undefined) {
-                var f = false;
-                return getComputedStyle(obj, f)[attr];
-            }
-            var convertor = styleConvertors[attr];
-            obj.style[attr] = convertor ? convertor(value) : value;
-        };
-    }
-    var styleConvertors = YA.styleConvertors;
-    if (!styleConvertors)
-        styleConvertors = YA.styleConvertors = {};
-    function dom(element) {
-        if (element instanceof Dom)
-            return element;
-        return new Dom(element);
-    }
-    exports.dom = dom;
-    var emptyStringRegx = /\s+/g;
-    function findClassAt(clsnames, cls) {
-        var at = clsnames.indexOf(cls);
-        var len = cls.length;
-        while (at >= 0) {
-            if (at > 0) {
-                var prev = clsnames[at - 1];
-                if (!emptyStringRegx.test(prev)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            if ((at + len) !== clsnames.length) {
-                var next = clsnames[at + length];
-                if (!emptyStringRegx.test(next)) {
-                    at = clsnames.indexOf(cls, at + len);
-                    continue;
-                }
-            }
-            return at;
-        }
-        return at;
-    }
-    styleConvertors.left = styleConvertors.right = styleConvertors.top = styleConvertors.bottom
-        = styleConvertors.width = styleConvertors.height = function (val) {
-            if (val && val.substr)
-                return val;
-            else
-                parseFloat(val) + "px";
-        };
-    YA.attrBinders["b-value"] = function (elem, bindValue, component, vnode) {
-        var dm = dom(elem);
-        if (bindValue instanceof YA.ObservableSchema) {
-            var ob = bindValue.getFromRoot(component);
-            dm.val(ob.get(YA.ObservableModes.Value));
-            ob.subscribe("", function (e) { return dm.val(e.value); }, component);
-        }
-        else {
-            dm.val(bindValue);
-        }
-    };
-    YA.attrBinders["value"] = function (elem, bindValue, component, vnode) {
-        var dm = dom(elem);
-        if (bindValue instanceof YA.ObservableSchema) {
-            var ob = bindValue.getFromRoot(component);
-            dm.val(ob.get());
-        }
-        else {
-            dm.val(bindValue);
-        }
-    };
-    var Maskable = /** @class */ (function () {
-        function Maskable(target) {
-            this.target = dom(target);
-            var inst = this.target.ydata(Maskable.dom_inst_token);
-            if (inst)
-                inst.unmask();
-            this.target.ydata(Maskable.dom_inst_token, this);
-            var dm = this.dom = dom("<div style=\"position:absolute;margin:0;padding:0;\" class=\"ya-mask\">\n    <div class=\"ya-mask-backend\" style=\"position:absolute;margin:0;padding:0;left:0,top:0,width:100%;overflow:hidden\"></div>\n    <div class=\"ya-mask-front\" style=\"position:absolute;margin:0;overflow:auto;\"></div>\n</div>");
-            this.frontDom = dm.last(true);
-            this.bgDom = dm.first(true);
-        }
-        Maskable.prototype.mask = function (opts) {
-            var _this = this;
-            if (opts === undefined || opts === null)
-                (opts = this.opts);
-            if (opts === false || (opts && opts.off))
-                return this.unmask();
-            if (typeof opts === "string") {
-                opts = { content: opts };
-            }
-            opts = YA.extend({}, this.opts, opts);
-            if (this.adjust) {
-                dom(window).off("resize", this.adjust);
-            }
-            if (this.tick) {
-                clearInterval(this.tick);
-                this.tick = 0;
-            }
-            this.frontDom.html("");
-            if (opts.css)
-                this.dom.replaceClass(this.opts ? this.opts.css : undefined, opts.css, true);
-            this.frontDom.append(dom(opts.content || ""));
-            this.target.prev(this.dom);
-            this.adjust = function () {
-                var size = _this.adjustBackend();
-                _this.adjustFront(size, opts.keep);
-            };
-            this.adjust();
-            this._userSelectValue = this.target.style("userSelect");
-            this.target.style("userSelect", "none");
-            this._onselectHandler = this.target.prop("onselectstart");
-            var zIndex = parseInt(this.target.style("zIndex")) || 0;
-            this.dom.style("zIndex", zIndex);
-            this.bgDom.style("zIndex", ++zIndex);
-            this.frontDom.style("zIndex", ++zIndex);
-            this.tick = setInterval(this.adjust, 80);
-            dom(window).on("resize", this.adjust);
-            return this;
-        };
-        Maskable.prototype.unmask = function () {
-            if (this.adjust) {
-                dom(window).off("resize", this.adjust);
-            }
-            if (this.tick) {
-                clearInterval(this.tick);
-                this.tick = 0;
-            }
-            this.target.style("userSelect", this._userSelectValue);
-            this.target.prop("onselectstart", this._onselectHandler);
-            this.dom.remove();
-            return this;
-        };
-        Maskable.prototype.adjustFront = function (size, keep) {
-            var fSize = this.frontDom.size();
-            if (fSize.equal(size))
-                return;
-            if (fSize.w > size.w)
-                fSize.w = size.w;
-            if (fSize.h > size.h)
-                fSize.h = size.h;
-            var x = (size.w - fSize.w) / 2;
-            var fpos;
-            if (!keep || keep === "center") {
-                fpos = new Pointer(x, (size.h - fSize.h) / 2);
-            }
-            else {
-                var y = void 0;
-                if (fSize.h != size.h) {
-                    var t = typeof keep;
-                    if (t === "string") {
-                        var pct = YA.is_percent(keep);
-                        if (pct !== undefined) {
-                            y = size.h * pct;
-                        }
-                        else
-                            y = parseFloat(keep);
-                    }
-                    else if (t === "number") {
-                        y = keep;
-                    }
-                    else
-                        y = 0;
-                    if (y + fSize.h > size.h)
-                        y = 0;
-                }
-                else {
-                    y = 0;
-                }
-                fpos = new Pointer(x, y);
-            }
-            this.frontDom.size(fSize);
-            this.frontDom.pos(fpos);
-        };
-        Maskable.prototype.adjustBackend = function () {
-            var size = this.target.size();
-            this.dom.size(size);
-            this.bgDom.size(size);
-            var tpos = this.target.pos();
-            this.dom.pos(tpos);
-            return size;
-        };
-        Maskable.dom_inst_token = "_YA_MASKABLE_INSTANCE";
-        return Maskable;
-    }());
-    exports.Maskable = Maskable;
-    function mask(target, opts) {
-        var inst = target[Maskable.dom_inst_token];
-        if (!inst) {
-            if (opts === false)
-                return;
-            inst = target[Maskable.dom_inst_token] = new Maskable(target);
-        }
-        inst.mask(opts);
-    }
-    exports.mask = mask;
-    Dom.define("mask", function (opts) {
-        for (var i = 0, j = this.length; i < j; i++) {
-            mask(this[i], opts);
-        }
-    });
-    YA.attrBinders.mask = function (elem, bindValue, component, vnode) {
-        if (bindValue instanceof YA.ObservableSchema) {
-            var ob = bindValue.getFromRoot(component);
-            var val = ob.$get(YA.ObservableModes.Value);
-            mask(elem, val);
-            ob.$subscribe("", function (e) {
-                mask(elem, e.value);
-            }, component);
-        }
-        else {
-            mask(elem, bindValue);
-        }
-    };
-    var Dragable = /** @class */ (function () {
-        function Dragable(target) {
-            var _this = this;
-            this.target = dom(target);
-            if (this.target.ydata(Dragable.dom_inst_token))
-                throw new Error("已经在上面创建了Dragable实例");
-            this.cid = YA.new_cid();
-            this.target.ydata(Dragable.dom_inst_token, this);
-            var mvStart = this._moveStart;
-            this._moveStart = function (evt) { return mvStart.call(_this, evt); };
-        }
-        Dragable.prototype.enable = function (handle) {
-            var _this = this;
-            var _a;
-            if (handle === false) {
-                (_a = this.handle) === null || _a === void 0 ? void 0 : _a.off("mousedown", this._moveStart);
-                if (this._positionValue !== undefined)
-                    this.target.style("position", this._positionValue);
-                return this;
-            }
-            if (!this.handle) {
-                this.handle = (handle instanceof Dom) ? handle : Host.isElement(handle) ? dom(handle) : this.target;
-            }
-            this.handle.on("mousedown", function (evt) { return _this._moveStart(evt); });
-            return this;
-        };
-        Dragable.prototype._moveStart = function (evt) {
-            var _this = this;
-            var x = evt.clientX;
-            var y = evt.clientY;
-            this._targetPos = this.target.pos();
-            this._msPos = new Pointer(x, y);
-            this._positionValue = this.target.style("position");
-            var doc = document;
-            var msk = dom("<div style='position:absolute;top:0;height:0;background-color:#fff;z-index:999999999;opacity:0.1;user-select:none;margin:0;padding:0;' onselectstart=\"return false;\"></div>")
-                .width(Math.max(doc.body.offsetWidth, doc.documentElement.offsetWidth))
-                .height(Math.max(doc.body.offsetHeight, doc.documentElement.offsetHeight))
-                .parent(doc.body)
-                .on("mousemove", function (evt) { return _this._moving(evt); })
-                .on("mouseup", function (evt) {
-                _this._moving(evt);
-                msk.remove();
-                msk = undefined;
-                return cancelEvent(evt);
-            }).on("mouseout", function (evt) {
-                _this._moving(evt);
-                msk.remove();
-                msk = undefined;
-            });
-            return cancelEvent(evt);
-        };
-        Dragable.prototype._moving = function (evt) {
-            var x = evt.clientX;
-            var y = evt.clientY;
-            var dx = x - this._msPos.x;
-            var dy = y - this._msPos.y;
-            this.target.left(this._targetPos.x += dx);
-            this.target.top(this._targetPos.y += dy);
-            this._msPos.x = x;
-            this._msPos.y = y;
-            return cancelEvent(evt);
-        };
-        Dragable.dom_inst_token = "YA_MOVEABLE_INSTANCE";
-        return Dragable;
-    }());
-    exports.Dragable = Dragable;
-    Dom.define("dragable", function (handle) {
-        this.each(function (item) {
-            var _a;
-            var inst = (_a = item.ydata(Dragable.dom_inst_token)) === null || _a === void 0 ? void 0 : _a.enable(false);
-        });
-        if (handle !== false) {
-            if (typeof handle === "function") {
-                this.each(function (item) {
-                    var inst = item.ydata(Dragable.dom_inst_token);
-                    if (!inst)
-                        inst = new Dragable(item);
-                    inst.enable(handle.call(item, item[0]));
-                });
-            }
-            else {
-                this.each(function (item) {
-                    var inst = item.ydata(Dragable.dom_inst_token);
-                    if (!inst)
-                        inst = new Dragable(item);
-                    inst.enable(handle);
-                });
-            }
-        }
-        return this;
-    });
-    var MessageBox = /** @class */ (function (_super) {
-        __extends(MessageBox, _super);
-        function MessageBox(opts) {
-            var _this = _super.call(this, function (resolve) {
-                _this._resolve = resolve;
-            }) || this;
-            _this.opts = opts;
-            var adjBk = _this._adjacentBackend;
-            _this._adjacentBackend = function () { return adjBk.call(_this); };
-            return _this;
-        }
-        MessageBox.prototype.open = function () {
-            var _this = this;
-            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
-            this.box = dom("<div class=\"ya-messageBox " + (this.opts.css ? this.opts.css : "") + "\" style=\"position:fixed;top:0;left:0;widht:" + view.clientWidth + "px;height:" + view.clientHeight + "px;overflow:hidden;z-index:99999990;\">\n<div class=\"ya-messageBox-backend\" style=\"position:fixed;top:0;left:0;width:" + view.clientWidth + "px;height:" + view.clientHeight + "px;overflow:hidden;z-index:99999991;\"></div>\n<div class=\"ya-messageBox-front\" style=\"position:fixed;overflow:hidden;z-index:99999992;margin:0;padding:0;\">\n    <div class='ya-messageBox-head' style='position:relative;user-select:none;' onselectstart=\"return false;\"><a class=\"ya-messageBox-closer\" style=\"position:absolute;right:0;top:0;z-index:99999993;\">X</a><div class='ya-messageBox-title'>&nbsp;" + (this.opts.title || "消息") + "</div></div>\n    <div class=\"ya-messageBox-body\">" + this.opts.content + "</div>\n    <div class=\"ya-messageBox-foot\"></div>\n</div>\n</div>");
-            this.box.parent(document.body);
-            this.backend = this.box.first(true);
-            this.front = this.box.last(true);
-            this.head = this.front.first(true);
-            this.body = this.head.next(true);
-            this.foot = this.front.last(true);
-            this.caption = this.head.last(true);
-            this.closer = this.head.first(true)
-                .on("mousedown", function (e) { return cancelEvent(e); })
-                .on("click", function () { return _this.close("close"); });
-            var btns = this.opts.btns || [{ text: "确定", value: "comfirm" }, { text: "取消", value: "cancel" }];
-            for (var _i = 0, btns_1 = btns; _i < btns_1.length; _i++) {
-                var btnInfo = btns_1[_i];
-                (function (btnInfo) {
-                    if (!btnInfo)
-                        return;
-                    var btn = dom("<a href=\"#\">" + (btnInfo.text || btnInfo) + "</a>")
-                        .on("click", function (evt) {
-                        _this.close(btnInfo.value || btnInfo);
-                        return cancelEvent(evt);
-                    })
-                        .parent(_this.foot);
-                })(btnInfo);
-            }
-            this._center();
-            if (this.opts.dragable) {
-                this.front.dragable(this.caption);
-                this.caption.style("cursor", "move");
-            }
-            dom(window).on("resize", this._adjacentBackend);
-            return this;
-        };
-        MessageBox.prototype.close = function (reason) {
-            this.box.remove();
-            dom(window).off("resize", this._adjacentBackend);
-            this._resolve(reason);
-            return this;
-        };
-        MessageBox.prototype._center = function () {
-            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
-            this.front.left((view.clientWidth - this.front.width()) / 2).top((view.clientHeight - this.front.height()) / 2);
-        };
-        MessageBox.prototype._adjacentBackend = function () {
-            var view = document.compatMode === "CSS1Compat" ? document.documentElement : document.body;
-            var sz = dom(view).size();
-            this.backend.size(sz);
-        };
-        return MessageBox;
-    }(YA.Promise));
-    exports.MessageBox = MessageBox;
-    //export function messageBox(msg:string|IMessageBoxOpts){
-    //    return new MessageBox((typeof msg==="string"?{content:msg,dragable:true}:msg )as IMessageBoxOpts).open();
-    // }
-    // @YA.component("Button",false)
-    // export class Button{
-    //     onclick=null;
-    //     @YA.reactive(YA.ReactiveTypes.In)
-    //     text="";
-    //     @YA.reactive(YA.ReactiveTypes.In)
-    //     confirm=undefined;
-    //     @YA.reactive(YA.ReactiveTypes.In)
-    //     className=undefined;
-    //     private _comfirmed:boolean;
-    //     private _comfirmElem:Dom;
-    //     render(p){
-    //         return <button class="" onclick={this._onclick}>{this.text}</button>;
-    //     }
-    //     private _onclick(evt){
-    //         if(this._comfirmed || !this.confirm){
-    //             this._comfirmed=false;
-    //             if(this.onclick){
-    //                 this.onclick(evt);
-    //             } 
-    //         }else {
-    //         }
-    //         return cancelEvent(evt);
-    //     }
-    // }
-    function cancelEvent(evt) {
-        evt || (evt === event);
-        if (evt.preventDefault)
-            evt.preventDefault();
-        if (evt.stopPropagation)
-            evt.stopPropagation();
-        evt.cancelBubble = true;
-        evt.returnValue = false;
-        return false;
-    }
-    exports.cancelEvent = cancelEvent;
+    var YA = require("../YA.core");
+    var Observable = YA.Observable;
+    var isObservable = YA.Observable.isObservable;
+    var ObservableModes = YA.ObservableModes;
+    var observableMode = YA.observableMode;
+    var in_parameter = YA.in_parameter;
+    var out_parameter = YA.out_parameter;
+    var parameter = YA.parameter;
     var Size = /** @class */ (function () {
         function Size(w, h) {
             this.w = w === undefined ? undefined : parseFloat(w);
@@ -1075,5 +74,1099 @@ var __extends = (this && this.__extends) || (function () {
         return Pointer;
     }());
     exports.Pointer = Pointer;
+    exports.ElementUtility = YA.ElementUtility;
+    exports.ElementUtility.htmlEncode = function (text) {
+        if (text === undefined || text === null)
+            return "";
+        text = text.toString();
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br />").replace(/ /g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
+    };
+    var getStyle;
+    var setStyle;
+    try {
+        var element_wrapper_1 = exports.ElementUtility.createElement("div");
+        if (element_wrapper_1.currentStyle) {
+            getStyle = exports.ElementUtility.getStyle = function (node, name) { return node.currentStyle[name]; };
+        }
+        else {
+            getStyle = exports.ElementUtility.getStyle = function (node, name) { return getComputedStyle(node, false)[name]; };
+        }
+        setStyle = exports.ElementUtility.setStyle = function (node, name, value) {
+            if (value === undefined || value === true) {
+                for (var n in name) {
+                    var convertor = exports.styleConvertors[name];
+                    node.style[name] = convertor ? convertor(value) : value;
+                }
+            }
+            else if (value === false) {
+                for (var n in name) {
+                    node.style[n] = name[n];
+                }
+            }
+            else {
+                var convertor = exports.styleConvertors[name];
+                node.style[name] = convertor ? convertor(value) : value;
+            }
+            return exports.ElementUtility;
+        };
+        exports.ElementUtility.parse = function (domString) {
+            element_wrapper_1.innerHTML = domString;
+            return element_wrapper_1.childNodes;
+        };
+    }
+    catch (ex) { }
+    var emptyStringRegx = /\s+/;
+    function findClassAt(clsnames, cls) {
+        var at = clsnames.indexOf(cls);
+        var len = cls.length;
+        while (at >= 0) {
+            if (at > 0) {
+                var prev = clsnames[at - 1];
+                if (!emptyStringRegx.test(prev)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            if ((at + len) !== clsnames.length) {
+                var next = clsnames[at + len];
+                if (!emptyStringRegx.test(next)) {
+                    at = clsnames.indexOf(cls, at + len);
+                    continue;
+                }
+            }
+            return at;
+        }
+        return at;
+    }
+    var hasClass = exports.ElementUtility.hasClass = function (node, cls) {
+        return findClassAt(node.className, cls) >= 0;
+    };
+    var addClass = exports.ElementUtility.addClass = function (node, cls) {
+        if (cls === undefined || cls === null || cls === "" || !(cls = YA.trim(cls)))
+            return false;
+        if (findClassAt(node.className, cls) >= 0)
+            return false;
+        node.className += " " + cls;
+        return true;
+    };
+    var removeClass = exports.ElementUtility.removeClass = function (node, cls) {
+        if (cls === undefined || cls === null || cls === "" || !(cls = YA.trim(cls)))
+            return false;
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, cls);
+        if (at <= 0)
+            return false;
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + cls.length);
+        node.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+        return true;
+    };
+    var replaceClass = exports.ElementUtility.replaceClass = function (node, old_cls, new_cls, alwaysAdd) {
+        if ((old_cls === "" || old_cls === undefined || old_cls === null) && alwaysAdd)
+            return addClass(node, new_cls);
+        var clsnames = node.className;
+        var at = findClassAt(clsnames, old_cls);
+        if (at <= 0) {
+            if (alwaysAdd)
+                node.className = clsnames + " " + new_cls;
+            return true;
+        }
+        var prev = clsnames.substring(0, at);
+        var next = clsnames.substr(at + old_cls.length);
+        node.className = prev + new_cls + next;
+        return true;
+    };
+    var toggleClass = exports.ElementUtility.toggleClass = function (elem, cls) {
+        var at = findClassAt(elem.className, cls);
+        if (at >= 0) {
+            var prev = cls.substring(0, at);
+            var next = cls.substr(at + cls.length);
+            elem.className = prev.replace(/(\s+$)/g, "") + " " + next.replace(/(^\s+)/g, "");
+            return false;
+        }
+        else {
+            elem.className += " " + cls;
+            return true;
+        }
+    };
+    var show = exports.ElementUtility.show = function (elem, immeditately) {
+        var value = elem.$__displayValue__;
+        if (!value || value == "none")
+            value = "";
+        elem.style.display = value;
+        return exports.ElementUtility;
+    };
+    var hide = exports.ElementUtility.hide = function (elem, immeditately) {
+        var old = getStyle(elem, "display");
+        if (old && old !== "none")
+            elem.$__displayValue__ = old;
+        elem.style.display = "none";
+        return exports.ElementUtility;
+    };
+    var restoredDisplay = function (elem, visible) {
+        var curr = getStyle(elem, "display");
+        var store = elem.$__storedDisplay__;
+        if (visible === false) {
+            if (store !== undefined) {
+                elem.style.display = store;
+                elem.$__storedDisplay__ = undefined;
+            }
+            else {
+                elem.style.display = "none";
+                elem.$__storedDisplay__ = curr;
+            }
+        }
+        else {
+            if (store !== undefined) {
+                elem.style.display = store;
+                elem.$__storedDisplay__ = undefined;
+            }
+            else {
+                elem.style.display = "";
+                elem.$__storedDisplay__ = curr;
+            }
+        }
+    };
+    var getAbs = exports.ElementUtility.getAbs = function getAbs(elem) {
+        var p = elem;
+        if (!p)
+            new Pointer(undefined, undefined);
+        var x = 0, y = 0;
+        while (p) {
+            x += p.offsetLeft;
+            y += p.offsetTop;
+            p = p.offsetParent;
+        }
+        return new Pointer(x, y);
+    };
+    function setAbs(elem, new_pos, old_pos) {
+        elem.style.position = "absolute";
+        if (!old_pos)
+            old_pos = getAbs(elem);
+        if (new_pos.x !== undefined) {
+            var x = new_pos.x - old_pos.x + elem.clientLeft;
+            elem.style.left = x + "px";
+        }
+        if (new_pos.y !== undefined) {
+            var y = new_pos.y - old_pos.y + elem.clientTop;
+            elem.style.top = y + "px";
+        }
+        return exports.ElementUtility;
+    }
+    exports.ElementUtility.setAbs = setAbs;
+    exports.styleConvertors = {};
+    var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
+    exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = exports.styleConvertors.minWidth = exports.styleConvertors.maxWidth = exports.styleConvertors.maxWidth = exports.styleConvertors.maxHeight = function (value) {
+        if (!value)
+            return "0";
+        if (typeof value === "number") {
+            return value + "px";
+        }
+        else
+            return value;
+    };
+    YA.attrBinders.style = function (elem, bindValue, vnode, compInstance) {
+        var t = typeof bindValue;
+        if (t === "string") {
+            elem.style.cssText = bindValue;
+        }
+        if (t !== "object") {
+            console.warn("给style不正确的style值，忽略", bindValue, elem, vnode, compInstance);
+            return;
+        }
+        if (isObservable(bindValue)) {
+            var value = bindValue.get(YA.ObservableModes.Value);
+            if (typeof value === "string") {
+                elem.style.cssText = bindValue;
+            }
+            else {
+                for (var n in value)
+                    setStyle(elem, n, value[n]);
+            }
+            bindValue.subscribe(function (e) {
+                var value = e.value;
+                if (typeof value === "string") {
+                    elem.style.cssText = bindValue;
+                }
+                else {
+                    for (var n in value)
+                        setStyle(elem, n, value[n]);
+                }
+            }, compInstance);
+        }
+        else {
+            for (var n in bindValue)
+                (function (value, name) {
+                    if (isObservable(value)) {
+                        value.subscribe(function (e) {
+                            setStyle(elem, name, e.value);
+                        }, compInstance);
+                        setStyle(elem, name, value.get(YA.ObservableModes.Value));
+                    }
+                    else {
+                        setStyle(elem, name, value);
+                    }
+                })(bindValue[n], n);
+        }
+    };
+    YA.attrBinders.css = function (elem, bindValue, vnode, compInstance) {
+        var addCss = function (elem, value) {
+            if (typeof value === "string") {
+                if (elem.className)
+                    elem.className += " ";
+                elem.className += YA.trim(value);
+            }
+            else {
+                if (!value.join) {
+                    console.warn("给class绑定的对象必须是string或array", value, compInstance);
+                    return;
+                }
+                for (var _i = 0, value_1 = value; _i < value_1.length; _i++) {
+                    var cssValue = value_1[_i];
+                    if (YA.is_array(cssValue))
+                        addCss(elem, cssValue);
+                    else {
+                        if (elem.className)
+                            elem.className += " ";
+                        elem.className += YA.trim(cssValue);
+                    }
+                }
+            }
+        };
+        var removeCss = function (elem, value) {
+            if (typeof value === "string") {
+                removeClass(elem, value);
+            }
+            else {
+                if (!value.join) {
+                    console.warn("给class绑定的对象必须是string或array", value, compInstance);
+                    return;
+                }
+                for (var _i = 0, value_2 = value; _i < value_2.length; _i++) {
+                    var cssValue = value_2[_i];
+                    if (YA.is_array(cssValue))
+                        removeCss(elem, cssValue);
+                    else {
+                        removeClass(elem, cssValue);
+                    }
+                }
+            }
+        };
+        var t = typeof bindValue;
+        if (t === "string") {
+            elem.className = bindValue;
+        }
+        if (YA.is_array(bindValue)) {
+            for (var _i = 0, bindValue_1 = bindValue; _i < bindValue_1.length; _i++) {
+                var css = bindValue_1[_i];
+                (function (value) {
+                    var cssText = bindValue;
+                    if (isObservable(value)) {
+                        value.subscribe(function (e) {
+                            if (e.old)
+                                removeCss(elem, e.old);
+                            addCss(elem, e.value);
+                        }, compInstance);
+                        cssText = value.get(ObservableModes.Value);
+                    }
+                    addCss(elem, cssText);
+                })(css);
+            }
+            return;
+        }
+        if (isObservable(bindValue)) {
+            var value = bindValue.get(YA.ObservableModes.Value);
+            addCss(elem, value);
+            bindValue.subscribe(function (e) {
+                removeCss(elem, e.old);
+                addCss(elem, e.value);
+            }, compInstance);
+        }
+        console.warn("css属性不支持的数据类型", bindValue);
+    };
+    //////////////////////////////////////////////////////////////////////////////
+    // Html控件
+    //////////////////////////////////////////////////////////////////////////////
+    function setElementInstance(elem, inst, token) {
+        if (elem[token])
+            return false;
+        Object.defineProperty(elem, Mask.InstanceToken, { enumerable: false, writable: false, configurable: false, value: inst });
+        return true;
+    }
+    var Mask = /** @class */ (function () {
+        function Mask(elem) {
+            if (setElementInstance(elem, this, Mask.InstanceToken)) {
+                this.element = elem;
+            }
+            else
+                throw new Error("已经有了控件实例");
+        }
+        Mask.prototype.mask = function (opts) {
+            if (opts === false)
+                return this.unmask();
+            else if (opts === true) {
+                opts = this;
+            }
+            else if (typeof opts === "string") {
+                opts = { content: opts };
+            }
+            return this._init(opts);
+        };
+        Mask.prototype._init = function (opts) {
+            var _this = this;
+            var elem = this._sureElements();
+            this.__liveCheckCount = 0;
+            if (opts.css) {
+                elem.className = "ya-mask " + opts.css;
+                this.css = opts.css;
+            }
+            else
+                elem.className = "ya-mask";
+            var z = (parseInt(getStyle(elem, "zIndex")) || 0) + 1;
+            setStyle(elem, "zIndex", z);
+            exports.ElementUtility.insertBefore(elem, this.element);
+            if (opts.autoCenter !== undefined)
+                this.autoCenter = opts.autoCenter;
+            else
+                this.autoCenter = true;
+            var content = opts.content;
+            if (content === undefined)
+                content = Mask.Message;
+            this.content = content;
+            this.__frontElement.innerHTML = "";
+            if (exports.ElementUtility.isElement(content, true)) {
+                this.__frontElement.appendChild(content);
+            }
+            else
+                this.__frontElement.innerHTML = content;
+            if (this.top)
+                this.top = opts.top;
+            this._keepBackend();
+            this._keepFront();
+            if (this.__centerTimer)
+                clearInterval(this.__centerTimer);
+            if (this.autoCenter)
+                this.__centerTimer = setInterval(function () {
+                    if (_this.__liveCheckCount === 1000) {
+                        if (!exports.ElementUtility.is_inDocument(_this.element)) {
+                            clearInterval(_this.__centerTimer);
+                            _this.__centerTimer = 0;
+                            return;
+                        }
+                        else
+                            _this.__liveCheckCount = 0;
+                    }
+                    _this._keepBackend();
+                    if (_this.autoCenter)
+                        _this._keepFront();
+                    _this.__liveCheckCount++;
+                }, 50);
+            return this;
+        };
+        Mask.prototype._sureElements = function () {
+            if (this.__maskElement)
+                return this.__maskElement;
+            var elem = exports.ElementUtility.createElement("div");
+            //elem.className = "ya-mask";
+            elem.style.cssText = "box-sizing:border-box;position:absolute;padding:0;margin:0;left:0;top:0;";
+            elem.innerHTML = "<div class='ya-mask-backend' style='box-sizing:border-box;position:absolute;padding:0;margin:0;'></div><div class='ya-mask-front' style='position:absolute;margin:0;box-sizing:border-box;overflow:hidden;word-break:break-all;'></div>";
+            this.__backendElement = elem.firstChild;
+            this.__frontElement = elem.lastChild;
+            return this.__maskElement = elem;
+        };
+        Mask.prototype._keepBackend = function () {
+            var w = this.element.offsetWidth;
+            var h = this.element.offsetHeight;
+            var x = this.element.offsetLeft;
+            var y = this.element.offsetTop;
+            setStyle(this.__maskElement, { width: w + "px", height: h + "px", left: x + "px", top: y + "px" }, false);
+            setStyle(this.__backendElement, { width: w + "px", height: h + "px" }, false);
+        };
+        Mask.prototype._keepFront = function () {
+            var fe = this.__frontElement;
+            var w = this.element.offsetWidth;
+            var h = this.element.offsetHeight;
+            var fw = fe.offsetWidth; //;+(parseInt(getStyle(fe,"borderLeftWidth"))|0) + ;
+            var fh = fe.offsetHeight;
+            fw = Math.min(fw, w);
+            fh = Math.min(fh, h);
+            var x = (w - fw) / 2;
+            var y = (this.top !== undefined ? this.top : ((h - fh) / 2));
+            setStyle(this.__frontElement, {
+                left: x + "px", top: y + "px", width: fw + "px", height: fh + "px"
+            }, false);
+        };
+        Mask.prototype.unmask = function () {
+            if (this.__centerTimer)
+                clearInterval(this.__centerTimer);
+            this.__centerTimer = 0;
+            if (this.__maskElement)
+                this.__maskElement.parentNode.removeChild(this.__maskElement);
+            return this;
+        };
+        Mask.prototype.dispose = function () {
+            if (this.__centerTimer)
+                clearInterval(this.__centerTimer);
+            this.__centerTimer = 0;
+            if (this.__maskElement)
+                this.__maskElement.parentNode.removeChild(this.__maskElement);
+            this.__maskElement = this.__backendElement = this.__frontElement = undefined;
+        };
+        Mask.InstanceToken = "YA_MASK_INST";
+        Mask.Message = "请等待...";
+        return Mask;
+    }());
+    exports.Mask = Mask;
+    YA.attrBinders.mask = function (elem, bindValue, vnode, compInstance) {
+        if (isObservable(bindValue)) {
+            bindValue.subscribe(function (e) {
+                mask(elem, e.value);
+            }, compInstance);
+            bindValue = bindValue.get();
+        }
+        mask(elem, bindValue);
+    };
+    function mask(elem, opts) {
+        var inst = elem[Mask.InstanceToken];
+        if (!inst)
+            inst = new Mask(elem);
+        return inst.mask(opts);
+    }
+    exports.mask = mask;
+    var Component = /** @class */ (function (_super) {
+        __extends(Component, _super);
+        function Component() {
+            return _super !== null && _super.apply(this, arguments) || this;
+        }
+        Component.prototype.render = function (descriptor, container) {
+            throw new Error("abstract method.");
+        };
+        Component.prototype.request = function (opts, requester) {
+        };
+        Component.initElement = function (elem, attrs, ownComponent) {
+            var css = attrs["css"];
+            if (css !== undefined) {
+                YA.bindDomAttr(elem, "className", css, attrs, ownComponent, function (elem, name, value, old) {
+                    replaceClass(elem, old, value, true);
+                });
+            }
+            for (var styleName in stylenames) {
+                var value = attrs[styleName];
+                if (value !== undefined) {
+                    initStyleProp(elem, styleName, value, ownComponent);
+                }
+            }
+        };
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "css", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "width", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "minWidth", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "maxWidth", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "height", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "minHeight", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "maxHeight", void 0);
+        return Component;
+    }(YA.Component));
+    exports.Component = Component;
+    Object.defineProperty(Component.prototype, "mask", { enumerable: false, configurable: true,
+        get: function () {
+            return this.$element ? this.$elements["YA_MASK_OPTS"] : undefined;
+        },
+        set: function (value) {
+            if (!value)
+                value = false;
+            this.$element["YA_MASK_OPTS"] = value;
+            var inst = this.$element[Mask.InstanceToken];
+            if (!inst) {
+                inst = new Mask(this.$element);
+                this.dispose(function () { return inst.dispose(); });
+            }
+            inst.mask(value);
+        }
+    });
+    var stylenames = ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"];
+    function initStyleProp(elem, name, value, ownComponent) {
+        if (YA.Observable.isObservable(value)) {
+            value.subscribe(function (e) {
+                setStyle(elem, name, e.value);
+            }, ownComponent);
+            value = value.get(ObservableModes.Value);
+            if (value !== undefined && value !== "")
+                setStyle(elem, name, value);
+        }
+    }
+    var popContainer;
+    var pageElement;
+    function initDom() {
+        popContainer = document.createElement("div");
+        popContainer.className = "ya-pop-layer";
+        popContainer.style.cssText = "position:absolute;left:0;top:0;z-index:999999;background-color:transparent";
+        pageElement = document.compatMode == "CSS1Compat" ? document.documentElement : document.body;
+        exports.ElementUtility.attach(window, "resize", function () {
+            if (popContainer && popContainer.parentNode) {
+                popContainer.style.width = pageElement.offsetWidth + "px";
+                popContainer.style.height = pageElement.offsetHeight + "px";
+            }
+        });
+    }
+    initDom();
+    function addPopElement(elem, onRemove) {
+        if (!popContainer.parentNode) {
+            document.body.appendChild(popContainer);
+        }
+        popContainer.style.width = pageElement.offsetWidth + "px";
+        popContainer.style.height = pageElement.offsetHeight + "px";
+        popContainer.appendChild(elem);
+        if (onRemove !== false) {
+            var handler = elem.$__popElementRemoveHandler__ = function () {
+                if (removePopElement(elem)) {
+                    if (typeof onRemove === "function")
+                        onRemove(elem);
+                }
+            };
+            exports.ElementUtility.attach(popContainer, "click", handler);
+        }
+    }
+    function removePopElement(elem) {
+        if (elem.parentNode === popContainer) {
+            popContainer.removeChild(elem);
+            if (elem.$__popElementRemoveHandler__)
+                exports.ElementUtility.detech(popContainer, "click", elem.$__popElementRemoveHandler__);
+            if (popContainer.childNodes.length === 0)
+                document.body.removeChild(popContainer);
+            return true;
+        }
+        return false;
+    }
+    var Dropdownable = /** @class */ (function () {
+        function Dropdownable(target, opts) {
+            this.target = target;
+            this.opts = opts;
+            Object.defineProperty(target, Dropdownable.token, { enumerable: false, writable: false, configurable: false, value: this });
+            var self = this;
+            var show = this.show;
+            var hide = this.hide;
+            var toggle = this.toggle;
+            this.show = function () { return show.call(self); };
+            this.hide = function () { return hide.call(self); };
+            this.toggle = function () { return toggle.call(self); };
+            exports.ElementUtility.attach(target, "focus", this.show);
+            exports.ElementUtility.attach(target, "blur", this.hide);
+            exports.ElementUtility.attach(target, "click", this.toggle);
+        }
+        Dropdownable.prototype.show = function () {
+            var _this = this;
+            if (this.$__isShow__)
+                return this;
+            if (!this.target.parentNode)
+                return this;
+            if (!this.element)
+                this.element = this._initElement();
+            addPopElement(this.element, function () { return _this.$__isShow__ = false; });
+            this._setPosition();
+            this.$__isShow__ = true;
+            return this;
+        };
+        Dropdownable.prototype.hide = function () {
+            removePopElement(this.element);
+            this.$__isShow__ = false;
+            return this;
+        };
+        Dropdownable.prototype.toggle = function () {
+            if (this.$__isShow__)
+                this.hide();
+            else
+                this.show();
+            //this.show();
+            return this;
+        };
+        Dropdownable.prototype._initElement = function () {
+            var elem = this.element = document.createElement("div");
+            elem.className = "dropdown";
+            elem.style.cssText = "position:absolute;overflow:auto;";
+            var content = this.opts.content;
+            if (!exports.ElementUtility.isElement(content)) {
+                var ct = typeof content;
+                if (ct === "function")
+                    content = YA.createComponent(content, null, elem, this.ownComponent);
+                else if (YA.is_array(content)) {
+                }
+                else {
+                    content = YA.createDescriptor(content, elem, this.ownComponent);
+                }
+            }
+            else
+                elem.appendChild(content);
+            content.style.display = "block";
+            return elem;
+        };
+        Dropdownable.prototype._setPosition = function () {
+            var targetAbs = getAbs(this.target);
+            var size = new Size(this.target.clientWidth, this.target.clientHeight);
+            var loc = this.opts.location || "vertical";
+            var fn = this["_" + loc];
+            if (!fn)
+                fn = this._auto;
+            fn.call(this, targetAbs, size);
+        };
+        Dropdownable.prototype._bottom = function (pos, size) {
+            this.element.style.top = pos.y + size.h + "px";
+            if (this.element.clientWidth < size.w) {
+                this.element.style.left = pos.x + "px";
+                return;
+            }
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            if (bodyRight < pos.x + this.element.clientWidth) {
+                //右边空间不够，向左展开
+                this.element.style.left = pos.x + size.w - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.left = pos.x + "px";
+            }
+        };
+        Dropdownable.prototype._top = function (pos, size) {
+            this.element.style.top = pos.y - this.element.clientHeight + "px";
+            if (this.element.clientWidth < size.w) {
+                this.element.style.left = pos.x + "px";
+                return;
+            }
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            if (bodyRight < pos.x + this.element.clientWidth) {
+                //右边空间不够，向左展开
+                this.element.style.left = pos.x + size.w - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.left = pos.x + "px";
+            }
+        };
+        Dropdownable.prototype._left = function (pos, size) {
+            this.element.style.left = pos.x - this.element.clientWidth + "px";
+            if (this.element.clientHeight < size.h) {
+                this.element.style.top = pos.y + "px";
+                return;
+            }
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            if (bodyBottom < pos.y + this.element.clientHeight) {
+                //下面空间不够，向上展开
+                this.element.style.top = pos.y + size.h - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.top = pos.y + "px";
+            }
+        };
+        Dropdownable.prototype._right = function (pos, size) {
+            this.element.style.left = pos.x + size.w + "px";
+            if (this.element.clientHeight < size.h) {
+                this.element.style.top = pos.y + "px";
+                return;
+            }
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            if (bodyBottom < pos.y + this.element.clientHeight) {
+                //下面空间不够，向上展开
+                this.element.style.top = pos.y + size.h - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.top = pos.y + "px";
+            }
+        };
+        Dropdownable.prototype._horizen = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y;
+            if (pos.x + size.w + this.element.clientWidth > bodyRight) {
+                x = pos.x - this.element.clientWidth;
+            }
+            else
+                x = pos.x + size.w;
+            if (x < 0)
+                x = 0;
+            if (pos.y + this.element.clientHeight > bodyBottom) {
+                y = pos.y + size.h - this.element.clientHeight;
+            }
+            else
+                y = pos.y;
+            if (y < 0)
+                y = 0;
+            this.element.style.left = x + "px";
+            this.element.style.top = y + "px";
+        };
+        Dropdownable.prototype._vertical = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y;
+            if (pos.y + size.h + this.element.clientHeight > bodyBottom) {
+                y = pos.y - this.element.clientHeight;
+            }
+            else
+                y = pos.y + size.h;
+            if (y < 0)
+                y = 0;
+            if (pos.x + this.element.clientWidth > bodyRight) {
+                x = pos.x + size.w - this.element.clientWidth;
+            }
+            else
+                x = pos.x;
+            if (x < 0)
+                x = 0;
+            this.element.style.left = x + "px";
+            this.element.style.top = y + "px";
+        };
+        Dropdownable.prototype._auto = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y, isComplete; //isComplete 上下展开是否是完全的展开
+            if (pos.y + size.h + this.element.clientHeight > bodyBottom) {
+                //完全下展空间不够
+                if (pos.y + this.element.clientHeight > bodyBottom) {
+                    //部分下展空间也不够
+                    y = pos.y - this.element.clientHeight;
+                    if (y < 0) {
+                        y -= size.h;
+                        if (y < 0)
+                            y = 0;
+                    }
+                    else {
+                        isComplete = true;
+                    }
+                }
+                else
+                    y = pos.y;
+            }
+            else {
+                y = pos.x + size.h;
+                isComplete = true;
+            }
+            if (isComplete) {
+                if (pos.x + this.element.clientWidth > bodyRight) {
+                    x = pos.x - this.element.clientWidth;
+                    if (x < 0)
+                        x = 0;
+                }
+                else
+                    x = pos.x;
+            }
+            else {
+                if (pos.x + size.w + this.element.clientWidth > bodyRight) {
+                    x = pos.x - this.element.clientWidth;
+                    if (x < 0)
+                        x = 0;
+                }
+                else {
+                    x = pos.x + size.w;
+                }
+            }
+        };
+        Dropdownable.token = "$__DROPDOWN_INST__";
+        return Dropdownable;
+    }());
+    exports.Dropdownable = Dropdownable;
+    var Dropdown = /** @class */ (function (_super) {
+        __extends(Dropdown, _super);
+        function Dropdown() {
+            var _this = _super.call(this) || this;
+            _this.editable = true;
+            _this.OPTIONVALUE = "Id";
+            _this.OPTIONTEXT = "Text";
+            return _this;
+        }
+        Dropdown.prototype._render = function () {
+            var field = YA.variable(undefined);
+            var fieldname = YA.variable("");
+            var option = YA.variable(null);
+            var optionIndex = YA.variable(0);
+            return YA.createElement("span", { css: ["ya-dropdown ya-input", this.css] },
+                YA.createElement("input", { if: this.editable, type: "text", "b-value": this.text }),
+                YA.createElement("span", { if: YA.not(this.editable) }, this.text),
+                YA.createElement("a", { href: "#", className: "btn ya-dropdown-btn" }, " "),
+                YA.createElement("table", { style: "display:none;position:absolute;" },
+                    YA.createElement("thead", { if: this.fields },
+                        YA.createElement("tr", { for: [this.fields, field] },
+                            YA.createElement("th", null, YA.computed(function (field, fieldname) { return typeof field === "string" ? field : field.text; }, field)))),
+                    YA.createElement("tbody", { if: this.fields, for: [this.$__options__, option, optionIndex] },
+                        YA.createElement("tr", { className: YA.computed(function (index, selectIndex) { return index === selectIndex ? "selected" : ""; }, optionIndex, this.selectIndex), for: [this.fields, field, fieldname] },
+                            YA.createElement("td", null, YA.computed(function () { return option[field.name || fieldname]; }))))));
+        };
+        Dropdown.prototype.getFieldText = function (field) {
+            if (typeof field === "string")
+                return field;
+            return field.text;
+        };
+        Dropdown.prototype.render = function (descriptor, parentNode) {
+            var _this = this;
+            var element = document.createElement("SPAN");
+            element.className = "ya-input ya-dropdown";
+            Component.initElement(element, this, this);
+            var editableOb = this.editable;
+            if (editableOb.get(ObservableModes.Value)) {
+                this._editInput();
+            }
+            else {
+                this._readonlyInput();
+            }
+            editableOb.subscribe(function (e) {
+                e.value ? _this._editInput() : _this._readonlyInput();
+            }, this);
+            var dropdownBtn = exports.ElementUtility.createElement("a", { "class": "ya-btn ya-dropdown-btn" }, element);
+            //ElementUtility.attach(dropdownBtn);
+            var options = this.options;
+            if (typeof this.options === "string") {
+                options = this.request(options, this);
+            }
+            if (options.then) {
+                addClass(element, "ya-loading");
+                this.inputElement.disabled = true;
+                options.then(function (opts) {
+                    _this.setOptions(opts);
+                    _this.inputElement.disabled = false;
+                    removeClass(element, "ya-loading");
+                });
+            }
+            else {
+                this.setOptions(options);
+            }
+            return element;
+        };
+        Dropdown.prototype._setValue = function (value) {
+            for (var item in this.$__options__) {
+                var text = void 0;
+                if (item === value || (this.compare && (text = this.compare(item, value)) !== undefined) || item[this.OPTIONVALUE || "Id"] == value) {
+                    if (text === undefined)
+                        text = item[this.OPTIONTEXT || "Text"];
+                    this._setText(text);
+                    break;
+                }
+            }
+            return this;
+        };
+        Dropdown.prototype.setOptions = function (opts) {
+            var value = this.value.get(ObservableModes.Value);
+            if (YA.is_array(opts)) {
+                this.$__options__ = [];
+                for (var _i = 0, opts_1 = opts; _i < opts_1.length; _i++) {
+                    var optionItem = opts_1[_i];
+                    this.$__options__.push(optionItem);
+                    if (optionItem === value) {
+                        this._setText(optionItem[this.OPTIONTEXT || "Text"]);
+                    }
+                    else if (this.compare) {
+                        var text = this.compare(optionItem, value);
+                        if (text !== undefined) {
+                            this._setText(text);
+                            break;
+                        }
+                    }
+                    else if (optionItem[this.OPTIONVALUE] === value) {
+                        this._setText(optionItem[this.OPTIONTEXT || "Text"]);
+                        break;
+                    }
+                }
+            }
+            else {
+                for (var key in opts) {
+                    var text = opts[key];
+                    var opt = {};
+                    opt[this.OPTIONVALUE || "Id"] = key;
+                    opt[this.OPTIONTEXT || "Text"] = text;
+                    if (key === value)
+                        this._setText(text);
+                }
+            }
+            return this;
+        };
+        Dropdown.prototype._editInput = function () {
+            var _this = this;
+            if (this.inputElement && this.inputElement.tagName === "INPUT")
+                return this.inputElement;
+            var inputElement = document.createElement("INPUT");
+            inputElement.type = "text";
+            inputElement.className = "ya-input";
+            inputElement.style.cssText = "display:inline-block;width:100%;";
+            inputElement.onkeyup = function (e) {
+                if (_this.$__tick__)
+                    clearTimeout(_this.$__tick__);
+                _this.$__tick__ = setTimeout(function () {
+                    if (_this.$__tick__)
+                        clearTimeout(_this.$__tick__);
+                    _this.$__tick__ = undefined;
+                    var keyword = YA.trim(inputElement.value);
+                    _this._filter(keyword);
+                }, 150);
+            };
+            inputElement.onblur = function () {
+                if (_this.$__tick__)
+                    clearTimeout(_this.$__tick__);
+                _this.$__tick__ = undefined;
+                var keyword = YA.trim(inputElement.value);
+                _this._filter(keyword);
+            };
+            if (this.inputElement) {
+                this.$element.replaceChild(inputElement, this.inputElement);
+            }
+            else
+                this.$element.appendChild(inputElement);
+            this._setText = function (text) { return inputElement.value = text === undefined || text === null ? "" : text; };
+            return this.inputElement = inputElement;
+        };
+        Dropdown.prototype._readonlyInput = function () {
+            if (this.inputElement && this.inputElement.tagName === "SPAN")
+                return this.inputElement;
+            var inputElement = document.createElement("SPAN");
+            inputElement.className = "ya-input";
+            inputElement.style.cssText = "display:inline-block;width:100%;";
+            if (this.inputElement) {
+                this.$element.replaceChild(inputElement, this.inputElement);
+            }
+            else
+                this.$element.appendChild(inputElement);
+            this._setText = function (text) { return inputElement.innerHTML = exports.ElementUtility.htmlEncode(text); };
+            return this.inputElement = inputElement;
+        };
+        Dropdown.prototype._filter = function (keyword) {
+            var _this = this;
+            if (!this.$__tbody__)
+                return;
+            var filter = this.filter || this._defaultFilter;
+            var opts = filter.call(this, keyword, this.$__options__, this);
+            if (typeof opts.then === "function") {
+                var sessionId_1 = this.$__filterSessionId__ = new Date();
+                opts.then(function (asyncOpts) {
+                    if (sessionId_1 !== _this.$__filterSessionId__)
+                        return;
+                    _this._makeDropdownRow(opts);
+                });
+            }
+            else {
+                this._makeDropdownRow(opts);
+            }
+        };
+        Dropdown.prototype._defaultFilter = function (keyword, options, dropdown) {
+            var filteredOpts = [];
+            for (var _i = 0, _a = this.$__options__; _i < _a.length; _i++) {
+                var item = _a[_i];
+                if (item[this.OPTIONVALUE || "Id"] === keyword)
+                    filteredOpts.push(item);
+                else {
+                    var text = item[this.OPTIONTEXT || "Text"];
+                    if (text === keyword || (text && text.indexOf(keyword) >= 0))
+                        filteredOpts.push(item);
+                }
+            }
+            return filteredOpts;
+        };
+        Dropdown.prototype.expand = function () {
+            if (this.$__dropdownable__) {
+                this.$__dropdownable__.show();
+                addClass(this.$element, "ya-expand");
+                return this;
+            }
+            var tb = document.createElement("table");
+            tb.className = "ya-dropdown";
+            if (this.fields) {
+                var thead = document.createElement("thead");
+                tb.appendChild(thead);
+                var hrow = document.createElement("tr");
+                thead.appendChild(hrow);
+                for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
+                    var field = _a[_i];
+                    if (typeof field === "string") {
+                        exports.ElementUtility.createElement("th", { innerHTML: exports.ElementUtility.htmlEncode(field) }, hrow);
+                    }
+                }
+            }
+            var tbody = this.$__tbody__ = document.createElement("tbody");
+            tb.appendChild(tbody);
+            var waitingTr = this.$__waitingTr__ = exports.ElementUtility.createElement("tr", { "class": "waiting-options" }, tbody);
+            var td = exports.ElementUtility.createElement("td", null, waitingTr);
+            exports.ElementUtility.createElement("div", { "class": "ya-waiting-text" }, td);
+            this._makeDropdownRow(this.$__options__);
+            this.$__dropdownable__ = new Dropdownable(this.$element, {});
+            this.$__dropdownable__.show();
+            addClass(this.$element, "ya-expand");
+            return this;
+        };
+        Dropdown.prototype.collapse = function () {
+            if (this.$__dropdownable__) {
+                this.$__dropdownable__.hide();
+                removeClass(this.$element, "ya-expand");
+            }
+            return this;
+        };
+        Dropdown.prototype._makeDropdownRow = function (options) {
+            var self = this;
+            this.$__tbody__.innerHTML = "";
+            for (var _i = 0, options_1 = options; _i < options_1.length; _i++) {
+                var optItem = options_1[_i];
+                if (this.fields) {
+                    var row = document.createElement("tr");
+                    this.$__tbody__.appendChild(row);
+                    for (var _a = 0, _b = this.fields; _a < _b.length; _a++) {
+                        var field = _b[_a];
+                        if (typeof field === "string") {
+                            exports.ElementUtility.createElement("td", { innerHTML: exports.ElementUtility.htmlEncode(field) }, row);
+                        }
+                    }
+                    row.$__DROPDOWN_OPTIONITEM__ = optItem;
+                    row.onclick = function () {
+                        var item = this.$__DROPDOWN_OPTIONITEM__;
+                        var readMode = Observable.readMode;
+                        Observable.readMode = ObservableModes.Proxy;
+                        var ob;
+                        try {
+                            ob = self.value;
+                        }
+                        finally {
+                            Observable.readMode = readMode;
+                        }
+                        if (self.selectType === "item")
+                            ob.set(item);
+                        else
+                            ob.set(item[self.OPTIONVALUE || "Id"]);
+                        ob.update(self);
+                    };
+                }
+            }
+        };
+        __decorate([
+            parameter()
+        ], Dropdown.prototype, "value", void 0);
+        __decorate([
+            out_parameter()
+        ], Dropdown.prototype, "text", void 0);
+        __decorate([
+            in_parameter()
+        ], Dropdown.prototype, "editable", void 0);
+        __decorate([
+            YA.internal()
+        ], Dropdown.prototype, "selectIndex", void 0);
+        return Dropdown;
+    }(Component));
+    exports.Dropdown = Dropdown;
+    var Field = /** @class */ (function (_super) {
+        __extends(Field, _super);
+        function Field() {
+            return _super.call(this) || this;
+        }
+        __decorate([
+            in_parameter()
+        ], Field.prototype, "css", void 0);
+        __decorate([
+            in_parameter()
+        ], Field.prototype, "permission", void 0);
+        return Field;
+    }(Component));
+    exports.Field = Field;
 });
 //# sourceMappingURL=YA.dom.js.map

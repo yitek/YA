@@ -62,17 +62,32 @@ export declare class Mask implements IMaskOpts {
 }
 export declare function mask(elem: IElement, opts: IMaskOpts | string | boolean): Mask;
 export interface IComponent extends YA.IComponent {
-    mask: any;
+    mask?: any;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
 }
 export declare class Component extends YA.Component {
-    mask: any;
+    mask?: any;
+    css: string;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
     render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
+    static initElement(elem: IElement, attrs: {
+        [name: string]: any;
+    }, ownComponent?: IComponent): void;
 }
 export declare class Panel extends Component {
     _labelElement: IElement;
     _contentElement: IElement;
     name: string;
-    css: string;
     text: string;
     width: number;
     height: number;
@@ -156,6 +171,37 @@ export declare class Tab extends SelectablePanels {
     };
     constructor();
 }
+export interface IDropdownable {
+    location?: string;
+    content?: any;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
+}
+export declare class Dropdownable {
+    target: IElement;
+    opts: any;
+    element: IElement;
+    ownComponent: YA.IComponent;
+    $__isShow__: boolean;
+    constructor(target: IElement, opts: any);
+    show(): this;
+    hide(): this;
+    toggle(): this;
+    private _initElement;
+    private _setPosition;
+    private _bottom;
+    private _top;
+    private _left;
+    private _right;
+    private _horizen;
+    private _vertical;
+    private _auto;
+    static token: string;
+}
 export declare class GroupStyle implements ISeletablePanelStype {
     name: string;
     multiple: boolean;
@@ -175,5 +221,15 @@ export declare class Group extends SelectablePanels {
     static Panel: {
         new (...args: any[]): SelectablePanel;
     };
+    constructor();
+}
+export declare class Field extends Component {
+    type: any;
+    name: string;
+    validations: {
+        [name: string]: any;
+    };
+    css: string;
+    permission: string;
     constructor();
 }

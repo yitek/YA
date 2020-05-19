@@ -1,6 +1,6 @@
 
 import * as YA from "YA.core";
-import * as Dom from "YA.dom";
+import * as Dom from "./dom/YA.dom";
 let Observable = YA.Observable;
 let ObservableSchema = YA.ObservableSchema;
 let ObservableModes = YA.ObservableModes;

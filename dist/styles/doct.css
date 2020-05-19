@@ -1,11 +1,36 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  border: 0;
-  font-size: 14px;
-  word-wrap: break-all;
-  word-break: break-word;
+.doct .blue-block {
+  background-color: blue;
+  color: white;
+  padding: 5px;
+  margin: 5px;
+}
+
+.doct .red-block {
+  background-color: red;
+  color: white;
+  padding: 5px;
+  margin: 5px;
+}
+
+.doct .orange-block {
+  background-color: orange;
+  color: block;
+  padding: 5px;
+  margin: 5px;
+}
+
+.doct .yellow-block {
+  background-color: yellow;
+  color: black;
+  padding: 5px;
+  margin: 5px;
+}
+
+.doct .green-block {
+  background-color: green;
+  color: white;
+  padding: 5px;
+  margin: 5px;
 }
 
 fieldset.doct {
@@ -104,92 +129,10 @@ fieldset.doct fieldset.usage ul.codes pre {
   line-height: 16.8px;
 }
 
-input, textarea, select, button {
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 5px;
-  margin: auto 5px;
-  background-color: #ddd;
-}
-
-input:focus, textarea:focus, select:focus, button:focus {
-  background-color: #eee;
-}
-
-input:hover, textarea:hover, select:hover, button:hover {
-  border-color: #999;
-}
-
-table {
-  margin: 5px;
-  border: 1px solid #999;
-  border-radius: 5px;
-  border-collapse: collapse;
-}
-
-table thead {
-  border-bottom: 1px solid #999;
-}
-
-table td, table th {
-  border-left: 1px solid #eee;
-  border-bottom: 1px dashed #aaa;
-  border-collapse: collapse;
-  padding: 5px;
-}
-
-table th {
-  border-bottom: 2px solid #aaa;
-  background-color: #e0e0e0;
-}
-
-table tr {
-  border-bottom: 1px dashed #999;
-}
-
 fieldset.doct.successful > legend {
   background-color: green;
 }
 
 fieldset.doct.failed > legend {
   background-color: red;
-}
-
-ul, dl {
-  list-style: none inside;
-}
-
-.blue-block {
-  background-color: blue;
-  color: white;
-  padding: 5px;
-  margin: 5px;
-}
-
-.red-block {
-  background-color: red;
-  color: white;
-  padding: 5px;
-  margin: 5px;
-}
-
-.orange-block {
-  background-color: orange;
-  color: block;
-  padding: 5px;
-  margin: 5px;
-}
-
-.yellow-block {
-  background-color: yellow;
-  color: black;
-  padding: 5px;
-  margin: 5px;
-}
-
-.green-block {
-  background-color: green;
-  color: white;
-  padding: 5px;
-  margin: 5px;
 }

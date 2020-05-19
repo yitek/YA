@@ -26,7 +26,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 YA_core_1.default.observable(data, "items", this);
                 var item = YA_core_1.default.enumerator({ id: 0, name: "yiy" });
                 this.render = function (container, descriptor) {
-                    return YA_core_1.default.createElement("ul", { for: [this.items, item] },
+                    return YA_core_1.default.createElement("ul", { loop: [this.items, item] },
                         YA_core_1.default.createElement("li", null, item.name));
                 };
             }

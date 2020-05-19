@@ -224,9 +224,35 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return dpath.setValue(data, value);
         };
         DPath.replace = function (template, data) {
-            return data ? template.replace(replaceByDataRegx, (function (match) {
-                return DPath.getValue(data, match);
-            })) : template;
+            if (arguments.length > 2) {
+                var datas_1 = [];
+                for (var i = 1, j = arguments.length; i < j; i++) {
+                    datas_1.push(arguments[i]);
+                }
+                data = function (path) {
+                    var dpath = DPath.fetch(path);
+                    for (var i = 1, j = datas_1.length; i < j; i++) {
+                        var value = dpath.getValue(datas_1[i]);
+                        if (value !== undefined)
+                            return value;
+                    }
+                    return undefined;
+                };
+            }
+            if (data) {
+                if (typeof data === "function") {
+                    return template.replace(replaceByDataRegx, (function (match) {
+                        return data(match);
+                    }));
+                }
+                else {
+                    return template.replace(replaceByDataRegx, (function (match) {
+                        return DPath.getValue(data, match);
+                    }));
+                }
+            }
+            else
+                return template;
         };
         DPath.caches = {};
         return DPath;
@@ -1301,15 +1327,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
         });
     }
-    function getExtra(ob, name) {
-        var extra = ob.$extras;
-        if (extra)
-            return extra[name];
-    }
-    function setExtra(ob, name, value) {
-        var extra = ob.$extras || (ob.$extras = {});
-        extra[name] = value;
-    }
     //=======================================================================
     var ObservableSchema = /** @class */ (function () {
         function ObservableSchema(initData, index, owner) {
@@ -1362,8 +1379,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 var data = root;
                 for (var i in _this.$paths) {
                     data = data[_this.$paths[i]];
-                    if (data === undefined || data === Undefined)
+                    if (data === undefined || data === Undefined) {
+                        console.warn("未能找到数据，提前结束");
                         return undefined;
+                    }
                 }
                 return data;
             });
@@ -1404,7 +1423,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             Object.defineProperty(this, propname, { enumerable: true, writable: false, configurable: false, value: propSchema });
             defineObservableProperty(this.$obCtor.prototype, propname, propSchema, onSetting);
             defineObservableProperty(this.$proxyCtor.prototype, propname, function (initData) {
-                return new propSchema.$proxyCtor(self, this);
+                return new propSchema.$proxyCtor(initData, this);
             }, onSetting);
             return propSchema;
         };
@@ -1429,17 +1448,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             else {
                 if (itemSchema === undefined) {
                     itemSchema = this.$initData && this.$initData.shift ? this.$initData.shift() : undefined;
-                    this.$itemSchema = new ObservableSchema_1(itemSchema, -1, this);
+                    this.$itemSchema = new ObservableSchema_1(itemSchema, ObservableSchema_1.arrayItemIndexToken, this);
                     if (!itemSchema[ObservableSchema_1.schemaToken])
                         this.$initData.unshift(itemSchema);
                 }
                 else {
                     itemSchema[ObservableSchema_1.schemaToken] = true;
-                    this.$itemSchema = new ObservableSchema_1(itemSchema, -1, this);
+                    this.$itemSchema = new ObservableSchema_1(itemSchema, ObservableSchema_1.arrayItemIndexToken, this);
                 }
             }
             if (!this.$itemSchema)
-                this.$itemSchema = new ObservableSchema_1(undefined, -1, this);
+                this.$itemSchema = new ObservableSchema_1(undefined, ObservableSchema_1.arrayItemIndexToken, this);
             _ObservableArray.prototype.$schema = this;
             this.$obCtor = _ObservableArray;
             var lengthSchema = new ObservableSchema_1(0, "length", this);
@@ -1461,6 +1480,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         };
         var ObservableSchema_1;
         ObservableSchema.schemaToken = "$__ONLY_USED_BY_SCHEMA__";
+        ObservableSchema.arrayItemIndexToken = "";
         ObservableSchema = ObservableSchema_1 = __decorate([
             implicit()
         ], ObservableSchema);
@@ -1559,6 +1579,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             }
             return this;
         };
+        ObservableProxy.prototype.reset = function (newValue) {
+            if (this.$parent)
+                throw new Error("只能在根代理上使用reset");
+            if (Observable.isObservable(newValue)) {
+                this.$__rootOb__ = newValue.get(ObservableModes.Observable);
+            }
+            else {
+                this.$__rootOb__ = this.$schema.createObservable(newValue);
+            }
+        };
         ObservableProxy.prototype.subscribe = function () { throw new Error("abstract method"); };
         ObservableProxy.prototype.unsubscribe = function () { throw new Error("abstract method"); };
         ObservableProxy.prototype.notify = function () { throw new Error("abstract method"); };
@@ -1575,7 +1605,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return ObservableProxy;
     }());
     exports.ObservableProxy = ObservableProxy;
-    defineProxyProto(ObservableProxy.prototype, ["update", "subscribe", "unsubscribe", "notify", "fulfill", "push", "pop", "shift", "unshift", "clear"]);
+    defineProxyProto(ObservableProxy.prototype, ["update", "subscribe", "unsubscribe", "notify", "fulfill", "push", "pop", "shift", "unshift", "clear", "$extras"]);
     function observable(schema, index, subject) {
         if (Observable.isObservable(schema))
             throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
@@ -1590,15 +1620,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
     }
     exports.observable = observable;
-    function enumerator(schema, index, subject) {
-        if (!(schema instanceof ObservableSchema)) {
+    function loopar(schema, index, subject) {
+        if (schema instanceof Observable) {
+            if (schema.$schema.$itemSchema)
+                schema = schema.$schema.$itemSchema;
+            else {
+                schema = schema.$schema;
+            }
+            ;
+        }
+        else if (!(schema instanceof ObservableSchema)) {
+            schema = new ObservableSchema(schema);
+        }
+        return variable(schema, index, subject);
+    }
+    exports.loopar = loopar;
+    function variable(schema, index, subject) {
+        if (schema instanceof Observable) {
+            schema = schema.$schema;
+        }
+        else if (!(schema instanceof ObservableSchema)) {
             schema = new ObservableSchema(schema);
         }
         if (subject) {
             defineObservableProperty(subject, index, function (initData) {
                 var proxy = new ObservableProxy(schema);
                 if (initData !== undefined)
-                    proxy.set(initData);
+                    proxy.reset(initData);
                 return proxy;
             });
         }
@@ -1607,7 +1655,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             return proxy;
         }
     }
-    exports.enumerator = enumerator;
+    exports.variable = variable;
     exports.ElementUtility = {};
     exports.ElementUtility.isElement = function (elem, includeText) {
         if (!elem)
@@ -1935,7 +1983,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (tag === undefined || tag === null || tag === "")
             return;
         var descriptor;
-        var container;
         var t = typeof tag;
         if (t === "string") {
             if (exports.ElementUtility.isElement(attrs)) {
@@ -2013,12 +2060,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var elems = createComponent(descriptor.Component, descriptor, container, comp);
         return elems;
     }
+    exports.createDescriptor = createDescriptor;
     exports.createElement = _createElement;
     function createText(value, container, compInstance) {
         var elem;
         if (Observable.isObservable(value)) {
             elem = exports.ElementUtility.createText(value.get(ObservableModes.Value));
             value.subscribe(function (e) { exports.ElementUtility.setContent(elem, e.value); }, compInstance);
+        }
+        else if (typeof value === "function") {
+            value = value();
+            elem = exports.ElementUtility.createText(value);
         }
         else {
             elem = exports.ElementUtility.createText(value);
@@ -2044,7 +2096,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return rs;
     }
     exports.createElements = createElements;
-    function createDom(descriptor, parent, compInstance) {
+    function createDom(descriptor, parent, ownComponent) {
         var elem = exports.ElementUtility.createElement(descriptor.tag);
         if (parent)
             exports.ElementUtility.appendChild(parent, elem);
@@ -2055,39 +2107,40 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             if (attrName === "tag" || attrName === "children" || attrName === "content")
                 continue;
             var attrValue = descriptor[attrName];
-            if (attrName === "if") {
-                bindDomIf(elem, attrValue, descriptor, compInstance);
+            if (attrName === "loop") {
+                bindDomLoop(elem, attrValue, descriptor, ownComponent);
+                ignoreChildren = true;
                 continue;
             }
-            if (attrName === "for") {
-                bindDomFor(elem, attrValue, descriptor, compInstance);
-                ignoreChildren = true;
+            if (attrName === "c-name" && ownComponent) {
+                bindClientName(ownComponent, attrValue, elem);
                 continue;
             }
             var match = attrName.match(evtnameRegx);
             if (match && elem[attrName] !== undefined && attrValue) {
+                //attrValue可能是function,也可能是一个数组
                 var evtName = match[1];
-                if (bindDomEvent(elem, evtName, attrValue, descriptor, compInstance))
+                if (bindDomEvent(elem, evtName, attrValue, descriptor, ownComponent))
                     continue;
             }
             if (attrName === "class")
                 attrName = "className";
-            if (bindDomAttr(elem, attrName, attrValue, descriptor, compInstance) === RenderDirectives.IgnoreChildren)
+            if (bindDomAttr(elem, attrName, attrValue, descriptor, ownComponent) === RenderDirectives.IgnoreChildren)
                 ignoreChildren = true;
         }
         if (ignoreChildren)
             return elem;
         if (descriptor.content) {
             if (descriptor.content instanceof Computed) {
-                var txtElem_1 = exports.ElementUtility.createText(descriptor.content.getValue(compInstance), elem);
+                var txtElem_1 = exports.ElementUtility.createText(descriptor.content.getValue(ownComponent), elem);
                 descriptor.content.bindValue(function (val) {
                     exports.ElementUtility.setContent(txtElem_1, val);
-                }, compInstance);
+                }, ownComponent);
             }
             if (Observable.isObservable(descriptor.content)) {
                 var ob = descriptor.content;
                 var txtElem_2 = exports.ElementUtility.createText(ob.get(ObservableModes.Value), elem);
-                ob.subscribe(function (e) { return exports.ElementUtility.setContent(txtElem_2, e.value); }, compInstance);
+                ob.subscribe(function (e) { return exports.ElementUtility.setContent(txtElem_2, e.value); }, ownComponent);
             }
             else {
                 var txtElem = exports.ElementUtility.createText(descriptor.content, elem);
@@ -2096,17 +2149,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var children = descriptor.children;
         if (!children || children.length === 0)
             return elem;
-        createElements(children, elem, compInstance);
+        createElements(children, elem, ownComponent);
         return elem;
     }
-    function bindDomFor(elem, bindValue, vnode, compInstance) {
+    function bindDomLoop(elem, bindValue, vnode, compInstance) {
         //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
         var arr = bindValue[0];
         if (arr instanceof ObservableProxy)
             arr = arr.get(ObservableModes.Observable);
         var valVar = bindValue[1];
         var keyVar = bindValue[2];
-        var each;
         if (Observable.isObservable(arr)) {
             arr.subscribe(function (e) {
                 var arr = e.sender;
@@ -2116,9 +2168,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         if (key === "constructor")
                             return;
                         if (keyVar)
-                            keyVar.set(key);
+                            keyVar.reset(key);
                         if (valVar)
-                            valVar.set(value);
+                            valVar.reset(value);
                         var renderRs = createElements(vnode.children, elem, compInstance);
                         if (value instanceof Observable) {
                             value.subscribe(function (e) {
@@ -2138,9 +2190,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 if (key === "constructor")
                     return;
                 if (keyVar)
-                    keyVar.set(key);
+                    keyVar.reset(key);
                 if (valVar)
-                    valVar.set(value);
+                    valVar.reset(value);
                 var renderRs = createElements(vnode.children, elem, compInstance);
                 if (value instanceof Observable) {
                     value.subscribe(function (e) {
@@ -2155,26 +2207,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             })(key, arr[key]);
         return RenderDirectives.IgnoreChildren;
     }
-    function bindDomIf(elem, bindValue, vnode, compInstance) {
-        var placeholder = exports.ElementUtility.createPlaceholder();
-        Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
-        if (Observable.isObservable(bindValue)) {
-            bindValue.subscribe(function (e) {
-                if (e.value) {
-                    exports.ElementUtility.replace(placeholder, elem);
-                }
-                else
-                    exports.ElementUtility.replace(elem, placeholder);
-            }, compInstance);
-            bindValue = bindValue.get(ObservableModes.Default);
-        }
-        if (!bindValue) {
-            exports.ElementUtility.replace(elem, placeholder);
-        }
-        ;
-    }
     //把属性绑定到element上
     function bindDomAttr(element, attrName, attrValue, vnode, compInstance, op) {
+        if (typeof attrValue === "function") {
+            var rmode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
+            try {
+                attrValue = attrValue();
+            }
+            finally {
+                Observable.readMode = rmode;
+            }
+        }
         if (attrValue instanceof ObservableProxy)
             attrValue = attrValue.get(ObservableModes.Observable);
         var binder = exports.attrBinders[attrName];
@@ -2256,7 +2300,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return true;
     }
     exports.EVENT = {};
-    function createComponent(componentType, descriptor, container, compParent, opts) {
+    function createComponent(componentType, descriptor, container, ownComponent, opts) {
         var xmode = _jsxMode;
         var ormode = Observable.readMode;
         var owmode = Observable.writeMode;
@@ -2274,15 +2318,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         }
         var renderResult;
         var renderFn = componentType;
-        var ifAttrValue;
+        var notDefinedAttrs;
         try {
             _jsxMode = JSXModes.vnode;
             Observable.readMode = ObservableModes.Proxy;
             // object-component
             if (typeof compInstance.render === 'function') {
                 buildComponent(compInstance, componentType.prototype);
-                if (compInstance.$parent = compParent) {
-                    compParent.$children.push(compInstance);
+                if (compInstance.$parent = ownComponent) {
+                    ownComponent.$children.push(compInstance);
                     compInstance.dispose(function () {
                         if (this.$parent) {
                             for (var i = 0, j = this.$parent.$children; i < j; i++) {
@@ -2297,15 +2341,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 for (var propname in descriptor) {
                     if (propname === "tag" || propname === "children" || propname === "Component")
                         continue;
-                    if (propname === "if") {
-                        ifAttrValue = descriptor[propname];
+                    var attrValue = descriptor[propname];
+                    if (propname === "c-name") {
+                        bindClientName(ownComponent, attrValue, compInstance);
                         continue;
                     }
-                    if (propname === "name") {
-                        bindComponentName(compInstance, descriptor[propname], null, container);
-                        continue;
+                    if (!bindComponentAttr(compInstance, propname, attrValue)) {
+                        (notDefinedAttrs || (notDefinedAttrs = {}))[propname] = attrValue;
                     }
-                    bindComponentAttr(compInstance, propname, descriptor[propname]);
                 }
                 ;
                 renderFn = compInstance.render;
@@ -2321,131 +2364,48 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             Observable.readMode = ormode;
         }
         var elems = handleRenderResult(renderResult, compInstance, renderFn, descriptor, container);
-        if (exports.ElementUtility.isElement(elems))
+        if (exports.ElementUtility.isElement(elems)) {
             compInstance.$element = elems;
+            if (notDefinedAttrs) {
+                for (var n in notDefinedAttrs) {
+                    var attrValue = notDefinedAttrs[n];
+                    bindDomAttr(elems, n, attrValue, descriptor, compInstance);
+                }
+            }
+        }
         else
             compInstance.$elements = elems;
         //绑定if属性
-        if (ifAttrValue)
-            bindComponentIf(compInstance, ifAttrValue, elems, container);
         //每个创建的控件都要定期做垃圾检查
         if (compInstance && (!opts || !opts.noGarbaging))
             ComponentGarbage.singleon.attech(compInstance);
+        if (compInstance && compInstance.rendered)
+            compInstance.rendered(elems);
         return opts && opts.returnInstance ? compInstance : elems;
     }
     exports.createComponent = createComponent;
-    function bindComponentIf(compInstance, bindValue, elems, container) {
-        var placeholder = exports.ElementUtility.createPlaceholder();
-        var isArr = is_array(elems);
-        if (isArr) {
-            for (var _i = 0, elems_1 = elems; _i < elems_1.length; _i++) {
-                var elem = elems_1[_i];
-                Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
-            }
-        }
-        else {
-            Object.defineProperty(elems, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
-        }
-        if (Observable.isObservable(bindValue)) {
-            bindValue.subscribe(function (e) {
-                if (e.value) {
-                    var p = exports.ElementUtility.getParent(placeholder);
-                    if (p) {
-                        if (isArr) {
-                            for (var _i = 0, elems_3 = elems; _i < elems_3.length; _i++) {
-                                var elem = elems_3[_i];
-                                exports.ElementUtility.insertBefore(elem, placeholder);
-                                exports.ElementUtility.remove(placeholder);
-                            }
-                        }
-                        else {
-                            exports.ElementUtility.replace(elems, placeholder);
-                        }
-                    }
-                }
-                else {
-                    if (isArr) {
-                        var inserted = false;
-                        for (var _a = 0, elems_4 = elems; _a < elems_4.length; _a++) {
-                            var elem = elems_4[_a];
-                            if (!inserted) {
-                                exports.ElementUtility.insertAfter(placeholder, elem);
-                                inserted = true;
-                            }
-                            exports.ElementUtility.remove(elem);
-                        }
-                    }
-                    else {
-                        exports.ElementUtility.replace(elems, placeholder);
-                    }
-                }
-            }, compInstance);
-            bindValue = bindValue.get(ObservableModes.Default);
-        }
-        if (!bindValue) {
-            if (isArr) {
-                var inserted = false;
-                for (var _a = 0, elems_2 = elems; _a < elems_2.length; _a++) {
-                    var elem = elems_2[_a];
-                    if (!inserted) {
-                        exports.ElementUtility.insertAfter(placeholder, elem);
-                        inserted = true;
-                    }
-                    exports.ElementUtility.remove(elem);
-                }
-            }
-            else {
-                exports.ElementUtility.replace(elems, placeholder);
-            }
-        }
-        ;
-    }
-    function bindComponentName(compInstance, bindValue, elems, container) {
-        var parent = compInstance.$parent;
-        if (!parent)
-            return;
-        if (Observable.isObservable(bindValue)) {
-            bindValue = bindValue.get(ObservableModes.Value);
-        }
-        setCid(parent, compInstance, bindValue, undefined);
-    }
-    function setCid(parent, comp, cid, old) {
+    function bindClientName(ownComponent, value, cid) {
         if (!cid) {
-            console.warn("调用了setCID,但给的值为空,忽略该操作", cid, comp);
+            console.warn("调用了setCID,但给的值为空,忽略该操作", cid, value);
             return;
         }
-        comp.name = cid;
-        var existed = old ? parent[old] : null;
-        if (existed) {
-            if (existed === comp) {
-                delete parent[old];
-                parent[cid] = comp;
-            }
-            else {
-                for (var i = 0, j = existed.length; i < j; i++) {
-                    var c = existed.unshift();
-                    if (c !== comp)
-                        existed.push(c);
-                }
-                if (existed.length == 0)
-                    delete parent[old];
-            }
-        }
-        existed = parent[cid];
+        Object.defineProperty(value, "c-name", { enumerable: false, writable: false, configurable: false, value: cid });
+        value["c-name"] = cid;
+        var existed = ownComponent[cid];
         if (!existed) {
-            parent[cid] = comp;
+            ownComponent[cid] = value;
         }
         else if (is_array(existed)) {
             for (var i = 0, j = existed.length; i < j; i++) {
                 var c = existed.unshift();
-                if (c !== comp)
+                if (c !== value)
                     existed.push(c);
             }
-            existed.push(comp);
+            existed.push(value);
         }
         else {
-            var arr = [existed, comp];
-            parent[cid] = arr;
+            var arr = [existed, value];
+            ownComponent[cid] = arr;
         }
     }
     function bindComponentAttr(compInstance, propName, bindValue) {
@@ -2453,6 +2413,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         var prop = compInstance[propName];
         // TODO:找到组件名
         var componentName = "Component";
+        if (typeof bindValue == "function") {
+            var rmode = Observable.readMode;
+            Observable.readMode = ObservableModes.Value;
+            try {
+                bindValue = bindValue();
+            }
+            finally {
+                Observable.readMode = rmode;
+            }
+        }
         if (prop) {
             if (Observable.isObservable(prop)) {
                 var meta = compInstance.$meta || {};
@@ -2508,9 +2478,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                     compInstance[propName] = bindValue;
                 }
             }
+            return true;
         }
         else {
             compInstance[propName] = bindValue;
+            return false;
         }
     }
     function handleRenderResult(renderResult, instance, renderFn, descriptor, container) {
@@ -2915,7 +2887,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         ob = new Observable(null);
                     }
                     ob = info.schema.createObservable(exports.Default);
-                    setExtra(ob, "reactiveType", rtype);
                     Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
                 }
                 return ob.get();
@@ -2928,7 +2899,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                         info.schema = new ObservableSchema(value);
                     }
                     ob = info.schema.createObservable();
-                    setExtra(ob, "reactiveType", rtype);
                     Object.defineProperty(this, private_name, { enumerable: false, configurable: false, writable: false, value: ob });
                 }
                 return ob.set(value);
@@ -3069,6 +3039,41 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     }());
     exports.Placeholder = Placeholder;
     exports.attrBinders = {};
+    exports.attrBinders.if = function (elem, bindValue, vnode, compInstance) {
+        bindDomCondition(elem, bindValue, vnode, compInstance, function (e) { return !e; });
+    };
+    exports.attrBinders["if-not"] = function (elem, bindValue, vnode, compInstance) {
+        bindDomCondition(elem, bindValue, vnode, compInstance, function (e) { return e; });
+    };
+    exports.attrBinders["empty"] = function (elem, bindValue, vnode, compInstance) {
+        bindDomCondition(elem, bindValue, vnode, compInstance, function (e) { return !is_empty(e); });
+    };
+    exports.attrBinders["not-empty"] = function (elem, bindValue, vnode, compInstance) {
+        bindDomCondition(elem, bindValue, vnode, compInstance, function (e) { return is_empty(e); });
+    };
+    function bindDomCondition(elem, bindValue, vnode, compInstance, isShowPlaceholder) {
+        var placeholder = exports.ElementUtility.createPlaceholder(elem);
+        Object.defineProperty(elem, "$__placeholder__", { enumerable: false, writable: false, configurable: false, value: placeholder });
+        if (Observable.isObservable(bindValue)) {
+            bindValue.subscribe(function (e) {
+                if (isShowPlaceholder(e.value)) {
+                    exports.ElementUtility.replace(elem, placeholder);
+                }
+                else
+                    exports.ElementUtility.replace(placeholder, elem);
+            }, compInstance);
+            bindValue = bindValue.get(ObservableModes.Default);
+        }
+        else {
+            var t = typeof bindValue;
+            if (t === "function")
+                bindValue = bindValue();
+        }
+        if (isShowPlaceholder(bindValue)) {
+            exports.ElementUtility.replace(elem, placeholder);
+        }
+        ;
+    }
     exports.attrBinders.value = function (elem, bindValue, vnode, compInstance) {
         if (Observable.isObservable(bindValue)) {
             exports.ElementUtility.setValue(elem, bindValue.get(ObservableModes.Value));
@@ -3133,7 +3138,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     //=======================================================================
     var YA = {
         Subject: Subject, Disposable: Disposable, ObservableModes: ObservableModes, observableMode: observableMode, proxyMode: proxyMode, Observable: Observable, ObservableObject: ObservableObject, ObservableArray: ObservableArray, ObservableSchema: ObservableSchema,
-        observable: observable, enumerator: enumerator,
+        observable: observable, enumerator: variable,
         createElement: exports.createElement, createDescriptor: createDescriptor, createElements: createElements, createComponent: createComponent, EVENT: exports.EVENT,
         bindDomAttr: bindDomAttr, attrBinders: exports.attrBinders, componentInfos: exports.componentTypes,
         not: not, computed: exports.computed,

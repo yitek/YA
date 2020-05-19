@@ -1,5 +1,5 @@
 import * as YA from "../YA.core";
-import * as Dom from "../YA.dom";
+import * as Dom from "YA.dom";
 
 interface IListNode<T>{
     prev:T;
@@ -218,7 +218,7 @@ class Cell implements IListNode<Cell>{
 }
 
 
-export class Grid extends Dom.Panel{
+export class Grid extends Dom.Component{
     columns:ColumnCollection;
     rows:any;
     

@@ -23,14 +23,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "../../doct", "../../YA.core", "../../YA.dom"], factory);
+        define(["require", "exports", "../../doct", "../../YA.core", "../../dom/YA.dom"], factory);
     }
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var doct_1 = require("../../doct");
     var YA = require("../../YA.core");
-    var Dom = require("../../YA.dom");
+    var Dom = require("../../dom/YA.dom");
     var MaskTest = /** @class */ (function () {
         function MaskTest() {
         }

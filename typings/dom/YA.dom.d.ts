@@ -1,167 +1,4 @@
-import * as YA from "YA.core";
-export interface IDom {
-    [index: number]: HTMLElement;
-    length: number;
-    item(index: number): IDom;
-    html(val?: string): IDom | string;
-    text(val?: string): IDom | string;
-    val(val?: any): any;
-    width(value?: number): any;
-    height(value?: number): any;
-    size(size?: Size): IDom | Size;
-    left(value?: number): IDom | number;
-    top(value?: number): IDom | number;
-    pos(pos?: Pointer): Pointer | IDom;
-    abs(new_pos?: Pointer): Pointer | IDom;
-    x(value?: number): IDom | number;
-    y(value?: number): IDom | number;
-    prop(name: string | {
-        [name: string]: any;
-    }, value?: any, replace?: (newValue: any, oldValue: any) => any): any;
-    attr(name: string | {
-        [name: string]: string;
-    }, value?: string): IDom | string;
-    style(name: string | {
-        [name: string]: string;
-    }, value?: string): string | IDom;
-    hasClass(cls: string): boolean;
-    addClass(cls: string): IDom;
-    removeClass(cls: string): IDom;
-    replaceClass(old_cls: string, new_cls: string, alwaysAdd?: boolean): IDom;
-    on(eventId: string, listener: any): IDom;
-    off(eventId: string, listener: any): IDom;
-    ydata(name?: any, value?: any): any;
-    prev(inserted?: any): IDom;
-    next(inserted?: any): IDom;
-    first(inserted?: any): IDom;
-    last(inserted?: any): IDom;
-    parent(inserted?: any): IDom;
-    append(inserted?: any): IDom;
-    remove(): IDom;
-    children(): IDom;
-    each(callback: (item: Dom, index: number) => any): IDom;
-}
-export declare class Dom {
-    length: number;
-    [index: number]: HTMLElement;
-    constructor(element?: any);
-    item(index: number): Dom;
-    html(val?: string): any;
-    text(val?: string): any;
-    val(val?: any): any;
-    width(value?: number): any;
-    height(value?: number): any;
-    size(size?: Size): any;
-    left(value?: number): any;
-    top(value?: number): any;
-    pos(pos?: Pointer): any;
-    abs(new_pos?: Pointer): any;
-    x(value?: number): any;
-    y(value?: number): any;
-    prop(name: string | {
-        [name: string]: any;
-    }, value?: any, replace?: (newValue: any, oldValue: any) => any): any;
-    attr(name: string | {
-        [name: string]: string;
-    }, value?: string): any;
-    style(name: string | {
-        [name: string]: string;
-    }, value?: string | number): any;
-    hasClass(cls: string): boolean;
-    addClass(cls: string): Dom;
-    removeClass(cls: string): Dom;
-    replaceClass(old_cls: string, new_cls: string, alwaysAdd?: boolean): Dom;
-    on(eventId: string, listener: any): Dom;
-    off(eventId: string, listener: any): Dom;
-    ydata(name?: any, value?: any): any;
-    prev(inserted?: any): IDom;
-    next(inserted?: any): Dom;
-    first(inserted?: any): Dom;
-    last(inserted?: any): Dom;
-    parent(inserted?: any): Dom;
-    append(inserted: any): Dom;
-    remove(): Dom;
-    children(): Dom;
-    each(callback: (item: Dom, index: number) => any): Dom;
-    static dom_inst_token: string;
-    static dom_data_token: string;
-    static prop<T>(prop_name: string, getter: (elem: HTMLElement) => T, setter: (elem: HTMLElement, value: T) => any): IDomBuilder;
-    static object<T>(object_name: string, getter: (elem: HTMLElement, name: string) => T, setter: (elem: HTMLElement, name: string, value: T) => Dom): IDomBuilder;
-    static op(op_name: string, method: Function): IDomBuilder;
-    static element(name: string, getter: (targetElement: HTMLElement, onlyElement?: boolean) => HTMLElement, setter: (targetElement: HTMLElement, opElement: HTMLElement) => any): typeof Dom;
-    static define(name: string, fn: Function): IDomBuilder;
-}
-export interface IDomBuilder {
-    define(name: string, fn: Function): IDomBuilder;
-    prop<T>(prop_name: string, getter: (elem: HTMLElement) => T, setter: (elem: HTMLElement, value: T) => any): IDomBuilder;
-    object<T>(object_name: string, getter: (elem: HTMLElement, name: string) => T, setter: (elem: HTMLElement, name: string, value: T) => Dom): IDomBuilder;
-    op(op_name: string, method: Function): IDomBuilder;
-}
-export declare let style: (obj: HTMLElement, attr: string, value?: any) => any;
-export declare function dom(element: any): Dom;
-export interface IMaskOpts {
-    off?: boolean;
-    content?: any;
-    keep?: number | string;
-    css?: string;
-}
-export declare class Maskable {
-    opts: IMaskOpts;
-    dom: Dom;
-    frontDom: Dom;
-    bgDom: Dom;
-    target: Dom;
-    tick: any;
-    adjust: Function;
-    _userSelectValue: any;
-    _onselectHandler: any;
-    constructor(target: HTMLElement);
-    mask(opts?: IMaskOpts | string | boolean): Maskable;
-    unmask(): Maskable;
-    adjustFront(size: Size, keep: any): void;
-    adjustBackend(): Size;
-    static dom_inst_token: string;
-}
-export declare function mask(target: HTMLElement, opts: IMaskOpts | boolean | string): void;
-export declare class Dragable {
-    target: Dom;
-    handle: Dom;
-    cid: number;
-    handle_tid: string;
-    private _msPos;
-    private _targetPos;
-    private _positionValue;
-    static dom_inst_token: string;
-    constructor(target: any);
-    enable(handle?: any): Dragable;
-    _moveStart(evt: MouseEvent): boolean;
-    _moving(evt: MouseEvent): boolean;
-}
-export interface IMessageBoxOpts {
-    title?: string;
-    content: string;
-    css?: string;
-    btns: any[];
-    dragable?: boolean;
-}
-export declare class MessageBox extends YA.Promise {
-    opts: IMessageBoxOpts;
-    box: Dom;
-    front: Dom;
-    backend: Dom;
-    head: Dom;
-    body: Dom;
-    foot: Dom;
-    caption: Dom;
-    closer: Dom;
-    private _resolve;
-    constructor(opts: IMessageBoxOpts);
-    open(): this;
-    close(reason?: any): MessageBox;
-    private _center;
-    private _adjacentBackend;
-}
-export declare function cancelEvent(evt: Event): boolean;
+import * as YA from "../YA.core";
 export declare class Size {
     w: number;
     h: number;
@@ -177,4 +14,156 @@ export declare class Pointer {
     y: number;
     constructor(x: any, y: any);
     equal(p: Pointer): boolean;
+}
+export interface IElement extends YA.IElement, HTMLElement {
+}
+export interface IElementUtility extends YA.IElementUtility {
+    getStyle(node: IElement, name: string): string;
+    setStyle(node: IElement, name: string | {
+        [name: string]: any;
+    }, value?: string | boolean): IElementUtility;
+    hasClass(node: IElement, cls: string): boolean;
+    addClass(node: IElement, cls: string): boolean;
+    removeClass(node: IElement, cls: string): boolean;
+    toggleClass(node: IElement, cls: string): boolean;
+    replaceClass(node: IElement, oldCls: string, newCls: string, alwaysAdd?: boolean): boolean;
+    getAbs(elem: IElement): Pointer;
+    setAbs(elem: IElement, pos: Pointer): IElementUtility;
+    htmlEncode(text: string): string;
+}
+export declare let ElementUtility: IElementUtility;
+export declare let styleConvertors: any;
+export interface IMaskOpts {
+    content?: any;
+    top?: number;
+    autoCenter?: boolean;
+    css?: string;
+}
+export declare class Mask implements IMaskOpts {
+    static InstanceToken: string;
+    static Message: string;
+    element: IElement;
+    content?: string;
+    autoCenter?: boolean;
+    top?: number;
+    css?: string;
+    private __maskElement;
+    private __backendElement;
+    private __frontElement;
+    private __centerTimer;
+    private __liveCheckCount;
+    constructor(elem: IElement);
+    mask(opts: IMaskOpts | string | boolean): Mask;
+    private _init;
+    private _sureElements;
+    private _keepBackend;
+    private _keepFront;
+    unmask(): Mask;
+    dispose(): void;
+}
+export declare function mask(elem: IElement, opts: IMaskOpts | string | boolean): Mask;
+export interface IComponent extends YA.IComponent {
+    mask?: any;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
+}
+export declare class Component extends YA.Component {
+    mask?: any;
+    css: string;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
+    render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
+    request(opts: string | any, requester?: IComponent): any;
+    static initElement(elem: IElement, attrs: {
+        [name: string]: any;
+    }, ownComponent?: IComponent): void;
+}
+export interface IDropdownable {
+    location?: string;
+    content?: any;
+    width?: number | YA.IObservable<number>;
+    minWidth?: number | YA.IObservable<number>;
+    maxWidth?: number | YA.IObservable<number>;
+    height?: number | YA.IObservable<number>;
+    minHeight?: number | YA.IObservable<number>;
+    maxHeight?: number | YA.IObservable<number>;
+}
+export declare class Dropdownable {
+    target: IElement;
+    opts: any;
+    element: IElement;
+    ownComponent: YA.IComponent;
+    $__isShow__: boolean;
+    constructor(target: IElement, opts: any);
+    show(): this;
+    hide(): this;
+    toggle(): this;
+    private _initElement;
+    private _setPosition;
+    private _bottom;
+    private _top;
+    private _left;
+    private _right;
+    private _horizen;
+    private _vertical;
+    private _auto;
+    static token: string;
+}
+export declare class Dropdown extends Component {
+    value?: any;
+    text: string;
+    editable?: boolean;
+    selectIndex: number;
+    options?: any;
+    legend?: boolean | string;
+    fields?: any[];
+    selectType?: string;
+    compare?: (item: any, value: any) => string;
+    filter?: (keyword: string, options: any[], dropdown: Dropdown) => any[];
+    OPTIONVALUE: string;
+    OPTIONTEXT: string;
+    private _setText;
+    private $__options__;
+    private $__tbody__;
+    private $__waitingTr__;
+    private $__tick__;
+    private $__legendUrl__;
+    private $__filterSessionId__;
+    private $__dropdownable__;
+    inputElement: IElement;
+    private $__field__;
+    private $__fieldname__;
+    private $__option__;
+    private $__optionIndex__;
+    constructor();
+    _render(): YA.INodeDescriptor;
+    getFieldText(field: any): any;
+    render(descriptor: YA.INodeDescriptor, parentNode: IElement): IElement;
+    private _setValue;
+    setOptions(opts: any): Dropdown;
+    private _editInput;
+    private _readonlyInput;
+    private _filter;
+    private _defaultFilter;
+    expand(): Dropdown;
+    collapse(): this;
+    private _makeDropdownRow;
+}
+export declare class Field extends Component {
+    type: any;
+    name: string;
+    validations: {
+        [name: string]: any;
+    };
+    css: string;
+    permission: string;
+    constructor();
 }

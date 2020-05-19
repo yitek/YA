@@ -1,0 +1,60 @@
+/*该文件定义颜色*/
+
+@mixin customize-colors($colors){
+    *{
+        color:map-get($colors,text);
+    }
+    &>*{
+        background-color:map-get($colors,background);
+    }
+
+    input,select,textarea,.input{
+        border-color:map-get($colors,input-border);
+        background-color: map-get($colors, input-background );
+        color:map-get($colors, input-font );
+        &:hover{
+            background-color: map-get($colors,input-hover);
+        }
+    }
+    button,input[type='button'],input[type='reset'],input[type='submit'],.button{
+        border-color:map-get($colors,button-border);
+        background-color: map-get($colors, button-background );
+        color:map-get($colors, button-font );
+        &:hover{
+            background-color: map-get($colors,button-hover);
+        }
+    }
+    .ya-tab{
+        background-color:map-get($colors,tab);
+        &>.ya-container-labels{
+            &>.ya-panel-label{
+                background-color: map-get($colors,tab-title-backend);
+                &>label{
+                    color:map-get($colors,tab-title-text);
+                }
+                &.selected{
+                    background-color: map-get($colors,tab-content-backend);
+                }
+            }
+        }
+        &>.ya-container-contents>.ya-panel-content{
+            background-color: map-get($colors,tab-content-backend);
+            color: map-get($colors,tab-content-text);
+        }
+    }
+    .ya-group{
+        &>.ya-container-panel{
+            &>.ya-panel-label{
+                background-color: map-get($colors,group-title-backend);
+                &>label{
+                    color:map-get($colors,group-title-text);
+                }
+            }
+            &>.ya-container-contents>.ya-panel-content{
+                background-color: map-get($colors,group-content-backend);
+                color: map-get($colors,group-content-text);
+            }
+            
+        }
+    }
+}

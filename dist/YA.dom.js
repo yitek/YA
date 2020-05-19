@@ -248,7 +248,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     exports.ElementUtility.setAbs = setAbs;
     exports.styleConvertors = {};
     var unitRegx = /(\d+(?:.\d+))(px|em|pt|in|cm|mm|pc|ch|vw|vh|\%)/g;
-    exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = function (value) {
+    exports.styleConvertors.left = exports.styleConvertors.right = exports.styleConvertors.top = exports.styleConvertors.bottom = exports.styleConvertors.width = exports.styleConvertors.height = exports.styleConvertors.minWidth = exports.styleConvertors.maxWidth = exports.styleConvertors.maxWidth = exports.styleConvertors.maxHeight = function (value) {
         if (!value)
             return "0";
         if (typeof value === "number") {
@@ -458,6 +458,41 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         Component.prototype.render = function (descriptor, container) {
             throw new Error("abstract method.");
         };
+        Component.initElement = function (elem, attrs, ownComponent) {
+            var css = attrs["css"];
+            if (css !== undefined) {
+                YA.bindDomAttr(elem, "className", css, attrs, ownComponent, function (elem, name, value, old) {
+                    replaceClass(elem, old, value, true);
+                });
+            }
+            for (var styleName in stylenames) {
+                var value = attrs[styleName];
+                if (value !== undefined) {
+                    initStyleProp(elem, styleName, value, ownComponent);
+                }
+            }
+        };
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "css", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "width", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "minWidth", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "maxWidth", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "height", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "minHeight", void 0);
+        __decorate([
+            in_parameter()
+        ], Component.prototype, "maxHeight", void 0);
         return Component;
     }(YA.Component));
     exports.Component = Component;
@@ -477,6 +512,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
             inst.mask(value);
         }
     });
+    var stylenames = ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"];
+    function initStyleProp(elem, name, value, ownComponent) {
+        if (YA.Observable.isObservable(value)) {
+            value.subscribe(function (e) {
+                setStyle(elem, name, e.value);
+            }, ownComponent);
+            value = value.get(ObservableModes.Value);
+            if (value !== undefined && value !== "")
+                setStyle(elem, name, value);
+        }
+    }
     var Panel = /** @class */ (function (_super) {
         __extends(Panel, _super);
         function Panel() {
@@ -494,10 +540,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 YA.bindDomAttr(txtElem, "text", this.text, descriptor, this, function (elem, name, value, old) {
                     elem.innerHTML = value;
                 });
-                YA.bindDomAttr(titleElem, "className", this.css, descriptor, this, function (elem, name, value, old) {
-                    replaceClass(elem, old, value, true);
-                    //replaceClass(this.__contentElement,old,value,true);
-                });
             }
             var contentElement = this._contentElement = exports.ElementUtility.createElement("div", { "class": "ya-panel-content" });
             YA.bindDomAttr(contentElement, "className", this.css, descriptor, this, function (elem, name, value, old) {
@@ -514,9 +556,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
                 Observable.readMode = mode;
             }
         };
-        __decorate([
-            in_parameter()
-        ], Panel.prototype, "css", void 0);
         __decorate([
             parameter()
         ], Panel.prototype, "text", void 0);
@@ -1040,6 +1079,270 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Tab;
     }(SelectablePanels));
     exports.Tab = Tab;
+    var popContainer;
+    var pageElement;
+    exports.ElementUtility.attach(window, "load", function () {
+        popContainer = document.createElement("div");
+        popContainer.className = "ya-pop-layer";
+        popContainer.style.cssText = "position:absolute;left:0;top:0;z-index:999999;background-color:transparent";
+        pageElement = document.compatMode == "CSS1Compat" ? document.documentElement : document.body;
+    });
+    exports.ElementUtility.attach(window, "resize", function () {
+        if (popContainer.parentNode) {
+            popContainer.style.width = pageElement.offsetWidth + "px";
+            popContainer.style.height = pageElement.offsetHeight + "px";
+        }
+    });
+    function addPopElement(elem, onRemove) {
+        if (!popContainer.parentNode) {
+            document.body.appendChild(popContainer);
+        }
+        popContainer.style.width = pageElement.offsetWidth + "px";
+        popContainer.style.height = pageElement.offsetHeight + "px";
+        popContainer.appendChild(elem);
+        if (onRemove !== false) {
+            var handler = elem.$__popElementRemoveHandler__ = function () {
+                if (removePopElement(elem)) {
+                    if (typeof onRemove === "function")
+                        onRemove(elem);
+                }
+            };
+            exports.ElementUtility.attach(popContainer, "click", handler);
+        }
+    }
+    function removePopElement(elem) {
+        if (elem.parentNode === popContainer) {
+            popContainer.removeChild(elem);
+            if (elem.$__popElementRemoveHandler__)
+                exports.ElementUtility.detech(popContainer, "click", elem.$__popElementRemoveHandler__);
+            if (popContainer.childNodes.length === 0)
+                document.body.removeChild(popContainer);
+            return true;
+        }
+        return false;
+    }
+    var Dropdownable = /** @class */ (function () {
+        function Dropdownable(target, opts) {
+            this.target = target;
+            this.opts = opts;
+            Object.defineProperty(target, Dropdownable.token, { enumerable: false, writable: false, configurable: false, value: this });
+            var self = this;
+            var show = this.show;
+            var hide = this.hide;
+            var toggle = this.toggle;
+            this.show = function () { return show.call(self); };
+            this.hide = function () { return hide.call(self); };
+            this.toggle = function () { return toggle.call(self); };
+            exports.ElementUtility.attach(target, "focus", this.show);
+            exports.ElementUtility.attach(target, "blur", this.hide);
+            exports.ElementUtility.attach(target, "click", this.toggle);
+        }
+        Dropdownable.prototype.show = function () {
+            var _this = this;
+            if (this.$__isShow__)
+                return this;
+            if (!this.target.parentNode)
+                return this;
+            if (!this.element)
+                this.element = this._initElement();
+            addPopElement(this.element, function () { return _this.$__isShow__ = false; });
+            this._setPosition();
+            this.$__isShow__ = true;
+            return this;
+        };
+        Dropdownable.prototype.hide = function () {
+            removePopElement(this.element);
+            this.$__isShow__ = false;
+            return this;
+        };
+        Dropdownable.prototype.toggle = function () {
+            if (this.$__isShow__)
+                this.hide();
+            else
+                this.show();
+            //this.show();
+            return this;
+        };
+        Dropdownable.prototype._initElement = function () {
+            var elem = this.element = document.createElement("div");
+            elem.className = "dropdown";
+            elem.style.cssText = "position:absolute;overflow:auto;";
+            var content = this.opts.content;
+            if (!exports.ElementUtility.isElement(content)) {
+                var ct = typeof content;
+                if (ct === "function")
+                    content = YA.createComponent(content, null, elem, this.ownComponent);
+                else if (YA.is_array(content)) {
+                }
+                else {
+                    content = YA.createDescriptor(content, elem, this.ownComponent);
+                }
+            }
+            else
+                elem.appendChild(content);
+            content.style.display = "block";
+            return elem;
+        };
+        Dropdownable.prototype._setPosition = function () {
+            var targetAbs = getAbs(this.target);
+            var size = new Size(this.target.clientWidth, this.target.clientHeight);
+            var loc = this.opts.location || "vertical";
+            var fn = this["_" + loc];
+            if (!fn)
+                fn = this._auto;
+            fn.call(this, targetAbs, size);
+        };
+        Dropdownable.prototype._bottom = function (pos, size) {
+            this.element.style.top = pos.y + size.h + "px";
+            if (this.element.clientWidth < size.w) {
+                this.element.style.left = pos.x + "px";
+                return;
+            }
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            if (bodyRight < pos.x + this.element.clientWidth) {
+                //右边空间不够，向左展开
+                this.element.style.left = pos.x + size.w - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.left = pos.x + "px";
+            }
+        };
+        Dropdownable.prototype._top = function (pos, size) {
+            this.element.style.top = pos.y - this.element.clientHeight + "px";
+            if (this.element.clientWidth < size.w) {
+                this.element.style.left = pos.x + "px";
+                return;
+            }
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            if (bodyRight < pos.x + this.element.clientWidth) {
+                //右边空间不够，向左展开
+                this.element.style.left = pos.x + size.w - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.left = pos.x + "px";
+            }
+        };
+        Dropdownable.prototype._left = function (pos, size) {
+            this.element.style.left = pos.x - this.element.clientWidth + "px";
+            if (this.element.clientHeight < size.h) {
+                this.element.style.top = pos.y + "px";
+                return;
+            }
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            if (bodyBottom < pos.y + this.element.clientHeight) {
+                //下面空间不够，向上展开
+                this.element.style.top = pos.y + size.h - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.top = pos.y + "px";
+            }
+        };
+        Dropdownable.prototype._right = function (pos, size) {
+            this.element.style.left = pos.x + size.w + "px";
+            if (this.element.clientHeight < size.h) {
+                this.element.style.top = pos.y + "px";
+                return;
+            }
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            if (bodyBottom < pos.y + this.element.clientHeight) {
+                //下面空间不够，向上展开
+                this.element.style.top = pos.y + size.h - this.element.clientWidth + "px";
+            }
+            else {
+                this.element.style.top = pos.y + "px";
+            }
+        };
+        Dropdownable.prototype._horizen = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y;
+            if (pos.x + size.w + this.element.clientWidth > bodyRight) {
+                x = pos.x - this.element.clientWidth;
+            }
+            else
+                x = pos.x + size.w;
+            if (x < 0)
+                x = 0;
+            if (pos.y + this.element.clientHeight > bodyBottom) {
+                y = pos.y + size.h - this.element.clientHeight;
+            }
+            else
+                y = pos.y;
+            if (y < 0)
+                y = 0;
+            this.element.style.left = x + "px";
+            this.element.style.top = y + "px";
+        };
+        Dropdownable.prototype._vertical = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y;
+            if (pos.y + size.h + this.element.clientHeight > bodyBottom) {
+                y = pos.y - this.element.clientHeight;
+            }
+            else
+                y = pos.y + size.h;
+            if (y < 0)
+                y = 0;
+            if (pos.x + this.element.clientWidth > bodyRight) {
+                x = pos.x + size.w - this.element.clientWidth;
+            }
+            else
+                x = pos.x;
+            if (x < 0)
+                x = 0;
+            this.element.style.left = x + "px";
+            this.element.style.top = y + "px";
+        };
+        Dropdownable.prototype._auto = function (pos, size) {
+            var bodyBottom = pageElement.scrollTop + pageElement.clientHeight;
+            var bodyRight = pageElement.scrollLeft + pageElement.clientWidth;
+            var x, y, isComplete; //isComplete 上下展开是否是完全的展开
+            if (pos.y + size.h + this.element.clientHeight > bodyBottom) {
+                //完全下展空间不够
+                if (pos.y + this.element.clientHeight > bodyBottom) {
+                    //部分下展空间也不够
+                    y = pos.y - this.element.clientHeight;
+                    if (y < 0) {
+                        y -= size.h;
+                        if (y < 0)
+                            y = 0;
+                    }
+                    else {
+                        isComplete = true;
+                    }
+                }
+                else
+                    y = pos.y;
+            }
+            else {
+                y = pos.x + size.h;
+                isComplete = true;
+            }
+            if (isComplete) {
+                if (pos.x + this.element.clientWidth > bodyRight) {
+                    x = pos.x - this.element.clientWidth;
+                    if (x < 0)
+                        x = 0;
+                }
+                else
+                    x = pos.x;
+            }
+            else {
+                if (pos.x + size.w + this.element.clientWidth > bodyRight) {
+                    x = pos.x - this.element.clientWidth;
+                    if (x < 0)
+                        x = 0;
+                }
+                else {
+                    x = pos.x + size.w;
+                }
+            }
+        };
+        Dropdownable.token = "$__DROPDOWN_INST__";
+        return Dropdownable;
+    }());
+    exports.Dropdownable = Dropdownable;
     var GroupStyle = /** @class */ (function () {
         function GroupStyle(container) {
             this.container = container;
@@ -1116,5 +1419,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
         return Group;
     }(SelectablePanels));
     exports.Group = Group;
+    var Field = /** @class */ (function (_super) {
+        __extends(Field, _super);
+        function Field() {
+            return _super.call(this) || this;
+        }
+        __decorate([
+            in_parameter()
+        ], Field.prototype, "css", void 0);
+        __decorate([
+            in_parameter()
+        ], Field.prototype, "permission", void 0);
+        return Field;
+    }(Component));
+    exports.Field = Field;
 });
 //# sourceMappingURL=YA.dom.js.map

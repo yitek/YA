@@ -372,20 +372,21 @@ export declare class ObservableSchema<TData> {
         } | IObservableIndexable<any>, index?: any, extras?: any, initValue?: any): Observable<any>;
     };
     $proxyCtor: {
-        new (schema: ObservableSchema<any>, parent: ObservableProxy): any;
+        new (schema: ObservableSchema<TData>, parent: ObservableProxy<TData>): any;
     };
     $owner?: ObservableSchema<TData>;
-    $itemSchema?: ObservableSchema<TData>;
+    $itemSchema?: ObservableSchema<any>;
     $initData?: any;
     constructor(initData: TData, index?: string | number, owner?: ObservableSchema<any>);
     getFromRoot(root: any, mode?: ObservableModes): any;
     asObject(): ObservableSchema<TData>;
     defineProp<TProp>(propname: string, initValue?: TProp, onSetting?: (value: any) => any): ObservableSchema<TProp>;
-    asArray(itemSchema?: any): ObservableSchema<TData>;
+    asArray<TItem>(itemSchema?: TItem): ObservableSchema<TItem>;
     initObject(ob: Observable<TData>): void;
     createObservable(val?: any): Observable<TData>;
-    createProxy(): ObservableProxy;
+    createProxy(): ObservableProxy<TData>;
     static schemaToken: string;
+    static arrayItemIndexToken: string;
 }
 export declare let Default: any;
 export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData>> {
@@ -393,9 +394,9 @@ export interface IObservableProxy<TData> extends ISubject<IChangeEventArgs<TData
     set(newValue: TData, updateImmediately?: boolean): IObservable<TData>;
     update(): boolean;
 }
-export declare class ObservableProxy implements IObservable<any> {
-    $parent: ObservableProxy;
-    $schema: ObservableSchema<any>;
+export declare class ObservableProxy<T> implements IObservable<T> {
+    $parent: ObservableProxy<T>;
+    $schema: ObservableSchema<T>;
     $type: ObservableTypes;
     $extras?: any;
     $target?: any;
@@ -404,9 +405,10 @@ export declare class ObservableProxy implements IObservable<any> {
     $__topics__: any;
     $__rootOb__: IObservable<any>;
     $rootOb: IObservable<any>;
-    constructor(param: ObservableSchema<any> | Observable<any> | any, parent?: ObservableProxy);
-    get(accessMode?: ObservableModes): any;
+    constructor(param: ObservableSchema<T> | Observable<T> | any, parent?: ObservableProxy<any>);
+    get(accessMode?: ObservableModes): T | IObservable<T>;
     set(newValue: any, updateImmediately?: boolean): any;
+    reset(newValue: any): void;
     subscribe(): any;
     unsubscribe(): any;
     notify(): any;
@@ -417,8 +419,9 @@ export declare class ObservableProxy implements IObservable<any> {
     shift(): any;
     unshift(): any;
 }
-export declare function observable(schema: any, index?: string, subject?: any): any;
-export declare function enumerator(schema: any, index?: string, subject?: any): ObservableProxy;
+export declare function observable<T>(schema: any, index?: string, subject?: any): ObservableProxy<T>;
+export declare function loopar<T>(schema: any, index?: string, subject?: any): ObservableProxy<T>;
+export declare function variable<T>(schema: T | ObservableSchema<T> | IObservable<T>, index?: string, subject?: any): ObservableProxy<T>;
 export interface IElement {
     readonly nodeType: number;
     nodeValue: string | null;
@@ -435,7 +438,7 @@ export interface IElementUtility {
         [name: string]: string;
     }, parent?: IElement, content?: string): IElement;
     createText(text: string, parent?: IElement): IElement;
-    createPlaceholder(): IElement;
+    createPlaceholder(forElement?: IElement): IElement;
     setContent(node: IElement, content: string): IElementUtility;
     getContent(node: IElement): string;
     setAttribute(node: IElement, name: string, value: string): IElementUtility;
@@ -486,7 +489,7 @@ export declare enum JSXModes {
     dnode = 1
 }
 export declare function jsxMode(mode: JSXModes, statement: () => any): any;
-declare function createDescriptor(descriptor: INodeDescriptor, container: IElement, comp: IComponent): IElement | IElement[] | IComponent;
+export declare function createDescriptor(descriptor: INodeDescriptor, container: IElement, comp: IComponent): IElement | IElement[] | IComponent;
 export declare let createElement: (tag: string | Function | INodeDescriptor | any[], attrs?: {
     [name: string]: any;
 } | IElement, vmOrCtnrOrFirstChild?: IElement | any, ...otherChildren: any[]) => IElement | IElement[];
@@ -497,7 +500,7 @@ export interface ComponentCreationOpts {
     returnInstance?: boolean;
     noGarbaging?: boolean;
 }
-export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IElement, compParent?: IComponent, opts?: ComponentCreationOpts): IElement[] | IElement | IComponent;
+export declare function createComponent(componentType: any, descriptor: INodeDescriptor, container?: IElement, ownComponent?: IComponent, opts?: ComponentCreationOpts): IElement[] | IElement | IComponent;
 export interface IComputedExpression {
     lamda: Function;
     parameters: any[];
@@ -561,6 +564,7 @@ export interface IComponent extends IDisposable {
     $element: IElement;
     render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
     update(path?: any, value?: any, src?: any): IComponent;
+    rendered?(elem: IElement): any;
 }
 export declare class Component extends Disposable implements IComponent {
     $cid?: string;
@@ -654,7 +658,7 @@ declare let YA: {
     ObservableArray: typeof ObservableArray;
     ObservableSchema: typeof ObservableSchema;
     observable: typeof observable;
-    enumerator: typeof enumerator;
+    enumerator: typeof variable;
     createElement: (tag: string | Function | any[] | INodeDescriptor, attrs?: IElement | {
         [name: string]: any;
     }, vmOrCtnrOrFirstChild?: any, ...otherChildren: any[]) => IElement | IElement[];

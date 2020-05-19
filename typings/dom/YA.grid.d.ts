@@ -1,5 +1,5 @@
 import * as YA from "../YA.core";
-import * as Dom from "../YA.dom";
+import * as Dom from "YA.dom";
 interface IListNode<T> {
     prev: T;
     next: T;
@@ -56,7 +56,7 @@ declare class Cell implements IListNode<Cell> {
     element: any;
     render(): HTMLDivElement;
 }
-export declare class Grid extends Dom.Panel {
+export declare class Grid extends Dom.Component {
     columns: ColumnCollection;
     rows: any;
     constructor();

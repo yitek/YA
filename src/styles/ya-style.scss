@@ -1,0 +1,20 @@
+@mixin plat($colors,$sizes) {
+    input,select,textarea,.input,button,.button{
+        border-style:solid;
+    }
+    .ya-panel-content{
+        padding:map-get($sizes, padding );
+    }
+    .ya-panel-label{
+        width:map-get($sizes, font )*10;
+        padding:map-get($sizes, padding );
+    }
+
+    .ya-tab>.ya-container-labels>.ya-panel-label{
+        display: inline-block;
+        margin-right:1px;
+    }
+    .ya-group>.ya-container-panel>.ya-panel-label{
+        width:100%;
+    }
+}

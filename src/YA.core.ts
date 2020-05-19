@@ -188,9 +188,31 @@ export class DPath{
         return dpath.setValue(data,value);
     }
     static replace(template:string,data?:any):string{
-        return data?template.replace(replaceByDataRegx,((match:any)=>{
-            return DPath.getValue(data,match);
-        }) as any):template;
+        if(arguments.length>2){
+            let datas =[];
+            for(let i =1,j=arguments.length;i<j;i++){
+                datas.push(arguments[i]);
+            }
+            data = (path:string):any=>{
+                let dpath = DPath.fetch(path);
+                for(let i =1,j=datas.length;i<j;i++){
+                    let value = dpath.getValue(datas[i]);
+                    if(value!==undefined) return value;
+                }
+                return undefined;
+            };
+        }
+        if(data){
+            if(typeof data==="function"){
+                return template.replace(replaceByDataRegx,((match:any)=>{
+                    return data(match);
+                }));
+            }else {
+                return template.replace(replaceByDataRegx,((match:any)=>{
+                    return DPath.getValue(data,match);
+                }));
+            }
+        }else return template;
     }
 }
 let replaceByDataRegx = /\$\{[a-zA-Z_0-9]+(?:.[a-zA-Z0-9_])\}/g;
@@ -1392,14 +1414,8 @@ function defineObservableProperty(target:any,name:string,factory:ObservableSchem
 }
 
 
-function getExtra(ob:IObservable<any>,name:string):any{
-   let extra = ob.$extras;
-   if(extra)return extra[name]; 
-}
-function setExtra(ob:IObservable<any>,name:string,value:any){
-    let extra = ob.$extras || (ob.$extras={});
-    extra[name]=value;
-}
+
+
 
 
  
@@ -1412,10 +1428,10 @@ export class ObservableSchema<TData>{
     
     $paths:string[];
     $obCtor:{new (init:TData|{(val?:TData):any}|IObservableIndexable<any>,index?:any,extras?:any,initValue?:any):Observable<any>};
-    $proxyCtor:{new (schema:ObservableSchema<any>,parent:ObservableProxy)};
+    $proxyCtor:{new (schema:ObservableSchema<TData>,parent:ObservableProxy<TData>)};
     //$prop_models:{[index:string]:Model};
     $owner?:ObservableSchema<TData>;
-    $itemSchema?:ObservableSchema<TData>;
+    $itemSchema?:ObservableSchema<any>;
     $initData?:any;
     constructor(initData:TData,index?:string|number,owner?:ObservableSchema<any>){
         let paths=[];
@@ -1463,7 +1479,10 @@ export class ObservableSchema<TData>{
             let data = root;
             for(const i in this.$paths){
                 data = data[this.$paths[i]];
-                if(data===undefined || data===Undefined) return undefined;
+                if(data===undefined || data===Undefined) {
+                    console.warn("未能找到数据，提前结束");
+                    return undefined;
+                }
             }
             return data;
         });
@@ -1482,8 +1501,8 @@ export class ObservableSchema<TData>{
         };
         _ObservableObject.prototype.$schema= this;
         this.$obCtor= _ObservableObject;
-        class _ObservableObjectProxy extends ObservableProxy{
-            constructor(schema:ObservableSchema<any>,parent:ObservableProxy){
+        class _ObservableObjectProxy<TData> extends ObservableProxy<TData>{
+            constructor(schema:TData|ObservableSchema<TData>,parent:ObservableProxy<TData>){
                 super(schema,parent);
             }
         }
@@ -1500,19 +1519,19 @@ export class ObservableSchema<TData>{
         Object.defineProperty(this,propname,{enumerable:true,writable:false,configurable:false,value:propSchema});
         defineObservableProperty(this.$obCtor.prototype,propname,propSchema,onSetting);
         defineObservableProperty(this.$proxyCtor.prototype,propname,function(initData){
-            return new propSchema.$proxyCtor(self,this);
+            return new propSchema.$proxyCtor(initData,this);
         },onSetting); 
         return propSchema;
     }
 
  
-    asArray(itemSchema?:any):ObservableSchema<TData>{
-        if(this.$type===ObservableTypes.Array) return this;
+    asArray<TItem>(itemSchema?:TItem):ObservableSchema<TItem>{
+        if(this.$type===ObservableTypes.Array) return this as any;
         if(this.$type === ObservableTypes.Object) throw new Error("无法将ObservableSchema从Object转化成Array.");
         this.$type = ObservableTypes.Array;
         let schema = this;
-        class _ObservableArray extends ObservableArray<any>{
-            constructor(init:ObservableObject<any>|{(val?:TData):any}|TData,index?:any,initValue?:any){
+        class _ObservableArray extends ObservableArray<TItem>{
+            constructor(init:ObservableObject<TItem>|{(val?:TItem):any}|TItem,index?:any,initValue?:any){
                 super(init as any,index,initValue);
             }
         };
@@ -1521,17 +1540,17 @@ export class ObservableSchema<TData>{
         }else {
             if(itemSchema===undefined){
                 itemSchema = this.$initData && this.$initData.shift ? this.$initData.shift():undefined;
-                this.$itemSchema = new ObservableSchema(itemSchema,-1,this);
+                this.$itemSchema = new ObservableSchema(itemSchema,ObservableSchema.arrayItemIndexToken,this);
                 if(!itemSchema[ObservableSchema.schemaToken])this.$initData.unshift(itemSchema);
             }else{
                 itemSchema[ObservableSchema.schemaToken]=true;
-                this.$itemSchema = new ObservableSchema(itemSchema,-1,this);
+                this.$itemSchema = new ObservableSchema(itemSchema,ObservableSchema.arrayItemIndexToken,this);
             }
         }
         
-        if(!this.$itemSchema) this.$itemSchema = new ObservableSchema(undefined,-1,this);
+        if(!this.$itemSchema) this.$itemSchema = new ObservableSchema<TItem>(undefined,ObservableSchema.arrayItemIndexToken,this);
         _ObservableArray.prototype.$schema= this as any;
-        this.$obCtor=_ObservableArray;
+        this.$obCtor=_ObservableArray as any;
         let lengthSchema = new ObservableSchema(0,"length",this);
         Object.defineProperty(this,"length",{enumerable:false,configurable:false,get:()=>lengthSchema});
     }
@@ -1549,11 +1568,12 @@ export class ObservableSchema<TData>{
     createObservable(val?:any):Observable<TData>{
         return new this.$obCtor(val===Default?this.$initData:val);
     }
-    createProxy():ObservableProxy{
+    createProxy():ObservableProxy<TData>{
         return new this.$proxyCtor(this,undefined);
     }
 
     static schemaToken:string = "$__ONLY_USED_BY_SCHEMA__";
+    static arrayItemIndexToken:string = "";
 }
 
 export let Default:any={};
@@ -1578,9 +1598,9 @@ function defineProxyProto(proto:any,memberNames:string[]){
     })(n,proto);
 }
 @implicit()
-export class ObservableProxy implements IObservable<any> {
-    $parent:ObservableProxy;
-    $schema:ObservableSchema<any>;
+export class ObservableProxy<T> implements IObservable<T> {
+    $parent:ObservableProxy<T>;
+    $schema:ObservableSchema<T>;
     $type:ObservableTypes;
     $extras?:any;
     $target?:any;
@@ -1590,15 +1610,15 @@ export class ObservableProxy implements IObservable<any> {
 
     $__rootOb__:IObservable<any>;
     $rootOb:IObservable<any>;
-    constructor(param:ObservableSchema<any>|Observable<any>|any,parent?:ObservableProxy){
-        let schema:ObservableSchema<any>;
+    constructor(param:ObservableSchema<T>|Observable<T>|any,parent?:ObservableProxy<any>){
+        let schema:ObservableSchema<T>;
         let rootOb :IObservable<any>;
         if(param instanceof ObservableSchema) schema = param;
         else if(param instanceof Observable) {
             rootOb = param;
             schema = param.$schema;
         }else{
-            schema = new ObservableSchema(param);
+            schema = new ObservableSchema<T>(param);
         }
         implicit(this,{
             $parent:parent,$schema:schema,$__rootOb__:rootOb
@@ -1626,7 +1646,7 @@ export class ObservableProxy implements IObservable<any> {
             Object.defineProperty(this,n,{enumerable:true,writable:false,configurable:false,value:new ObservableProxy(sub,this)});
         }
     }
-    get(accessMode?:ObservableModes):any{
+    get(accessMode?:ObservableModes):T|IObservable<T>{
         if(accessMode===undefined) accessMode = Observable.readMode;
         if(accessMode===ObservableModes.Proxy) return this;
         let ob :IObservable<any>;
@@ -1655,6 +1675,14 @@ export class ObservableProxy implements IObservable<any> {
         }
         return this;
     } 
+    reset(newValue){
+        if(this.$parent) throw new Error("只能在根代理上使用reset");
+        if(Observable.isObservable(newValue)){
+            this.$__rootOb__ = newValue.get(ObservableModes.Observable);
+        }else {
+            this.$__rootOb__ = this.$schema.createObservable(newValue);
+        }
+    }
     subscribe():any{throw new Error("abstract method");}
     unsubscribe():any{throw new Error("abstract method");}
     notify():any{throw new Error("abstract method");}
@@ -1665,14 +1693,14 @@ export class ObservableProxy implements IObservable<any> {
     shift():any{throw new Error("abstract method");}
     unshift():any{throw new Error("abstract method");}
 }
-defineProxyProto(ObservableProxy.prototype,["update","subscribe","unsubscribe","notify","fulfill","push","pop","shift","unshift","clear"]);
+defineProxyProto(ObservableProxy.prototype,["update","subscribe","unsubscribe","notify","fulfill","push","pop","shift","unshift","clear","$extras"]);
 
 
 
-export function observable(schema:any,index?:string,subject?:any){
+export function observable<T>(schema:any,index?:string,subject?:any):ObservableProxy<T>{
     if(Observable.isObservable(schema)) throw new Error("不能用Observable构造另一个Observable,或许你想使用的是ObservableProxy?");
     if(!(schema instanceof ObservableSchema)){
-        schema = new ObservableSchema(schema);
+        schema = new ObservableSchema<T>(schema);
     }    
     if(subject){
         defineObservableProperty(subject,index,schema);
@@ -1680,20 +1708,32 @@ export function observable(schema:any,index?:string,subject?:any){
         return schema.createObservable(Default);
     }
 }
+export function loopar<T>(schema :any, index?:string, subject?:any):ObservableProxy<T>{
+    if(schema instanceof Observable){
+        if(schema.$schema.$itemSchema) schema = schema.$schema.$itemSchema;
+        else{
+            schema = schema.$schema;
+        };
+    }else if(!(schema instanceof ObservableSchema)){
+        schema = new ObservableSchema<T>(schema);
+    }
+    return variable(schema,index,subject);
+}
 
-export function enumerator(schema:any,index?:string,subject?:any):ObservableProxy{
-    
-    if(!(schema instanceof ObservableSchema)){
-        schema = new ObservableSchema(schema);
+export function variable<T>(schema:T|ObservableSchema<T>|IObservable<T>,index?:string,subject?:any):ObservableProxy<T>{
+    if(schema instanceof Observable){
+        schema = schema.$schema;
+    }else if(!(schema instanceof ObservableSchema)){
+        schema = new ObservableSchema<T>(schema as T);
     }
     if(subject){
         defineObservableProperty(subject,index,(initData?:any)=>{
-            let proxy = new ObservableProxy(schema);
-            if(initData!==undefined) proxy.set(initData);
+            let proxy = new ObservableProxy<T>(schema);
+            if(initData!==undefined) proxy.reset(initData);
             return proxy;
         });
     }else{
-        let proxy = new ObservableProxy(schema);
+        let proxy = new ObservableProxy<T>(schema);
         return proxy;
     }
     
@@ -1719,7 +1759,7 @@ export interface IElementUtility{
     is_inDocument(obj:any):boolean;
     createElement(tag:string,attrs?:{[name:string]:string},parent?:IElement,content?:string):IElement;
     createText(text:string,parent?:IElement):IElement;
-    createPlaceholder():IElement;
+    createPlaceholder(forElement?:IElement):IElement;
     setContent(node:IElement,content:string):IElementUtility;
     getContent(node:IElement):string;
     setAttribute(node:IElement,name:string,value:string):IElementUtility;
@@ -2071,7 +2111,6 @@ function _createElement(
 ){
     if(tag===undefined || tag===null || tag === "") return;
     let descriptor:INodeDescriptor;
-    let container:IElement;
     let t = typeof tag;
     
     if(t==="string"){
@@ -2127,7 +2166,7 @@ function _createElement(
     }else {throw new Error("不正确的参数");}
 }
 
-function createDescriptor(descriptor:INodeDescriptor,container:IElement,comp:IComponent){
+export function createDescriptor(descriptor:INodeDescriptor,container:IElement,comp:IComponent){
 
     let elem :IElement;
     //没有tag，就是文本
@@ -2162,6 +2201,9 @@ function createText(value:any,container:IElement,compInstance:IComponent){
     if(Observable.isObservable(value)){
         elem = ElementUtility.createText(value.get(ObservableModes.Value));
         value.subscribe(e=>{ElementUtility.setContent(elem,e.value);},compInstance);
+    }else if(typeof value==="function"){
+        value = value();
+        elem = ElementUtility.createText(value);
     }else{
         elem = ElementUtility.createText(value);
     }
@@ -2181,7 +2223,7 @@ export function createElements(arr:any[],container:IElement,compInstance:ICompon
 }
 
 
-function createDom(descriptor:INodeDescriptor,parent?:IElement,compInstance?:IComponent):IElement{
+function createDom(descriptor:INodeDescriptor,parent?:IElement,ownComponent?:IComponent):IElement{
     let elem = ElementUtility.createElement(descriptor.tag as string);
     if(parent) ElementUtility.appendChild(parent,elem);
     let ignoreChildren:boolean = false;
@@ -2191,36 +2233,39 @@ function createDom(descriptor:INodeDescriptor,parent?:IElement,compInstance?:ICo
         if(attrName==="tag" || attrName==="children" || attrName ==="content") continue;
         
         let attrValue= descriptor[attrName];
-        if(attrName==="if"){
-            bindDomIf(elem,attrValue,descriptor,compInstance);
+
+        if(attrName==="loop"){
+            bindDomLoop(elem,attrValue,descriptor,ownComponent);
+            ignoreChildren=true;
             continue;
         }
-        if(attrName==="for"){
-            bindDomFor(elem,attrValue,descriptor,compInstance);
-            ignoreChildren=true;
+        if(attrName==="c-name" && ownComponent){
+            bindClientName(ownComponent,attrValue,elem);
             continue;
         }
 
         let match = attrName.match(evtnameRegx);
+        
         if(match && elem[attrName]!==undefined && attrValue){
+            //attrValue可能是function,也可能是一个数组
             let evtName = match[1];
-            if(bindDomEvent(elem,evtName,attrValue,descriptor,compInstance)) continue;
+            if(bindDomEvent(elem,evtName,attrValue,descriptor,ownComponent)) continue;
         }
         
         if(attrName==="class") attrName = "className";
-        if(bindDomAttr(elem,attrName,attrValue,descriptor,compInstance)===RenderDirectives.IgnoreChildren) ignoreChildren=true;
+        if(bindDomAttr(elem,attrName,attrValue,descriptor,ownComponent)===RenderDirectives.IgnoreChildren) ignoreChildren=true;
     }
     if(ignoreChildren) return elem;
     if(descriptor.content){
         if(descriptor.content instanceof Computed){
-            let txtElem = ElementUtility.createText(descriptor.content.getValue(compInstance),elem);
+            let txtElem = ElementUtility.createText(descriptor.content.getValue(ownComponent),elem);
             descriptor.content.bindValue((val)=>{
                 ElementUtility.setContent(txtElem,val)
-            },compInstance);
+            },ownComponent);
         } if(Observable.isObservable(descriptor.content)){
             let ob = descriptor.content as Observable<any>;
             let txtElem = ElementUtility.createText(ob.get(ObservableModes.Value),elem);
-            ob.subscribe(e=>ElementUtility.setContent(txtElem,e.value),compInstance);
+            ob.subscribe(e=>ElementUtility.setContent(txtElem,e.value),ownComponent);
         }else {
             let txtElem = ElementUtility.createText(descriptor.content,elem);
         }
@@ -2228,17 +2273,19 @@ function createDom(descriptor:INodeDescriptor,parent?:IElement,compInstance?:ICo
     }
     let children = descriptor.children;
     if(!children || children.length===0) return elem;
-    createElements(children,elem,compInstance);
+    createElements(children,elem,ownComponent);
     return elem;
 }
 
-function bindDomFor(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
+
+
+function bindDomLoop(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     //if(component) throw new Error("不支持Component上的for标签，请自行在render函数中处理循环");
     let arr = bindValue[0];
     if(arr instanceof ObservableProxy) arr = arr.get(ObservableModes.Observable);
     let valVar = bindValue[1];
     let keyVar = bindValue[2];
-    let each :Function;
+
     if(Observable.isObservable(arr)){
         
         arr.subscribe((e:IChangeEventArgs<any>)=>{
@@ -2247,8 +2294,8 @@ function bindDomFor(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstan
             
             for(let key in arr)((key,value)=>{
                 if(key==="constructor") return;
-                if(keyVar) keyVar.set(key);
-                if(valVar) valVar.set(value);
+                if(keyVar) keyVar.reset(key);
+                if(valVar) valVar.reset(value);
                 
                 let renderRs = createElements(vnode.children,elem,compInstance);
                 if(value instanceof Observable){
@@ -2265,8 +2312,8 @@ function bindDomFor(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstan
     }
     for(let key in arr)((key,value)=>{
         if(key==="constructor") return;
-        if(keyVar) keyVar.set(key);
-        if(valVar) valVar.set(value);
+        if(keyVar) keyVar.reset(key);
+        if(valVar) valVar.reset(value);
         let renderRs = createElements(vnode.children,elem,compInstance);
         if(value instanceof Observable){
             value.subscribe((e:IChangeEventArgs<any>)=>{
@@ -2281,23 +2328,19 @@ function bindDomFor(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstan
     return RenderDirectives.IgnoreChildren;
 }
 
-function bindDomIf(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
-    let placeholder = ElementUtility.createPlaceholder();
-    Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
-
-    if(Observable.isObservable(bindValue)){
-        bindValue.subscribe((e)=>{
-            if(e.value){
-                ElementUtility.replace(placeholder,elem);
-            }else ElementUtility.replace(elem,placeholder);
-        },compInstance);
-        bindValue = bindValue.get(ObservableModes.Default);
-    }
-    if(!bindValue){ElementUtility.replace(elem,placeholder);};
-}
 //把属性绑定到element上
 export function bindDomAttr(element:IElement,attrName:string,attrValue:any,vnode:INodeDescriptor,compInstance:IComponent,op?:(elem:IElement,name:string,value:any,old:any)=>any){
+    if(typeof attrValue==="function") {
+        let rmode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
+        try{
+            attrValue = attrValue();
+        }finally{
+            Observable.readMode = rmode;
+        }
+    }
     if(attrValue instanceof ObservableProxy) attrValue = attrValue.get(ObservableModes.Observable);
+
     let binder:Function = attrBinders[attrName];
     let bindResult:any;
     if(!op) op = (elem:IElement,name:string,value:any,old:any)=>{
@@ -2311,6 +2354,7 @@ export function bindDomAttr(element:IElement,attrName:string,attrValue:any,vnode
             attrValue.bindValue((val)=>op(element,attrName,val,undefined),compInstance);
         }
     } else{
+
         if(binder) bindResult= binder.call(compInstance,element,attrValue,vnode,compInstance);
         else if(attrValue instanceof Observable){
             op(element,attrName,attrValue.get(ObservableModes.Value),undefined);
@@ -2368,7 +2412,7 @@ export interface ComponentCreationOpts{
     returnInstance?:boolean;
     noGarbaging?:boolean;
 }
-export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement,compParent?:IComponent,opts?:ComponentCreationOpts):IElement[]|IElement|IComponent{
+export function createComponent(componentType:any,descriptor:INodeDescriptor,container?:IElement,ownComponent?:IComponent,opts?:ComponentCreationOpts):IElement[]|IElement|IComponent{
     let xmode = _jsxMode;
     let ormode = Observable.readMode;
     let owmode = Observable.writeMode;
@@ -2386,15 +2430,15 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
 
     let renderResult:any;
     let renderFn:any = componentType;
-    let ifAttrValue;
+    let notDefinedAttrs;
     try{
         _jsxMode = JSXModes.vnode;
         Observable.readMode = ObservableModes.Proxy;
         // object-component
         if(typeof compInstance.render==='function'){
             buildComponent(compInstance,componentType.prototype);
-            if(compInstance.$parent = compParent){
-                compParent.$children.push(compInstance);
+            if(compInstance.$parent = ownComponent){
+                ownComponent.$children.push(compInstance);
                 compInstance.dispose(function(){
                     if(this.$parent) {
                         for(let i=0,j=this.$parent.$children;i<j;i++){
@@ -2408,15 +2452,14 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
             //绑定属性
             for(const propname in descriptor){
                 if(propname==="tag" || propname==="children" || propname==="Component") continue;
-                if(propname==="if") {
-                    ifAttrValue = descriptor[propname];
+                let attrValue = descriptor[propname];
+                if(propname==="c-name"){
+                    bindClientName(ownComponent,attrValue,compInstance);
                     continue;
                 }
-                if(propname==="name"){
-                    bindComponentName(compInstance,descriptor[propname],null,container);
-                    continue;
+                if(!bindComponentAttr(compInstance,propname,attrValue)){
+                    (notDefinedAttrs||(notDefinedAttrs={}))[propname]= attrValue;
                 }
-                bindComponentAttr(compInstance,propname,descriptor[propname]);
             };
             renderFn = compInstance.render;
             renderResult = renderFn.call(compInstance,descriptor,container);
@@ -2432,116 +2475,61 @@ export function createComponent(componentType:any,descriptor:INodeDescriptor,con
 
     let elems = handleRenderResult(renderResult,compInstance,renderFn,descriptor,container);
     
-    if(ElementUtility.isElement(elems)) compInstance.$element = elems;
-    else compInstance.$elements = elems;
+    if(ElementUtility.isElement(elems)) {
+        compInstance.$element = elems;
+        if(notDefinedAttrs){
+            for(let n in notDefinedAttrs){
+                let attrValue = notDefinedAttrs[n];
+                bindDomAttr(elems as any,n,attrValue,descriptor,compInstance);
+            }
+        }
+    }else compInstance.$elements = elems;
     //绑定if属性
-    if(ifAttrValue) bindComponentIf(compInstance,ifAttrValue,elems,container);
+    
     //每个创建的控件都要定期做垃圾检查
     if(compInstance &&(!opts || !opts.noGarbaging)) ComponentGarbage.singleon.attech(compInstance);
+    if(compInstance && compInstance.rendered) compInstance.rendered(elems);
     return opts&&opts.returnInstance?compInstance:elems;
 }
 
-function bindComponentIf(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
-    let placeholder = ElementUtility.createPlaceholder();
-    let isArr = is_array(elems);
-    if(isArr){
-        for(const elem of elems) Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
-    }else{
-        Object.defineProperty(elems,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
-    }
-    
-    if(Observable.isObservable(bindValue)){
-        bindValue.subscribe((e)=>{
-            if(e.value){
-                let p = ElementUtility.getParent(placeholder);
-                if(p){
-                    if(isArr){
-                        for(const elem of elems){
-                            ElementUtility.insertBefore(elem,placeholder);
-                            ElementUtility.remove(placeholder);
-                        }
-                    }else{
-                        ElementUtility.replace(elems,placeholder);
-                    }
-                }
-            }else {
-                if(isArr){
-                    let inserted = false;
-                    for(const elem of elems){
-                        if(!inserted){ ElementUtility.insertAfter(placeholder,elem);inserted =true;}
-                        ElementUtility.remove(elem);
-                    }
-                }else{
-                    ElementUtility.replace(elems,placeholder);
-                }
-            }
-        },compInstance);
-        bindValue = bindValue.get(ObservableModes.Default);
-    }
-    if(!bindValue){
-        if(isArr){
-            let inserted = false;
-            for(const elem of elems){
-                if(!inserted){ ElementUtility.insertAfter(placeholder,elem);inserted =true;}
-                ElementUtility.remove(elem);
-            }
-        }else{
-            ElementUtility.replace(elems,placeholder);
-        }
-    };
-}
 
-function bindComponentName(compInstance:IComponent,bindValue:any,elems:any,container:IElement){
-    let parent = compInstance.$parent;
-    if(!parent) return;
-    if(Observable.isObservable(bindValue)){
-        
-        bindValue = bindValue.get(ObservableModes.Value);
-    }
-    setCid(parent,compInstance,bindValue,undefined);
-
-}
-function setCid(parent,comp,cid,old?){
+function bindClientName(ownComponent,value,cid){
     if(!cid) {
-        console.warn("调用了setCID,但给的值为空,忽略该操作",cid,comp);
+        console.warn("调用了setCID,但给的值为空,忽略该操作",cid,value);
         return;
     }
-    comp.name = cid;
-    let existed = old?parent[old]:null;
-    if(existed){
-        if(existed===comp){
-            delete parent[old];
-            parent[cid] = comp;
-        }else{
-            for(let i =0,j=existed.length;i<j;i++){
-                let c = existed.unshift();
-                if(c!==comp) existed.push(c);
-            }
-            if(existed.length==0) delete parent[old];
-        }
-    }
-    
-    existed = parent[cid];
+    Object.defineProperty(value,"c-name",{enumerable:false,writable:false,configurable:false,value:cid});
+    value["c-name"] = cid;
+    let existed = ownComponent[cid];
     if(!existed) {
-        parent[cid]= comp;
+        ownComponent[cid]= value;
     }else if(is_array(existed)){
         for(let i =0,j=existed.length;i<j;i++){
             let c = existed.unshift();
-            if(c!==comp) existed.push(c);
+            if(c!==value) existed.push(c);
         }
-        existed.push(comp);
+        existed.push(value);
     }else {
-        let arr = [existed,comp];
-        parent[cid]=arr;
+        let arr = [existed,value];
+        ownComponent[cid]=arr;
     }
 }
 
 
-function bindComponentAttr(compInstance:IComponent,propName:string,bindValue:any){
+function bindComponentAttr(compInstance:IComponent,propName:string,bindValue:any):boolean{
     //找到组件的属性
     let prop = compInstance[propName];
     // TODO:找到组件名
     let componentName = "Component";
+    if(typeof bindValue=="function") {
+        let rmode = Observable.readMode;
+        Observable.readMode = ObservableModes.Value;
+        try{
+            bindValue = bindValue();
+        }finally{
+            Observable.readMode = rmode;
+        }
+    }
     
     if(prop){
         if(Observable.isObservable(prop)){
@@ -2591,8 +2579,10 @@ function bindComponentAttr(compInstance:IComponent,propName:string,bindValue:any
                 compInstance[propName] = bindValue;
             }
         }
+        return true;
     }else{
         compInstance[propName] = bindValue;
+        return false;
     }
 }
 
@@ -2794,6 +2784,8 @@ export interface IComponent extends IDisposable{
     $element:IElement;
     render(descriptor?:INodeDescriptor,container?:IElement):IElement|IElement[]|INodeDescriptor|INodeDescriptor[];
     update(path?:any,value?:any,src?:any):IComponent;
+
+    rendered?(elem:IElement):any;
 }
 
 function getElement(){
@@ -3020,7 +3012,7 @@ function makeReactive(rtype:ReactiveTypes,obj:any,name:string,schema?:Observable
                     ob = new Observable(null);
                 }
                 ob = info.schema.createObservable(Default);
-                setExtra(ob,"reactiveType",rtype);
+                
                 Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
             }
             return ob.get();
@@ -3033,7 +3025,7 @@ function makeReactive(rtype:ReactiveTypes,obj:any,name:string,schema?:Observable
                     info.schema  = new ObservableSchema(value);
                 }
                 ob = info.schema.createObservable();
-                setExtra(ob,"reactiveType",rtype);
+                
                 Object.defineProperty(this,private_name,{enumerable:false,configurable:false,writable:false,value:ob});
             }
             return ob.set(value);
@@ -3188,6 +3180,40 @@ export class Placeholder{
 
 export let attrBinders:{[name:string]:(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent)=>any}={};
 
+attrBinders.if = (elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent):any=>{
+    bindDomCondition(elem,bindValue,vnode,compInstance,e=>!e);
+}
+attrBinders["if-not"] = (elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent):any=>{
+    bindDomCondition(elem,bindValue,vnode,compInstance,e=>e);
+}
+attrBinders["empty"] = (elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent):any=>{
+    bindDomCondition(elem,bindValue,vnode,compInstance,e=>!is_empty(e));
+}
+attrBinders["not-empty"] = (elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent):any=>{
+    bindDomCondition(elem,bindValue,vnode,compInstance,e=>is_empty(e));
+}
+
+function bindDomCondition(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent,isShowPlaceholder:(val:any)=>boolean){
+    let placeholder = ElementUtility.createPlaceholder(elem);
+    Object.defineProperty(elem,"$__placeholder__",{enumerable:false,writable:false,configurable:false,value:placeholder});
+
+    if(Observable.isObservable(bindValue)){
+        bindValue.subscribe((e)=>{
+            if(isShowPlaceholder(e.value)){
+                ElementUtility.replace(elem,placeholder);
+            }else  ElementUtility.replace(placeholder,elem);
+        },compInstance);
+        bindValue = bindValue.get(ObservableModes.Default);
+    }else {
+        let t = typeof bindValue;
+        if(t==="function") bindValue = bindValue();
+    }
+    if(isShowPlaceholder(bindValue)){
+        ElementUtility.replace(elem,placeholder);
+    };
+}
+
+
 attrBinders.value = function(elem:IElement,bindValue:any,vnode:INodeDescriptor,compInstance:IComponent){
     if(Observable.isObservable(bindValue)){
         ElementUtility.setValue(elem,bindValue.get(ObservableModes.Value));
@@ -3263,7 +3289,7 @@ export function toJson(obj:any){
 //=======================================================================
 let YA={
     Subject,Disposable, ObservableModes,observableMode,proxyMode,Observable,ObservableObject,ObservableArray, ObservableSchema
-    ,observable,enumerator
+    ,observable,enumerator: variable
     ,createElement,createDescriptor,createElements,createComponent,EVENT
     ,bindDomAttr,attrBinders,componentInfos: componentTypes
     ,not,computed

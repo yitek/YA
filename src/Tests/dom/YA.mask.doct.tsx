@@ -1,6 +1,6 @@
 import {doct,TAssertStatement,TAssert} from '../../doct';
 import * as YA from '../../YA.core';
-import * as Dom from "../../YA.dom";
+import * as Dom from "../../dom/YA.dom";
 @doct({
     title:"YA.dom.mask"
     ,descriptions:[

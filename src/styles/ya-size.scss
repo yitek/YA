@@ -1,0 +1,25 @@
+/*
+超小屏幕 手机 (<768px)	小屏幕 平板 (≥768px)	中等屏幕 桌面显示器 (≥992px)	大屏幕 大桌面显示器 (≥1920px)
+*/
+
+
+
+
+@mixin customize-sizes($sizes) {
+    
+    *{
+        font-size:map-get($sizes,font);
+        line-height:map-get($sizes,line);
+    }
+
+    input,select,textarea,.input{
+        padding:map-get($sizes,padding);
+        border-width:1px;
+    }
+
+    button,input[type='button'],input[type='reset'],input[type='submit'],.button{
+        padding:map-get($sizes,padding);
+        border-width:1px;
+    }
+}
+

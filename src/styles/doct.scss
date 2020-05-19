@@ -3,16 +3,40 @@ $spacing:5px;
 $title-backend-color:#eee;
 $title-front-color:#333;
 
-*{
-    margin:0;
-    padding:0;
-    box-sizing: border-box;
-    border:0;
-    font-size:$fontSize;
-    word-wrap: break-all;
-    word-break: break-word;
-}
+.doct{
+    .blue-block{
+        background-color:blue;
+        color:white;
+        padding:$spacing;
+        margin:$spacing;
+    }
+    .red-block{
+        background-color:red;
+        color:white;
+        padding:$spacing;
+        margin:$spacing;
+    }
+    .orange-block{
+        background-color:orange;
+        color:block;
+        padding:$spacing;
+        margin:$spacing;
+    }
 
+    .yellow-block{
+        background-color:yellow;
+        color:black;
+        padding:$spacing;
+        margin:$spacing;
+    }
+
+    .green-block{
+        background-color:green;
+        color:white;
+        padding:$spacing;
+        margin:$spacing;
+    }
+}
 fieldset.doct{
     border:1px solid #ccc;
     background-color:#eee;
@@ -104,41 +128,6 @@ fieldset.doct{
     }
 
 }
-input,textarea,select,button{
-    border:1px solid #ccc;
-    border-radius: $spacing;
-    padding:$spacing;
-    margin:auto $spacing;
-    background-color: #ddd;
-    &:focus{
-        background-color: #eee;
-    }
-    &:hover{
-        border-color: #999;
-    }
-}
-table{
-    margin:$spacing;
-    border:1px solid #999;
-    border-radius: $spacing;
-    border-collapse:collapse;
-    thead{
-        border-bottom: 1px solid #999;
-    }
-    td,th{
-        border-left:1px solid #eee;
-        border-bottom: 1px dashed #aaa;
-        border-collapse:collapse;
-        padding:$spacing;
-    }
-    th{
-        border-bottom:2px solid #aaa;
-        background-color:#e0e0e0;
-    }
-    tr{
-        border-bottom: 1px dashed #999;
-    }
-}
 
 fieldset.doct.successful>legend{
     background-color:green;
@@ -147,39 +136,3 @@ fieldset.doct.failed>legend{
     background-color: red;
 }
 
-ul,dl{
-    list-style: none inside;
-}
-
-.blue-block{
-    background-color:blue;
-    color:white;
-    padding:$spacing;
-    margin:$spacing;
-}
-.red-block{
-    background-color:red;
-    color:white;
-    padding:$spacing;
-    margin:$spacing;
-}
-.orange-block{
-    background-color:orange;
-    color:block;
-    padding:$spacing;
-    margin:$spacing;
-}
-
-.yellow-block{
-    background-color:yellow;
-    color:black;
-    padding:$spacing;
-    margin:$spacing;
-}
-
-.green-block{
-    background-color:green;
-    color:white;
-    padding:$spacing;
-    margin:$spacing;
-}
