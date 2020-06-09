@@ -5,6 +5,36 @@ export declare function is_assoc(obj: any): boolean;
 export declare function is_object(obj: any): boolean;
 export declare function is_array(obj: any): boolean;
 export declare function is_empty(obj: any): boolean;
+export declare class Exception extends Error {
+    constructor(opts: any);
+}
+export declare enum FulfillStates {
+    padding = 0,
+    fulfilled = 1,
+    rejected = 2
+}
+export declare class Fulfill {
+    private $__YA_fulfill_status__;
+    private $__YA_fulfill_value__;
+}
+export interface IDisposable {
+    dispose(listenerOrEvent?: any): IDisposable;
+}
+export interface ISubject {
+}
+export declare class Subect {
+    private $__YA_topics__;
+    subscribe(topic: string | {
+        (evt: any): any;
+    }, listener: {
+        (evt: any): any;
+    } | IDisposable | string, disposeOwn?: string | IDisposable): this;
+    unsubscribe(topic: string | {
+        (evt: any): any;
+    }, listener: {
+        (evt: any): any;
+    } | IDisposable): Subect;
+}
 declare enum ObservableModes {
     Default = 0,
     Value = 1,
@@ -40,10 +70,38 @@ export declare class Observable {
      * @memberof Observable
      */
     private $__ob_modified__;
+    /**
+     * 该值存放在哪个对象上
+     *
+     * @private
+     * @memberof Observable
+     */
     private $__ob_target__;
+    /**
+     * 该值存放在对象上的属性名
+     *
+     * @private
+     * @memberof Observable
+     */
     private $__ob_name__;
+    /**
+     * 一个observable代表一个值
+     * 该值存放在哪个对象上
+     * @memberof Observable
+     */
     $ob_target: any;
+    /**
+     *  该值存放在对象的属性名
+     *
+     * @memberof Observable
+     */
     $ob_name: any;
+    /**
+     * 当前确定的值
+     * 一般是target[name],但当修改target/name时，他们之间会不一致
+     *
+     * @memberof Observable
+     */
     $ob_value: any;
     $ob_proxy: any;
     $ob_own: any;

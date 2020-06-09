@@ -1,0 +1,1 @@
+{"version":3,"file":"mock-app.js","sourceRoot":"","sources":["../../../src/tests/require/mock-app.ts"],"names":[],"mappings":";;;;;;;;;;;IACA,gCAAkC;IAClC,OAAO,CAAC,KAAK,CAAC,aAAa,CAAC,CAAC;IAC7B,OAAO,CAAC,GAAG,CAAC,yCAAyC,CAAC,CAAC;IACvD,OAAO,CAAC,GAAG,CAAC,YAAY,EAAC,GAAG,CAAC,CAAC;IACnB,QAAA,GAAG,GAAG;QACb,OAAO,EAAC,UAAU;KACrB,CAAC;IACF,OAAO,CAAC,QAAQ,EAAE,CAAC"}

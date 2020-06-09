@@ -1,0 +1,1 @@
+{"version":3,"file":"mock-framework.js","sourceRoot":"","sources":["../../../../src/tests/require/libs/mock-framework.ts"],"names":[],"mappings":";;;;;;;;;;;IAAA,OAAO,CAAC,KAAK,CAAC,mBAAmB,CAAC,CAAC;IACnC,OAAO,CAAC,GAAG,CAAC,uCAAuC,CAAC,CAAC;IAC1C,QAAA,GAAG,GAAG;QACb,OAAO,EAAC,gBAAgB;KAC3B,CAAC;IACF,OAAO,CAAC,QAAQ,EAAE,CAAC"}
