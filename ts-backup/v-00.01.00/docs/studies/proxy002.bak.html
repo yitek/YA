@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+        
+    </head>
+    <body class="default-color default-style">
+        <ul>
+            <li>
+                <pre>
+                    用工厂类来创建代理
+                </pre>           
+                <script type="text/javascript">
+
+const ValuePrototype = {
+    get:function(mode){
+        //看是否有修改过的值
+        if(this.$modifiedValue===undefined){
+            //没有修改过的值，找原值
+            //看原始是否存在
+            if(this.$value===undefined){
+                //原值不存在
+                //看有没有获取原值的函数
+                if(this.$raw){
+                    //有获取原值的函数
+                    let value = this.$raw();
+                    this.$value= value===undefined?Undefined:value;
+                    return value;
+                }else{
+                    //没有获取原值的函数
+                    this.$value = Undefined;
+                    return undefined;
+                }
+            }
+        }else {
+            //曾经做过修改，就直接返回修改的值，不用找原值
+            return this.$modifiedValue===Undefined?undefined:this.$modifiedValue;
+        }
+    }
+    ,set(newValue){
+        
+        let oldValue = ValuePrototype.get.call(this);
+        if(newValue===oldValue) return this;
+        if(newValue===undefined)newValue = Undefined;
+        this.$modifiedValue=newValue;
+    }
+};
+let Observable=function(own,raw){
+    this.$raw = raw;
+    this.$own = own;
+};Value.prototype = ValuePrototype;
+//当处在
+const ByValHandler = {
+
+}
+
+class ProxyHandler{
+    members;
+    constructor(){
+
+    }
+
+    method(name){
+
+    }
+
+    get(target,name){
+        //如果是方法，就返回方法本身
+        let method = this.method(name);
+        if(method) return method;
+        let propValue = this.members[name];
+        if(!propValue){
+
+        }
+        return propValue;
+    }
+    set(target,name,value){}
+}
+                </script>
+            </li>
+            <li>
+                <pre>
+                    用工厂类来创建代理
+                </pre>           
+                <script type="text/javascript">
+
+                </script>
+            </li>
+        </ul>
+    </body>
+</html>

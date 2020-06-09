@@ -1,0 +1,2 @@
+import {doct} from "../doct";
+

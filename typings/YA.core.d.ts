@@ -1,5 +1,8 @@
 export declare function implicit(strong?: boolean | any, members?: any, value?: any): (target: any, propName?: string) => void;
 export declare function abstract(): (proto: any, name: any) => void;
+export declare function defineSingleonProperty(target: any, name: string | {
+    [name: string]: (self: any) => any;
+}, getter?: (self: any) => any): void;
 export interface IPrivateOpts {
     get: any;
     set: any;
@@ -157,7 +160,7 @@ export interface ISubject<TEvtArgs> {
  * 一般用作其他类型的基类
  *
  * @export
- * @class Observable
+ * @class Subject
  * @implements {IObservable<TEvtArgs>}
  * @template TEvtArgs 事件参数的类型
  */
@@ -216,7 +219,7 @@ export declare class Subject<TEvtArgs> implements ISubject<TEvtArgs> {
     notify(topic: string | TEvtArgs, evtArgs?: TEvtArgs): ISubject<TEvtArgs>;
     fulfill(topic: string | TEvtArgs, evtArgs?: TEvtArgs): ISubject<TEvtArgs>;
 }
-export declare function eventable(subject: any, topic: string): any;
+export declare function fulfillable(topic: string, subject?: any): any;
 export declare function new_cid(): number;
 export interface IDisposable {
     dispose(onRelease?: any | {
@@ -438,7 +441,7 @@ export interface IElementUtility {
         [name: string]: string;
     }, parent?: IElement, content?: string): IElement;
     createText(text: string, parent?: IElement): IElement;
-    createPlaceholder(forElement?: IElement): IElement;
+    createPlaceholder(cmt?: string): any;
     setContent(node: IElement, content: string): IElementUtility;
     getContent(node: IElement): string;
     setAttribute(node: IElement, name: string, value: string): IElementUtility;
@@ -558,25 +561,41 @@ export interface IComponentMeta {
 export interface IComponent extends IDisposable {
     $meta: IComponentMeta;
     $parent?: IComponent;
-    $cid?: string;
     $children?: IComponent[];
     $elements: IElement[];
     $element: IElement;
+    $context: any;
+    /**
+     * 已经创建且注入属性后
+     *
+     * @returns {*}
+     * @memberof IComponent
+     */
+    init?(descriptor: INodeDescriptor): any;
     render(descriptor?: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
-    update(path?: any, value?: any, src?: any): IComponent;
+    /**
+     * 创建真实的袁术后
+     *
+     * @param {IElement} elem
+     * @returns {*}
+     * @memberof IComponent
+     */
     rendered?(elem: IElement): any;
+    update(path?: any, value?: any, src?: any): IComponent;
 }
+export declare let context: any;
 export declare class Component extends Disposable implements IComponent {
-    $cid?: string;
     $meta: IComponentMeta;
     $elements: IElement[];
     $element: IElement;
     $parent?: IComponent;
     $children: IComponent[];
+    $context: any;
     constructor();
     render(des: INodeDescriptor, container?: IElement): IElement | IElement[] | INodeDescriptor | INodeDescriptor[];
     update(tpath: string, value?: any, src?: any): Component;
     subscribe(tpath: string, handler: (e: any) => any, disposable?: IDisposable): Component;
+    context(name: string, value?: any): any;
 }
 export declare type TComponentCtor = {
     new (...args: any[]): IComponent;

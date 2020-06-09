@@ -1,4 +1,40 @@
 import * as YA from "../YA.core";
+declare let Promise: any;
+export interface IHttpRequestOpts {
+    method?: "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS" | "HEADER";
+    url?: string;
+    headers?: {
+        [name: string]: string | [];
+    };
+    async?: boolean;
+    nocache?: boolean;
+    data?: any;
+    type?: "" | "json" | "url-encoding" | "blob";
+    responseType?: "" | "arraybuffer" | "blob" | "document" | "json" | "text" | "response";
+}
+declare class HttpRequest extends Promise<any> {
+    opts: IHttpRequestOpts;
+    xhr: XMLHttpRequest;
+    method: "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS" | "HEADER";
+    url: string;
+    headers: {
+        [name: string]: string | [];
+    };
+    async: boolean;
+    data: any;
+    type: "" | "json" | "url-encoding" | "blob";
+    responseType?: "" | "arraybuffer" | "blob" | "document" | "json" | "text" | "xml" | "response";
+    constructor(opts: IHttpRequestOpts);
+    static optsToken: string;
+}
+export declare class HttpResponse {
+    xhr: XMLHttpRequest;
+    request: HttpRequest;
+    data: any;
+    status: number;
+    constructor(xhr: XMLHttpRequest, request: HttpRequest);
+    header(name: string): string | null;
+}
 export declare class Size {
     w: number;
     h: number;
@@ -70,6 +106,7 @@ export interface IComponent extends YA.IComponent {
     height?: number | YA.IObservable<number>;
     minHeight?: number | YA.IObservable<number>;
     maxHeight?: number | YA.IObservable<number>;
+    request(opts: string | IHttpRequestOpts, url?: any, data?: any): HttpRequest;
 }
 export declare class Component extends YA.Component {
     mask?: any;
@@ -81,7 +118,7 @@ export declare class Component extends YA.Component {
     minHeight?: number | YA.IObservable<number>;
     maxHeight?: number | YA.IObservable<number>;
     render(descriptor?: YA.INodeDescriptor, container?: IElement): IElement | IElement[] | YA.INodeDescriptor | YA.INodeDescriptor[];
-    request(opts: string | any, requester?: IComponent): any;
+    request(opts: string | IHttpRequestOpts, url?: any, data?: any): HttpRequest;
     static initElement(elem: IElement, attrs: {
         [name: string]: any;
     }, ownComponent?: IComponent): void;
@@ -118,6 +155,58 @@ export declare class Dropdownable {
     static token: string;
 }
 export declare class Dropdown extends Component {
+    /**
+     * 选中的值
+     *
+     * @type {*}
+     * @memberof Dropdown
+     */
+    value?: any;
+    /**
+     * 显示的文本
+     *
+     * @type {string}
+     * @memberof Dropdown
+     */
+    text: string;
+    /**
+     * 是否可编辑
+     *
+     * @type {boolean}
+     * @memberof Dropdown
+     */
+    editable?: boolean;
+    selectIndex: number;
+    /**
+     * 选项 下列格式之一
+     * {value:text}
+     * [{value:text}]
+     * //http://
+     *
+     * @type {*}
+     * @memberof Dropdown
+     */
+    options?: any;
+    legend?: boolean | string;
+    fields?: {
+        [name: string]: string;
+    } | string[];
+    private _items;
+    private _textEditor;
+    private _textText;
+    private _dropdown_list;
+    private _options;
+    private _fieldOptSchema;
+    VALUE_FIELD: string;
+    TEXT_FIELD: string;
+    init(descriptor: any): void;
+    private _initItems;
+    private _initValueText;
+    private _setDropdownValue;
+    private selectOpt;
+    render(): any;
+}
+export declare class Dropdown1 extends Component {
     value?: any;
     text: string;
     editable?: boolean;
@@ -148,12 +237,12 @@ export declare class Dropdown extends Component {
     getFieldText(field: any): any;
     render(descriptor: YA.INodeDescriptor, parentNode: IElement): IElement;
     private _setValue;
-    setOptions(opts: any): Dropdown;
+    setOptions(opts: any): Dropdown1;
     private _editInput;
     private _readonlyInput;
     private _filter;
     private _defaultFilter;
-    expand(): Dropdown;
+    expand(): Dropdown1;
     collapse(): this;
     private _makeDropdownRow;
 }
@@ -167,3 +256,4 @@ export declare class Field extends Component {
     permission: string;
     constructor();
 }
+export {};

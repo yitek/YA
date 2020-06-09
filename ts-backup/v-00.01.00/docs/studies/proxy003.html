@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+        
+    </head>
+    <body class="default-color default-style">
+        <ul>
+            <li>
+                <pre>
+                    用工厂类来创建代理
+                </pre>           
+                <script type="text/javascript">
+class Handler{
+    constructor(){
+
+    }
+    get(target,name){
+        let method = this[name];
+        if(method) return method;
+        return target[name];
+    }
+    set(target,name,value){
+        let old = target[name];
+        target[name]=value;
+        this.notify({value:value,old:target,prop:name,self:this});
+    }
+    subscribe(handler){
+        this._handler = handler;
+        return this;
+    }
+    notify(evt){
+        this._handler(evt);
+        return this;
+    }
+}
+class ObservableFactory{
+    create(target){
+        target || (target={});
+        let proxy = new Proxy(target,new Handler());
+    }
+}
+let proxy = new ObservableFactory().create();
+                </script>
+            </li>
+            <li>
+                <pre>
+                    用工厂类来创建代理
+                </pre>           
+                <script type="text/javascript">
+
+                </script>
+            </li>
+        </ul>
+    </body>
+</html>

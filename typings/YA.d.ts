@@ -1,118 +1,68 @@
-export declare enum ChangeTypes {
-    Value = 0,
-    Item = 1,
-    Push = 2,
-    Pop = 3,
-    Shift = 4,
-    Unshift = 5,
-    Clear = 6,
+export declare function is_string(obj: any): boolean;
+export declare function is_bool(obj: any): boolean;
+export declare function is_number(obj: any): boolean;
+export declare function is_assoc(obj: any): boolean;
+export declare function is_object(obj: any): boolean;
+export declare function is_array(obj: any): boolean;
+export declare function is_empty(obj: any): boolean;
+declare enum ObservableModes {
+    Default = 0,
+    Value = 1,
+    Raw = 2,
+    Observable = 3,
+    Proxy = 4,
+    Agent = 5,
+    /**
+     * 设置值之后立即触发更新
+     */
+    Imediately = 6
 }
-export interface IChangeEventArgs {
-    type: ChangeTypes;
-    index?: string | number;
-    value: any;
-    old?: any;
-    sender?: any;
-    cancel?: boolean;
-}
-export interface IValueObservable {
-    $subscribe: (listener: (evt: IChangeEventArgs) => any) => IValueObservable;
-    $unsubscribe: (listener: (evt: IChangeEventArgs) => any) => IValueObservable;
-    $notify: (evt: IChangeEventArgs) => IValueObservable;
-}
-export declare class ValueObservable implements IValueObservable {
-    $subscribe: (listener: (evt: IChangeEventArgs) => any) => IValueObservable;
-    $unsubscribe: (listener: (evt: IChangeEventArgs) => any) => IValueObservable;
-    $notify: (evt: IChangeEventArgs) => IValueObservable;
-    constructor();
-}
-export declare enum ValueTypes {
+declare enum ObservableTypes {
     Value = 0,
     Object = 1,
-    Array = 2,
+    Array = 2
 }
-export interface IValueProxy extends IValueObservable {
-    $type: ValueTypes;
-    $extras: any;
-    $owner?: IValueProxy;
-    $raw: (value?: any) => any;
-    $get(): any;
-    $set(newValue: any): IValueProxy;
-    $update(): boolean;
+export declare class Observable {
+    /**
+     * 当前的值，外部用$ob_value
+     * 在事件对象中的old就是取该值
+     * 可能与$__ob_target__[$__ob_name__]的值不一致
+     * 因为$__ob_target__会因为父级对象的赋值而变更
+     * @private
+     * @memberof Observable
+     */
+    private $__ob_value__;
+    /**
+     * 修改的值，即set赋予的值
+     * update后该字段会被清空，并将其值移到$__ob_value__
+     *
+     * @private
+     * @memberof Observable
+     */
+    private $__ob_modified__;
+    private $__ob_target__;
+    private $__ob_name__;
+    $ob_target: any;
+    $ob_name: any;
+    $ob_value: any;
+    $ob_proxy: any;
+    $ob_own: any;
+    $ob_type: ObservableTypes;
+    constructor(value: any, name: any, target: any);
+    get(mode?: ObservableModes): any;
+    set(value: any, mode?: ObservableModes): Observable;
+    update(src?: any): Observable;
+    asObject(): any;
+    defineProperty(name: string, value?: any): void;
+    /**
+     * ObservableObject.set(value)的时候，会更新所有的成员
+     *
+     * @param {*} target
+     * @memberof Observable
+     */
+    _resetTarget(target: any, name: string, mode?: ObservableModes): Observable;
+    _resetName(name: string, mode?: ObservableModes): this;
+    static gettingMode: ObservableModes;
+    static settingMode: ObservableModes;
 }
-export interface IObjectProxy extends IValueProxy {
-}
-export interface IArrayProxy extends IValueProxy {
-    length: number;
-    item(index: number, item_value?: any): any;
-    pop(): any;
-    push(item_value: any): IArrayProxy;
-    shift(): any;
-    unshift(item_value: any): IArrayProxy;
-}
-export declare class ValueProxy extends ValueObservable implements IValueProxy {
-    $type: ValueTypes;
-    $modifiedValue: any;
-    $extras: any;
-    $owner?: IValueProxy;
-    $raw: (value?: any) => any;
-    constructor(raw: () => any, owner?: IValueProxy);
-    $get(): any;
-    $set(newValue: any): IValueProxy;
-    $update(): boolean;
-    toString(): any;
-    static gettingProxy: boolean;
-}
-export interface IObjectMeta {
-    propBuilder?: (proxy: IObjectProxy, props: {
-        [name: string]: ValueProxy;
-    }) => any;
-    fieldnames?: string[];
-    methodnames?: string[];
-}
-export declare class ObjectProxy extends ValueProxy implements IObjectProxy {
-    $props: {
-        [name: string]: ValueProxy;
-    };
-    constructor(raw: () => any, meta: IObjectMeta);
-    $get(): any;
-    $set(newValue: any): IValueProxy;
-    $update(): boolean;
-}
-export interface IArrayChangeEventArgs extends IChangeEventArgs {
-    item_value?: any;
-}
-export declare class ArrayProxy extends ValueProxy {
-    $itemConvertor: (item_value: any, proxy: IArrayProxy) => any;
-    $changes: IArrayChangeEventArgs[];
-    $length: number;
-    length: number;
-    constructor(raw: () => any, item_convertor?: (item_value: any, proxy: IArrayProxy) => any);
-    item(index: number, item_value?: any): any;
-    push(item_value: any): ArrayProxy;
-    pop(): any;
-    unshift(item_value: any): ArrayProxy;
-    shift(): any;
-    $update(): boolean;
-}
-export interface IModel {
-    parent?: IModel;
-    props: {
-        [propName: string]: IProperty;
-    };
-    path: string;
-    ref_prop?: IProperty;
-    prop: (name: string, sure?: boolean) => IProperty;
-    createProxy(raw: (value?: any) => any): IValueProxy;
-    asArray: () => IModel;
-}
-export interface IProperty {
-    name: string;
-    path: string;
-    model: IModel;
-    type: ValueTypes;
-    value_model?: IModel;
-    item_model?: IModel;
-    asObject(): IModel;
-    asArray(): IModel;
-}
+export {};

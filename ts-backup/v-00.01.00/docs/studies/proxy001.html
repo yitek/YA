@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+        
+    </head>
+    <body class="default-color default-style">
+        <ul>
+            <li>
+                <pre>
+                    基本创建方式为:
+                    const p = new Proxy({}, {
+                        get:(obj, prop)=>obj[prop],
+                        set:(obj,prop,value)=>obj[prop]=value
+                    });
+                    target是一个对象，handler也是一个对象，官方名叫做捕捉器。上面有一些指定的函数，对Proxy的做相关操作的时候，相应的函数就会被调用。
+                </pre>           
+                <script type="text/javascript">
+                    var handler = {
+                        get: (obj, prop)=> {
+                            return prop in obj ? obj[prop] : 37;
+                        }
+                    };
+                    
+                    var p = new Proxy({}, handler);
+                    p.a = 1;
+                    p.b = undefined;
+                    
+                    console.log(p.a, p.b);      // 1, undefined
+                    console.log('c' in p, p.c); // false, 37
+                </script>
+            </li>
+            <li>     
+                <pre>
+                    proxy不能被继承，所以只能通过工厂方法去创建
+                    捕捉器函数的this指向捕捉器对象(handler)
+                </pre>
+                            
+                <script type="text/javascript">
+                    console.log("proxy可以作为基类吗？");
+                    var handler = {
+                        get: function(obj, prop){
+                            console.log(this);
+                            return prop in obj ? obj[prop] : 37;
+                        }
+                    };
+                    try{
+                        class Obs extends Proxy{
+                            constructor(target){
+                                super(target,handler);
+                            }
+                        }
+                    }catch(ex){
+                        console.log("继承该对象会丢出异常");
+                        console.log(ex);
+                    }
+                    var target = {};
+                    var proxy = new Proxy(target,handler);
+                    var x =proxy.x;
+                    
+                </script>
+            </li>
+            <li>     
+                <pre>
+                   从代理类上获取一个函数并执行,其this指向了代理类
+                   用define在proxy上也会穿透到target上面去
+                </pre>
+                            
+                <script type="text/javascript">
+                    console.log("如何在代理类上调用函数?,this是什么");
+                    var handler = {
+                        func:function(){
+                            console.log("代理类上的自定义函数正被调用",this);
+                        }
+                        ,get: function(obj, prop){
+                            let fn = this[prop];
+                            if(fn) return fn;
+                            //检查对Object.define(proxy)定义的东西是否会转移进handler
+                            if(prop==="method"){
+                                console.log("method的调用被转到了handler.get上",obj,this);
+                            }
+                            let ret = prop in obj ? obj[prop] : 37;
+                            return ret;
+                        }
+                    };
+                    
+                    var target = {id:"proxy的函数调用测试"};
+                    var proxy = new Proxy(target,handler);
+                    proxy.func();
+                    Object.defineProperty(proxy,"method",{value:function(){
+                        console.log("Object.define的method正在被调用");
+                        console.log(this);
+                    }})
+                    
+                    proxy.method();
+                    
+                </script>
+            </li>
+
+            <li>     
+                <pre>
+                   在代理类上调用for会得到什么?
+                </pre>
+                            
+                <script type="text/javascript">
+                    console.log("在代理类上调用for会得到什么?");
+                    var handler = {
+                        
+                        get: function(obj, prop){
+                            console.log("handler.get已经被调用",prop,obj);
+                            let ret = prop in obj ? obj[prop] : 37;
+                            return ret;
+                        }
+                    };
+                    
+                    var target = {id:"proxy的函数调用测试"};
+                    var proxy = new Proxy(target,handler);
+                    console.log("for 开始");
+                    for(let n in proxy){
+                        console.log(n,proxy[n]);
+                    }
+                    
+                    console.log("for 结束");
+                    
+                </script>
+            </li>
+            
+        </ul>
+        
+    </body>
+</html>

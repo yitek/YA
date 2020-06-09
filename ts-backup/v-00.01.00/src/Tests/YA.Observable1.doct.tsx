@@ -1,10 +1,10 @@
-import {doct,TAssertStatement,TAssert} from '../../doct';
-import * as YA from '../../YA.core';
-import * as Dom from "../../dom/YA.dom";
+import {doct,TAssertStatement,TAssert} from '../doct';
+import * as YA from '../YA.core';
+import * as Ob from '../YA';
 @doct({
-    title:"YA.dom.dropdown"
+    title:"YA.Observable"
     ,descriptions:[
-        "下拉"
+        "YA.Observable是YA框架最基本的构成。YA通过该对象来捕捉对象的变化。代表一个number,string,object,array"
     ]
 })
 export class DropdownTest {
@@ -18,12 +18,7 @@ export class DropdownTest {
         ]
     })
     base(assert_statement:TAssertStatement,demoElement?:any){
-        let options = {
-            "footboall":"足球"
-            ,"basketball":"篮球"
-            ,"swimming":"游泳"
-        };
-        YA.createElement(<Dom.Dropdown id="sport" options={options} fields={{"Text":"运动"}}/>,demoElement);
+        
 
         assert_statement((assert:TAssert)=>{
             //assert(ex!==undefined,"如果第二次调用dispose，会触发一个异常: ex!==undefined");
