@@ -1,8 +1,7 @@
 
 import * as fra from "./mock-fra";
 console.group("mock-app.ts");
-console.log("mock-app.ts正在执行.该模块为应用模块，加载完fra后就要加载该模块");
-console.log(`import fra`,fra);
+console.log("mock-app.ts正在执行,检擦单一引用(fra)，依赖项fra",fra);
 export let mod = {
     modname:"mock-app"
 };

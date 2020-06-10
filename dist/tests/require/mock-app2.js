@@ -12,9 +12,7 @@
     var fra = require("./mock-fra");
     var framework = require("./libs/mock-framework");
     console.group("mock-app2.ts");
-    console.log("mock-app2.ts正在执行.该模块为应用模块，加载完fra后就要加载该模块");
-    console.log("import fra", fra);
-    console.log("import framework", framework);
+    console.log("mock-app2.ts正在执行.检查引用多个依赖项(fra,framework)，加载完fra后就要加载该模块,依赖项为fra ,framework", fra, framework);
     exports.mod = {
         modname: "mock-app2"
     };

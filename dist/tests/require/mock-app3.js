@@ -12,9 +12,7 @@
     var comp1 = require("./mock-comp1");
     var framework = require("./libs/mock-framework");
     console.group("mock-app3.ts");
-    console.log("mock-app3.ts正在执行.该模块为应用模块，还会加载comp1");
-    console.log("import comp1", comp1);
-    console.log("import framework", framework);
+    console.log("mock-app3.ts正在执行.检查深层引用(2层，app->comp1->fra)，依赖项为comp1,framework", comp1, framework);
     exports.mod = {
         modname: "mock-app3"
     };

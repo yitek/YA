@@ -1,0 +1,1 @@
+{"version":3,"file":"mock-loop2.js","sourceRoot":"","sources":["../../../../src/tests/require/libs/mock-loop2.ts"],"names":[],"mappings":";;;;;;;;;;;IAAA,oCAAsC;IACtC,qCAAuC;IACvC,OAAO,CAAC,KAAK,CAAC,eAAe,CAAC,CAAC;IAC/B,OAAO,CAAC,GAAG,CAAC,sBAAsB,EAAC,GAAG,EAAC,KAAK,CAAC,CAAC;IACnC,QAAA,GAAG,GAAG;QACb,OAAO,EAAC,YAAY;KACvB,CAAC;IACF,OAAO,CAAC,QAAQ,EAAE,CAAC"}

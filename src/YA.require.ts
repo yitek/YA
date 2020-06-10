@@ -361,7 +361,9 @@ class Module implements IRequireModule{
 
         this.alias(this.url = define.resolve(this.uri.url));
         this.deps={};
-        if((this.name = opts.name) && this.url!=this.name) this.alias(self.name,true);
+        this.name = opts.name;
+        if(!this.name) this.name = this.url;
+        else if(this.url!=this.name) this.alias(self.name,true);
         
         
         if(opts.value){
@@ -431,16 +433,6 @@ class Module implements IRequireModule{
 }
 makeState(Module.prototype,["definin","defined","error"],"error");
 
-function checkCycle(modules:{[name:string]:IRequireModule},target:IRequireModule,stack?){
-    for(let n in modules){
-        let module= modules[n];
-        stack.push(module.url);
-        if(module===target) return false;
-        if(!checkCycle(module.deps,target,stack))return false;
-    }
-    return true;
-}
-
 /**
  * define函数的执行器
  * 真正的define的操作是由该类完成
@@ -488,15 +480,23 @@ class DefineExecution{
                 });
             }
         })(this.depnames[index],index);
-        let stack = [this.module.url];
-        if(!checkCycle(this.module.deps,this.module,stack)) {
-            console.error("依赖项循环引用",stack);
-            this.module.error("依赖项重复引用");
-        }
-        
         if(define.trace===true || define.trace==="definin")console.info(`[模块][definin]${this.module.url}`,"[等待依赖项]",this.waitingCount-1);
-        this.module.definin(this.module.resource.element);
-        this.tryResolve();
+        this.module.definin(this.module);
+
+        let stack = [this.module.url];
+        
+        checkCycle(this.module.deps,this.module,stack,(rs)=>{
+            if(rs===false) {
+                console.error("依赖项循环引用",stack);
+                this.module.error("依赖项重复引用");
+                return;
+            }
+            this.tryResolve();
+        });
+        
+        
+        
+        
     }
     require(name:string):any {
         //获取到指定的module
@@ -538,6 +538,25 @@ class DefineExecution{
         }
     }
     static current:DefineExecution;
+}
+
+function checkCycle(modules:{[name:string]:IRequireModule},target:IRequireModule,stack,callback){
+    let count = 1;
+    let hasError = false;
+    for(let n in modules){
+        let module= modules[n];
+        stack.push(module.url);
+        if(module===target){hasError=true; return callback.call(this,false);}
+        count++;
+        module.definin(function(mod){
+            checkCycle(this.deps,target,stack,function(rs){
+                if(rs===true){
+                    if(!hasError && --count==0) callback(true);
+                }else{hasError=true; callback(false);}
+            });
+        });   
+    }
+    if(--count==0 && !hasError) callback(true);
 }
 
 

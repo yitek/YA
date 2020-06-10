@@ -316,7 +316,10 @@ var __extends = (this && this.__extends) || (function () {
             }
             this.alias(this.url = define.resolve(this.uri.url));
             this.deps = {};
-            if ((this.name = opts.name) && this.url != this.name)
+            this.name = opts.name;
+            if (!this.name)
+                this.name = this.url;
+            else if (this.url != this.name)
                 this.alias(self.name, true);
             if (opts.value) {
                 this.definin(null);
@@ -388,17 +391,6 @@ var __extends = (this && this.__extends) || (function () {
         return Module;
     }());
     makeState(Module.prototype, ["definin", "defined", "error"], "error");
-    function checkCycle(modules, target, stack) {
-        for (var n in modules) {
-            var module = modules[n];
-            stack.push(module.url);
-            if (module === target)
-                return false;
-            if (!checkCycle(module.deps, target, stack))
-                return false;
-        }
-        return true;
-    }
     /**
      * define函数的执行器
      * 真正的define的操作是由该类完成
@@ -449,15 +441,18 @@ var __extends = (this && this.__extends) || (function () {
                         });
                     }
                 })(this.depnames[index], index);
-            var stack = [this.module.url];
-            if (!checkCycle(this.module.deps, this.module, stack)) {
-                console.error("依赖项循环引用", stack);
-                this.module.error("依赖项重复引用");
-            }
             if (define.trace === true || define.trace === "definin")
                 console.info("[\u6A21\u5757][definin]" + this.module.url, "[等待依赖项]", this.waitingCount - 1);
-            this.module.definin(this.module.resource.element);
-            this.tryResolve();
+            this.module.definin(this.module);
+            var stack = [this.module.url];
+            checkCycle(this.module.deps, this.module, stack, function (rs) {
+                if (rs === false) {
+                    console.error("依赖项循环引用", stack);
+                    _this.module.error("依赖项重复引用");
+                    return;
+                }
+                _this.tryResolve();
+            });
         };
         DefineExecution.prototype.require = function (name) {
             //获取到指定的module
@@ -508,6 +503,33 @@ var __extends = (this && this.__extends) || (function () {
         };
         return DefineExecution;
     }());
+    function checkCycle(modules, target, stack, callback) {
+        var count = 1;
+        var hasError = false;
+        for (var n in modules) {
+            var module = modules[n];
+            stack.push(module.url);
+            if (module === target) {
+                hasError = true;
+                return callback.call(this, false);
+            }
+            count++;
+            module.definin(function (mod) {
+                checkCycle(this.deps, target, stack, function (rs) {
+                    if (rs === true) {
+                        if (!hasError && --count == 0)
+                            callback(true);
+                    }
+                    else {
+                        hasError = true;
+                        callback(false);
+                    }
+                });
+            });
+        }
+        if (--count == 0 && !hasError)
+            callback(true);
+    }
     var define = function (name, deps, factory) {
         //整理参数
         //define(name,deps,statement)

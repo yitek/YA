@@ -4,17 +4,18 @@
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "./mock-fra"], factory);
+        define(["require", "exports", "mock-framework", "../mock-comp1"], factory);
     }
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var fra = require("./mock-fra");
-    console.group("mock-app.ts");
-    console.log("mock-app.ts正在执行,检擦单一引用(fra)，依赖项fra", fra);
+    var fra = require("mock-framework");
+    var comp = require("../mock-comp1");
+    console.group("mock-frcomp1.ts");
+    console.log("mock-frcomp1.ts正在执行,依赖项为 framework,comp1", fra, comp);
     exports.mod = {
-        modname: "mock-app"
+        modname: "mock-framework"
     };
     console.groupEnd();
 });
-//# sourceMappingURL=mock-app.js.map
+//# sourceMappingURL=mock-frcompA.js.map

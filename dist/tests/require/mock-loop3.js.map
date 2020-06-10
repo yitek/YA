@@ -1,0 +1,1 @@
+{"version":3,"file":"mock-loop3.js","sourceRoot":"","sources":["../../../src/tests/require/mock-loop3.ts"],"names":[],"mappings":";;;;;;;;;;;IAAA,kCAAoC;IACpC,oCAAsC;IACtC,OAAO,CAAC,KAAK,CAAC,eAAe,CAAC,CAAC;IAC/B,OAAO,CAAC,GAAG,CAAC,wBAAwB,EAAC,KAAK,EAAC,SAAS,CAAC,CAAC;IAE3C,QAAA,GAAG,GAAG;QACb,OAAO,EAAC,YAAY;KACvB,CAAC;IACF,OAAO,CAAC,QAAQ,EAAE,CAAC"}
