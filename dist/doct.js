@@ -22,152 +22,169 @@ var __extends = (this && this.__extends) || (function () {
 })(function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    /**
-     * unittest类或unittest方法的装饰器
-     *
-     * @param {string} name
-     */
-    function doct(info, target) {
-        var callAsDecorator = target === undefined;
-        var decorator = function (target, propname) {
-            if (propname === undefined) {
-                //定义测试类/测试对象
-                var cls = void 0;
-                if (typeof target === 'object') {
-                    cls = function () { };
-                    cls.prototype = target;
-                }
-                else
-                    cls = target;
-                var clsInfo_1 = new ClassInfo(cls, info);
-                if (exports.Doct.autoRun) {
-                    setTimeout(function () {
-                        var logger = exports.Doct.logger || new HtmlLogger();
-                        executeClass(clsInfo_1, logger, info);
-                    }, 0);
-                }
-                if (!callAsDecorator)
-                    return clsInfo_1;
+    var AssertException = /** @class */ (function (_super) {
+        __extends(AssertException, _super);
+        function AssertException(type, message, params) {
+            var _this = _super.call(this, buildMessage(message, params)) || this;
+            _this.type = type;
+            _this.params = params;
+            _this.result = false;
+            return _this;
+        }
+        return AssertException;
+    }(Error));
+    exports.AssertException = AssertException;
+    var Assert = /** @class */ (function () {
+        function Assert() {
+            this.outputs = [];
+        }
+        Assert.prototype.eq = function (actual, expected, message) {
+            return this._checkAndRecord("eq", message, { actual: actual, expected: expected }, function (p) { return actual === expected; });
+        };
+        Assert.prototype.neq = function (actual, expected, message) {
+            return this._checkAndRecord("neq", message, { actual: actual, expected: expected }, function (p) { return actual !== expected; });
+        };
+        Assert.prototype.hasKey = function (key, assoc, message) {
+            return this._checkAndRecord("hasKey", message, { key: key, assoc: assoc }, function (p) {
+                for (var n in assoc)
+                    if (n === key)
+                        return true;
+                return false;
+            });
+        };
+        Assert.prototype.hasValue = function (value, assoc, message) {
+            return this._checkAndRecord("hasValue", message, { value: value, assoc: assoc }, function (p) {
+                for (var n in assoc)
+                    if (assoc[n] === value)
+                        return true;
+                return false;
+            });
+        };
+        Assert.prototype.contains = function (key, subject, message) {
+            return this._checkAndRecord("neq", message, { key: key, subject: subject }, function (p) {
+                if (!subject)
+                    return false;
+                if (typeof subject === "string")
+                    return subject.indexOf(key) >= 0;
+                if (subject[key] !== undefined)
+                    return true;
+                return false;
+            });
+        };
+        Assert.prototype.True = function (value, message) {
+            return this._checkAndRecord("True", message, { value: value }, function (p) { return value === true; });
+        };
+        Assert.prototype.False = function (value, message) {
+            return this._checkAndRecord("False", message, { value: value }, function (p) { return value === false; });
+        };
+        Assert.prototype.Null = function (value, message) {
+            return this._checkAndRecord("Null", message, { value: value }, function (p) { return value === null; });
+        };
+        Assert.prototype.Undefined = function (value, message) {
+            return this._checkAndRecord("Undefined", message, { value: value }, function (p) { return value === undefined; });
+        };
+        Assert.prototype.isset = function (value, message) {
+            return this._checkAndRecord("isset", message, { value: value }, function (p) { return value; });
+        };
+        Assert.prototype.unset = function (value, message) {
+            return this._checkAndRecord("unset", message, { value: value }, function (p) { return !value; });
+        };
+        Assert.prototype.empty = function (value, message) {
+            return this._checkAndRecord("empty", message, { value: value }, function (p) { return empty(value); });
+        };
+        Assert.prototype.notEmpty = function (value, message) {
+            return this._checkAndRecord("notEmpty", message, { value: value }, function (p) { return !empty(value); });
+        };
+        Assert.prototype._checkAndRecord = function (type, message, params, checker) {
+            var rs;
+            if (!checker(params)) {
+                rs = new AssertException(type, message, params);
+                if (this._debugging())
+                    throw rs;
             }
             else {
-                var clsInfo = target.$__doctClass__;
-                if (!clsInfo) {
-                    var members = target.$__doctMethods__;
-                    if (!members)
-                        Object.defineProperty(target, "$__doctMethods__", { enumerable: false, writable: false, configurable: false, value: members = {} });
-                    members[propname] = info;
-                }
-                else {
-                    var methodInfo = new MethodInfo(propname, clsInfo, info);
-                    clsInfo.methods[propname] = methodInfo;
-                    if (!callAsDecorator)
-                        return methodInfo;
-                }
+                rs = { type: type, message: buildMessage(message, params), result: true, params: params };
             }
-        };
-        //被当作装饰器使用
-        if (target === undefined)
-            return decorator;
-        return decorator(target);
-    }
-    exports.doct = doct;
-    exports.Doct = doct;
-    exports.Doct.createDemoElement = function (immediate) {
-        var elem = document.createElement("div");
-        if (!immediate)
-            elem.style.cssText = "position:absolute;visibility:hidden;z-index:-1000;";
-        document.body.appendChild(elem);
-        return elem;
-    };
-    exports.Doct.disposeDemoElement = function (elem) {
-        if (elem) {
-            elem.style.cssText = "";
-            if (!elem.$__doctCustomDispose__)
-                elem.parentNode.removeChild(elem);
-        }
-        return elem;
-    };
-    exports.Doct.hasDemo = function (demoElement) { return demoElement ? demoElement.hasChildNodes() : false; };
-    exports.Doct.debugging = true;
-    exports.Doct.useDemo = true;
-    exports.Doct.autoRun = true;
-    var BasInfo = /** @class */ (function () {
-        function BasInfo(info) {
-            this.title = info.title;
-            this.descriptions = (typeof info.descriptions === "string" ? [info.descriptions] : info.descriptions) || [];
-            this.notices = (typeof info.notices === "string" ? [info.notices] : info.notices) || [];
-        }
-        return BasInfo;
-    }());
-    exports.BasInfo = BasInfo;
-    var ClassInfo = /** @class */ (function (_super) {
-        __extends(ClassInfo, _super);
-        function ClassInfo(ctor, info) {
-            var _this = _super.call(this, info) || this;
-            _this.methodCount = 0;
-            _this.successCount = 0;
-            _this.ctor = ctor;
-            var existed = _this.ctor.prototype.$__meta__;
-            if (existed) {
-                if (existed instanceof ClassInfo)
-                    throw new Error("重复调用了doct??");
-                _this.methods = existed.methods;
+            if (rs.result && this._recordSuccessInfo()) {
+                this.outputs.push({
+                    contentType: "text/assert-pass",
+                    content: rs.message
+                });
             }
-            if (!_this.methods)
-                _this.methods = {};
-            Object.defineProperty(_this.ctor.prototype, "$__meta__", { enumerable: false, configurable: false, writable: false, value: _this });
-            var members = _this.ctor.prototype.$__doctMethods__;
-            if (members)
-                for (var n in members) {
-                    var methodInfo = new MethodInfo(n, _this, members[n]);
-                    _this.methods[n] = methodInfo;
-                }
-            return _this;
-        }
-        /**
-         * 手动添加某些方法为测试方法
-         *
-         * @param {(string|string[])} methodname
-         * @memberof BasInfo
-         */
-        ClassInfo.prototype.method = function (info) {
-            this.methods[info.name] = new MethodInfo(info.name, this, info);
+            else {
+                this.outputs.push({
+                    contentType: "text/assert-fail",
+                    content: rs.message
+                });
+            }
             return this;
         };
-        return ClassInfo;
-    }(BasInfo));
-    exports.ClassInfo = ClassInfo;
-    var MethodInfo = /** @class */ (function (_super) {
-        __extends(MethodInfo, _super);
-        function MethodInfo(name, clsInfo, info) {
-            var _this = _super.call(this, info) || this;
-            _this.name = name;
-            _this.classInfo = clsInfo;
-            _this.method = clsInfo.ctor.prototype[name];
-            if (typeof _this.method !== 'function')
-                throw new Error("\u65E0\u6CD5\u5728\u7C7B/\u5BF9\u8C61\u4E0A\u627E\u5230\u65B9\u6CD5" + name);
-            _this.codes = _this._makeCodes(_this.method);
-            if (!clsInfo.methods[name])
-                clsInfo.methodCount++;
-            return _this;
+        /**
+         * 是否是调试状态，如果是，断言不通过会抛出异常
+         *
+         * @private
+         * @returns {boolean}
+         * @memberof Assert
+         */
+        Assert.prototype._debugging = function () {
+            return exports.Doct.debugging;
+        };
+        /**
+         * 是否会记录成功的断言
+         *
+         * @private
+         * @returns {boolean}
+         * @memberof Assert
+         */
+        Assert.prototype._recordSuccessInfo = function () { return true; };
+        return Assert;
+    }());
+    function buildMessage(message, params) {
+        if (!params)
+            return message;
+        return message.replace(branceRegx, function (match) {
+            var name = match[1].replace(trimRegx, "");
+            var val = params[name];
+            return val;
+        });
+    }
+    function empty(value) {
+        if (value === null || value === undefined)
+            return true;
+        var t = typeof value;
+        if (t === "function" || t === "object") {
+            for (var n in value) {
+                return false;
+            }
+            return true;
         }
-        MethodInfo.prototype._makeCodes = function (func) {
-            var trimRegx = /(^\s+)|(\s+$)/g;
-            //assert是用function开头
-            var assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
-            var statement_proc = func.toString();
+        return false;
+    }
+    var branceRegx = /\{\s*([a-zA-Z0-9_\-\$]+)\s*\}/;
+    var TestMethod = /** @class */ (function () {
+        function TestMethod(raw, name) {
+            this.raw = raw;
+            this.name = name;
+            this.descriptor = raw[exports.Doct.descriptorToken] || {};
+        }
+        TestMethod.prototype._initCodes = function () {
+            if (this._codes)
+                return this._codes;
+            var statement_proc = this.raw.toString();
             var assert_proc_name_match = statement_proc.match(assert_proc_name_regx);
             var assert_proce_name = assert_proc_name_match[1];
-            if (!assert_proce_name)
-                return [statement_proc.substring(assert_proc_name_match[0].length, statement_proc.length - 1)];
-            var codes = [];
+            if (!assert_proce_name) {
+                this._codes = [statement_proc.substring(assert_proc_name_match[0].length, statement_proc.length - 1)];
+                return;
+            }
+            var codes = this._codes = [];
             var assert_proc_regx = new RegExp("[;\\s]?" + assert_proce_name.split(',')[0].replace(trimRegx, "") + "\\s?\\(");
             statement_proc = statement_proc.substring(assert_proc_name_match[0].length, statement_proc.length - 1);
             var stateBeginAt = 0;
-            //let codes = "";
             var c = 0;
             while (true) {
                 if (c++ === 10) {
+                    console.error("已经进入无穷循环了，代码有问题。");
                     debugger;
                     break;
                 }
@@ -215,282 +232,170 @@ var __extends = (this && this.__extends) || (function () {
                     break;
                 }
             }
-            return codes;
+            return this._codes;
         };
-        return MethodInfo;
-    }(BasInfo));
-    exports.MethodInfo = MethodInfo;
-    var AssertException = /** @class */ (function (_super) {
-        __extends(AssertException, _super);
-        function AssertException(msg, outerMessage) {
-            var _this = _super.call(this, msg) || this;
-            _this.outerMessage = outerMessage;
-            return _this;
-        }
-        AssertException.prototype.toString = function () {
-            if (this.outerMessage)
-                return this.outerMessage;
-            return _super.prototype.toString.call(this);
-        };
-        return AssertException;
-    }(Error));
-    exports.AssertException = AssertException;
-    function executeClass(clsInfo, logger, des) {
-        logger.beginClass(clsInfo);
-        try {
-            var instance = new clsInfo.ctor();
-            var rs = {};
-            for (var n in clsInfo.methods) {
-                if (des.debugging && n.indexOf(des.debugging) < 0)
-                    continue;
-                clsInfo.currentMethodName = n;
-                rs[n] = executeMethod(instance, clsInfo.methods[n], logger);
-                clsInfo.successCount++;
-            }
-            return rs;
-        }
-        finally {
-            logger.endClass(clsInfo);
-        }
-    }
-    function executeMethod(instance, methodInfo, logger) {
-        var record = { methodInfo: methodInfo, beginTime: new Date(), executeInfos: [] };
-        var end;
-        var index = 0;
-        var assert_proc = function (assert_statement) {
-            end = record.endTime = new Date();
-            record.ellapse = record.endTime.valueOf() - record.beginTime.valueOf();
-            assert_statement(makeAssert(methodInfo, index, record));
-            index++;
-        };
-        for (var i in methodInfo.codes) {
-            record.executeInfos[i] = { code: methodInfo.codes[i], asserts: [] };
-        }
-        var demoElement = exports.Doct.useDemo && exports.Doct.createDemoElement ? exports.Doct.createDemoElement(exports.Doct.useDemo === "immediate") : null;
-        record.demoElement = demoElement;
-        logger.beginMethod(record);
-        try {
-            if (doct.debugging) {
-                methodInfo.method.call(instance, assert_proc, demoElement);
-            }
-            else {
-                try {
-                    this.statement.call(this, assert_proc, demoElement);
-                }
-                catch (ex) {
-                    record.errorDetail = ex;
-                }
-            }
-        }
-        finally {
-            if (end === undefined) {
-                end = record.endTime = new Date();
-                record.ellapse = record.endTime.valueOf() - record.beginTime.valueOf();
-            }
-            if (demoElement && exports.Doct.useDemo) {
-                exports.Doct.disposeDemoElement(demoElement);
-                if (!exports.Doct.hasDemo(demoElement)) {
-                    record.demoElement = null;
-                    if (demoElement.parentNode)
-                        demoElement.parentNode.removeChild(demoElement);
-                }
-            }
-            logger.endMethod(record);
-        }
-        return record;
-    }
-    function makeAssert(doc, codeIndex, record) {
-        var code = doc.codes[codeIndex];
-        var assert = function (expected, actual, msg, paths) {
-            //if(!record.executeInfos) record.executeInfos = [];
-            var assertInfo = record.executeInfos[codeIndex];
-            //if(!assertInfo) assertInfo = record.executeInfos[codeIndex]= {code:code,asserts:[]};
-            var asserts = assertInfo.asserts;
-            if (msg === undefined && typeof expected === "boolean" && typeof actual === "string") {
-                msg = actual;
-                actual = expected;
-                expected = true;
-            }
-            if (!paths && msg)
-                msg = msg.replace(/\{actual\}/g, JSON.stringify(actual)).replace(/\{expected\}/g, JSON.stringify(expected));
-            if (actual === expected) {
-                if (msg)
-                    asserts.push(msg);
-                return;
-            }
-            var t = typeof (expected);
-            if (t === "object") {
-                paths || (paths = []);
-                //let nullMsg = msg || "期望有值";
-                if (!actual)
-                    throw new AssertException(paths.join(".") + "不应为空.", msg);
-                for (var n in expected) {
-                    paths.push(n);
-                    var expectedValue = expected[n];
-                    var actualValue = actual[n];
-                    if (typeof expectedValue === "object") {
-                        assert(actualValue, expectedValue, msg, paths);
+        TestMethod.prototype.build = function () {
+            var _this = this;
+            if (this._wrappedMethod)
+                return this._wrappedMethod;
+            this._initCodes();
+            var wrapped = function (self, context) {
+                var step = 0;
+                var fragments = [];
+                var assert;
+                var test = function (statement) {
+                    //上次调用的test产生的assert
+                    if (assert && assert.outputs.length) {
+                        fragments.push({
+                            contentType: "asserts",
+                            content: assert.outputs
+                        });
                     }
-                    else {
-                        if (actualValue !== expectedValue) {
-                            throw new AssertException((paths ? paths.join(".") : "") + "\u671F\u671B\u503C\u4E3A" + expectedValue + ",\u5B9E\u9645\u4E3A" + actualValue, msg);
-                        }
-                    }
-                    paths.pop();
-                }
-                if (msg && !paths.length) {
-                    asserts.push(msg);
-                }
-            }
-            else if (actual !== expected) {
-                throw new AssertException((paths ? paths.join(".") : "") + "\u671F\u671B\u503C\u4E3A" + expected + ",\u5B9E\u9645\u4E3A" + actual, msg);
-            }
-            else {
-                if (msg && !paths) {
-                    asserts.push(msg);
-                }
-            }
+                    assert = new Assert();
+                    fragments.push({
+                        language: "js",
+                        content: _this._codes[step]
+                    });
+                    step++;
+                };
+                _this.raw.call(self, test, context);
+                fragments.push({
+                    language: "js",
+                    content: _this._codes[step]
+                });
+                return { contentType: "test-method-return", content: fragments };
+            };
+            return this._wrappedMethod = wrapped;
         };
-        return assert;
-    }
-    ////////////////////
-    // 日志
-    var HtmlLogger = /** @class */ (function () {
-        function HtmlLogger(container) {
-            if (!container) {
-                try {
-                    container = document.body;
-                }
-                catch (ex) { }
-            }
-            this.container = container;
-        }
-        HtmlLogger.prototype.beginClass = function (clsInfo) {
-            if (this._clsElement)
-                throw new Error("错误的使用了beginClass,class不能嵌套");
-            var rs = makeBas(clsInfo, "doct", this.container);
-            var dlist = rs.dlist;
-            this._clsElement = rs.element;
-            var dt = createElement("dt", "usages", dlist, "用法说明");
-            var dd = createElement("dd", "usages", dlist);
-            this._usagesElement = createElement("ul", "usages", dd);
-            return this;
+        TestMethod.prototype.call = function (context, self) {
+            return this.build().call(self, self, context);
         };
-        HtmlLogger.prototype.beginMethod = function (record) {
-            var li = createElement("li", "usage", this._usagesElement);
-            this._usageElement = makeBas(record.methodInfo, "usage", li).dlist;
-            return this;
-        };
-        HtmlLogger.prototype.endMethod = function (record) {
-            if (record.executeInfos.length > 0) {
-                var dt = createElement("dt", "codes", this._usageElement);
-                dt.innerHTML = "代码";
-                var dd_1 = createElement("dd", "codes", this._usageElement);
-                var codes = createElement("ul", "codes", dd_1);
-                for (var i in record.executeInfos) {
-                    var execuetInfo = record.executeInfos[i];
-                    var codeli = createElement("li", "code", codes);
-                    var cd = createElement("code", "code", codeli);
-                    var pre = createElement("pre", "code", cd);
-                    pre.innerHTML = execuetInfo.code.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    if (execuetInfo.asserts.length) {
-                        var comment = createElement("div", "comments", codeli);
-                        createElement("ins", "comment", comment, "/*");
-                        var asserts = createElement("ol", "asserts", comment);
-                        for (var j in execuetInfo.asserts) {
-                            var assertLi = createElement("li", "assert", asserts, execuetInfo.asserts[j]);
-                        }
-                        createElement("ins", "comment", comment, "*/");
-                    }
-                }
-            }
-            if (record.demoElement) {
-                var dt = createElement("dt", "demo", this._usageElement);
-                dt.innerHTML = "运行效果";
-                var dd_2 = createElement("dd", "demo", this._usageElement);
-                dd_2.appendChild(record.demoElement);
-                record.demoElement.$__doctCustomDispose__ = true;
-            }
-            var ins = createElement("dt", "perf", this._usageElement, "性能");
-            var dd = createElement("dd", "demo", this._usageElement, record.ellapse.toString());
-            return this;
-        };
-        HtmlLogger.prototype.endClass = function (clsInfo) {
-            if (!this._usagesElement.hasChildNodes())
-                this._usagesElement.parentNode.removeChild(this._usagesElement);
-            if (clsInfo.methodCount === clsInfo.successCount) {
-                this._clsElement.className += " successful";
-            }
-            else {
-                this._clsElement.className += " failed";
-            }
-            this._clsElement = undefined;
-            return this;
-        };
-        return HtmlLogger;
+        return TestMethod;
     }());
-    exports.HtmlLogger = HtmlLogger;
-    function createElement(tag, cls, parent, content) {
-        var elem = document.createElement(tag);
-        if (cls)
-            elem.className = cls;
-        if (parent)
-            parent.appendChild(elem);
-        if (content)
-            elem.innerHTML = content;
-        return elem;
-    }
-    ;
-    function makeBas(basInfo, cls, p) {
-        var fs = createElement("fieldset", cls, p);
-        var legend = createElement("legend", cls, fs, basInfo.title);
-        var dlist = createElement("dl", cls, fs);
-        if (basInfo.descriptions.length) {
-            var dt = createElement("dt", "descriptions", dlist, "说明");
-            var dd = createElement("dd", "descriptions", dlist);
-            makeDescList(basInfo.descriptions, dd);
+    exports.TestMethod = TestMethod;
+    var trimRegx = /(^\s+)|(\s+$)/g;
+    //assert是用function开头
+    var assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
+    var TestClass = /** @class */ (function () {
+        function TestClass(ctor) {
+            this.ctor = ctor;
+            this.methods = {};
+            this.descriptor = this.ctor[exports.Doct.descriptorToken] || {};
+            exports.Doct.testClasses.push(this);
+            tryDeferExecute();
         }
-        if (basInfo.notices.length) {
-            var dt = createElement("dt", "notices", dlist, "注意");
-            var dd = createElement("dd", "notices", dlist);
-            var ol = createElement("ol", "notices", dd);
-            for (var i in basInfo.notices) {
-                var content = basInfo.notices[i];
-                if (content && (content = htmlEncode(content.replace(/(^\s+)|(\s+$)/g, ""))))
-                    createElement("li", "", ol).innerHTML = content;
-            }
-        }
-        return { dlist: dlist, element: fs };
-    }
-    function makeDescList(arr, p) {
-        var ul;
-        for (var i in arr) {
-            var item = arr[i];
-            if (typeof item === "string") {
-                item = item.replace(/(^\s+)|(\s+$)/g, "");
-                if (!item)
+        TestClass.prototype.run = function () {
+            var docClass = this.buildDescriptor(this.descriptor);
+            if (exports.Doct.classExecuting)
+                exports.Doct.classExecuting(this);
+            var instance = new this.ctor();
+            var docMembers = {
+                contentType: "test-methods",
+                content: []
+            };
+            docClass.content.push(docMembers);
+            var debugging = typeof exports.Doct.debugging === "string" ? exports.Doct.debugging.replace(trimRegx, "") : null;
+            for (var n in instance) {
+                if (debugging && n.indexOf(debugging) < 0)
                     continue;
-                if (!ul)
-                    ul = createElement("ul", "description-list", p);
-                var li = createElement("li", "description-paragraph", ul);
-                li.innerHTML = "<p>" + item.replace(/\n/g, "</p><p>") + "</p>";
-            }
-            else {
-                var sub = makeDescList(item, null);
-                if (sub) {
-                    if (!ul)
-                        ul = createElement("ul", "description-list", p);
-                    var li = createElement("li", "description-paragraph", ul);
-                    li.appendChild(sub);
+                var method = instance[n];
+                var methodDescriptor = void 0;
+                if (method && (methodDescriptor = method[exports.Doct.descriptorToken])) {
+                    var docMethod = this.buildDescriptor(methodDescriptor);
+                    if (!docMethod.title)
+                        docMethod.title = n;
+                    var testMethod = this.methods[n] = new TestMethod(method);
+                    var opts = {
+                        testMethod: testMethod,
+                        testClass: this,
+                        instance: instance
+                    };
+                    var context = opts.context = exports.Doct.methodExecuting ? exports.Doct.methodExecuting(opts) : undefined;
+                    var methodSection = testMethod.call(instance, context);
+                    if (exports.Doct.methodExecuted)
+                        exports.Doct.methodExecuted(methodSection, opts);
+                    docMembers.content.push(methodSection);
                 }
             }
-        }
-        return ul;
+            if (exports.Doct.classExecuted)
+                exports.Doct.classExecuted(docClass, this);
+            return docClass;
+        };
+        TestClass.prototype.buildDescriptor = function (descriptor) {
+            var fragment = {
+                title: descriptor.title,
+                content: []
+            };
+            if (descriptor.description) {
+                var section = { contentType: "description" };
+                this.buildSectionContents(section, descriptor.description);
+            }
+            if (descriptor.notice) {
+                var section = { contentType: "description", content: [] };
+                this.buildSectionContents(section, descriptor.notice);
+            }
+            return fragment;
+        };
+        TestClass.prototype.buildSectionContents = function (section, desContent) {
+            if (desContent && desContent.push && desContent.pop) {
+                var subs = void 0;
+                if (!section.content)
+                    subs = section.content = [];
+                if (!section.content.push)
+                    subs = section.content = [section.content];
+                else
+                    subs = section.content;
+                for (var _i = 0, desContent_1 = desContent; _i < desContent_1.length; _i++) {
+                    var c = desContent_1[_i];
+                    if (c === undefined || c === null)
+                        continue;
+                    if (c.push && c.pop) {
+                        var sub = {};
+                        subs.push(sub);
+                        this.buildSectionContents(sub, c);
+                    }
+                    else
+                        subs.push(c);
+                }
+            }
+        };
+        return TestClass;
+    }());
+    exports.TestClass = TestClass;
+    function doct(descriptor) {
+        return function (subject, propname) {
+            if (propname === undefined) {
+                subject[exports.Doct.descriptorToken] = descriptor || {};
+            }
+            else {
+                var method = subject[propname];
+                method[exports.Doct.descriptorToken] = descriptor || {};
+            }
+        };
     }
-    function htmlEncode(content) {
-        if (content === undefined || content === null)
-            return "";
-        return content.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />");
+    exports.doct = doct;
+    exports.Doct = doct;
+    exports.Doct.debugging = true;
+    exports.Doct.descriptorToken = "$__doct_descriptor__";
+    exports.Doct.autoRun = true;
+    exports.Doct.testClasses = [];
+    var tick;
+    function tryDeferExecute() {
+        if (exports.Doct.autoRun) {
+            if (!tick)
+                tick = setTimeout(function () {
+                    for (var _i = 0, _a = exports.Doct.testClasses; _i < _a.length; _i++) {
+                        var cls = _a[_i];
+                        var rs = cls.run();
+                    }
+                }, 0);
+        }
+        else {
+            if (tick) {
+                clearTimeout(tick);
+                tick = 0;
+            }
+        }
     }
 });
 //# sourceMappingURL=doct.js.map

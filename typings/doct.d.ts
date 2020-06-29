@@ -1,155 +1,196 @@
-export interface IInfo {
-    /**
-     * 方法名，在ClassInfo.method参数中使用
-     *
-     * @type {string}
-     * @memberof IInfo
-     */
-    name?: string;
-    title?: string;
-    descriptions?: string | any[];
-    notices?: string | string[];
-    debugging?: string;
-}
-export declare type TAssert = (expected: any, actual: any, message?: string) => any;
-export declare type TAssertStatement = (assert: TAssert, container?: any) => any;
-export declare type TUsageStatement = (assert_statement: TAssertStatement) => any;
-export interface IDoct {
-    (info: IInfo, target?: any): any;
-    createDemoElement?: (immediate: boolean) => any;
-    disposeDemoElement?: (elem: any) => any;
-    hasDemo?: (demoElement: any) => boolean;
-    logger?: ILogger;
-    debugging?: boolean;
-    autoRun?: boolean;
-    /**
-     * true/false/immediate,如果是immediate字符串，就会在logger输出的时候直接插入到dom中
-     *
-     * @type {(boolean|string)}
-     * @memberof IDoct
-     */
-    useDemo?: boolean | string;
-}
 /**
- * unittest类或unittest方法的装饰器
- *
- * @param {string} name
+ * 文档片段
+ * 可能就是一个文本，也可能是别的什么
+ * @export
+ * @interface IFragment
  */
-export declare function doct(info: IInfo, target?: any): any;
-export declare let Doct: IDoct;
-export declare class BasInfo {
+export interface IFragment {
     /**
-     * 用于文档生成的标题,由装饰器给出
+     * 内容类型
+     * 程序用该字段确定如何呈现内容
+     * @type {string}
+     * @memberof IDocFragment
+     */
+    contentType?: string | string[];
+    /**
+     * 片段内容
+     * 如果是数组,其contentType自动是 section
+     * @type {string}
+     * @memberof IDocFragment
+     */
+    content?: string | ISectionContent[];
+}
+export declare type ISectionContent = string | IFragment;
+/**
+ * 特征化的文档片段
+ *
+ * @export
+ * @interface ISpecifiedDocFragment
+ * @extends {IFragment}
+ */
+export interface ISpecifiedFragment extends IFragment {
+    /**
+     * 标题
      *
      * @type {string}
-     * @memberof MethodInfo
+     * @memberof ISpecifiedDocFragment
      */
     title: string;
     /**
-     * 用于文档生成的描述信息，由装饰器给出
-     *
-     * @type {string}
-     * @memberof BasInfo
-     */
-    descriptions: string[];
-    /**
-     * 描述中的注意事项,由装饰器给出
+     * 关键字
      *
      * @type {string[]}
-     * @memberof BasInfo
+     * @memberof ISpecifiedDocFragment
      */
-    notices: string[];
-    constructor(info: IInfo);
-}
-export declare class ClassInfo extends BasInfo {
-    ctor: {
-        new (...args: any[]): any;
-    };
-    methods: {
-        [name: string]: MethodInfo;
-    };
-    methodCount: number;
-    successCount: number;
-    currentMethodName: string;
-    constructor(ctor: Function, info: IInfo);
-    /**
-     * 手动添加某些方法为测试方法
-     *
-     * @param {(string|string[])} methodname
-     * @memberof BasInfo
-     */
-    method(info: IInfo): ClassInfo;
-}
-export declare class MethodInfo extends BasInfo {
-    method: TUsageStatement;
-    name: string;
-    codes: string[];
-    classInfo: ClassInfo;
-    constructor(name: string, clsInfo: ClassInfo, info: IInfo);
-    private _makeCodes;
-}
-export interface ILogger {
-    beginClass(clsInfo: ClassInfo): ILogger;
-    beginMethod(record: IExecuteRecord): ILogger;
-    endMethod(record: IExecuteRecord): ILogger;
-    endClass(clsInfo: ClassInfo): ILogger;
-}
-export declare class AssertException extends Error {
-    outerMessage: string;
-    constructor(msg: string, outerMessage?: string);
-    toString(): string;
+    keywords: string[];
 }
 /**
- * 执行记录
+ * 组织为一颗树的文档片段
  *
  * @export
- * @interface IExecuteRecord
+ * @interface ITreeNodeFragment
  */
-export interface IExecuteRecord {
-    methodInfo: MethodInfo;
-    /**
-     * 测试开始时间
-     *
-     * @type {Date}
-     * @memberof IExecuteResult
-     */
-    beginTime: Date;
-    /**
-     * 测试结束时间
-     *
-     * @type {Date}
-     * @memberof IExecuteResult
-     */
-    endTime?: Date;
-    /**
-     * 测试耗时
-     *
-     * @type {number}
-     * @memberof IExecuteResult
-     */
-    ellapse?: number;
-    errorDetail?: any;
-    /**
-     *
-     *
-     * @type {IUsageAssertInfo[]}
-     * @memberof IExecuteRecord
-     */
-    executeInfos?: IExecuteInfo[];
-    demoElement?: any;
+export interface ITreeNodeFragment extends IFragment {
+    nodeType: string;
+    parent?: ITreeNodeFragment;
+    children?: ITreeNodeFragment[];
 }
-export interface IExecuteInfo {
-    code: string;
-    asserts?: string[];
+export interface ICodeFragment extends IFragment {
+    language: string;
+    /**
+     * 代码类型，是函数？类还是别的
+     * execution，表示可执行片段，根据language调用该片段
+     * @type {string}
+     * @memberof ICodeFragment
+     */
+    codeKind: string;
+    /**
+     * 执行该代码所需的上下文信息，作为参数传递给编译器/执行器
+     *
+     * @type {*}
+     * @memberof ICodeFragment
+     */
+    executeContext: any;
 }
-export declare class HtmlLogger implements ILogger {
-    container: any;
-    private _usagesElement;
-    private _usageElement;
-    private _clsElement;
-    constructor(container?: any);
-    beginClass(clsInfo: ClassInfo): ILogger;
-    beginMethod(record: IExecuteRecord): ILogger;
-    endMethod(record: IExecuteRecord): ILogger;
-    endClass(clsInfo: ClassInfo): ILogger;
+export interface IAssert {
+    eq(actual: any, expected: any, message?: string): IAssert;
+    neq(actual: any, expected: any, message?: string): IAssert;
+    hasKey(actual: any, expected: any, message?: string): IAssert;
+    hasValue(actual: any, expected: any, message?: string): IAssert;
+    contains(actual: any, expected: any, message?: string): IAssert;
+    True(value: any, message?: string): IAssert;
+    False(value: any, message?: string): IAssert;
+    Null(value: any, message?: string): IAssert;
+    Undefined(value: any, message?: string): IAssert;
+    isset(value: any, message?: string): IAssert;
+    unset(value: any, message?: string): IAssert;
+    empty(value: any, message?: string): IAssert;
+    notEmpty(value: any, message?: string): IAssert;
 }
+/**
+ * 断言结果
+ *
+ * @export
+ * @interface IAssertResult
+ */
+export interface IAssertResult {
+    /**
+     * 断言类型
+     *
+     * @type {string}
+     * @memberof IAssertResult
+     */
+    type: string;
+    /**
+     * 结果
+     *
+     * @type {boolean}
+     * @memberof IAssertResult
+     */
+    result: boolean;
+    /**
+     * 消息
+     *
+     * @type {string}
+     * @memberof IAssertResult
+     */
+    message: string;
+    /**
+     * 断言参数
+     *
+     * @type {*}
+     * @memberof IAssertResult
+     */
+    params?: any;
+}
+export declare class AssertException extends Error implements IAssertResult {
+    type: string;
+    params?: any;
+    result: boolean;
+    constructor(type: string, message: string, params?: any);
+}
+export declare type TTestStatement = (statement: (assert: IAssert) => void) => void;
+export declare type TTestMethod = (test: TTestStatement, context?: any) => any;
+export declare class TestMethod {
+    raw: TestMethod;
+    name?: string;
+    private _codes;
+    private _wrappedMethod;
+    descriptor: IDescriptor;
+    constructor(raw: TestMethod, name?: string);
+    private _initCodes;
+    build(): TTestMethod;
+    call(context: any, self?: any): any;
+}
+export interface IDescriptor {
+    title?: string;
+    description?: any;
+    notice?: any;
+}
+export interface IExecuteContext {
+    testMethod: TestMethod;
+    testClass: TestClass;
+    instance: any;
+    context?: any;
+}
+export declare class TestClass {
+    ctor: {
+        new (): any;
+    };
+    methods: {
+        [name: string]: TestMethod;
+    };
+    descriptor: IDescriptor;
+    constructor(ctor: {
+        new (): any;
+    });
+    run(): IFragment;
+    buildDescriptor(descriptor: IDescriptor): IFragment;
+    buildSectionContents(section: IFragment, desContent: any): void;
+}
+export interface IDoct {
+    (descriptor: IDescriptor): any;
+    /**
+     * 是否处于调试状态，调试什么
+     *
+     * @type {string}
+     * @memberof IDoct
+     */
+    debugging?: string | boolean;
+    /**
+     * 源数据的属性
+     *
+     * @type {string}
+     * @memberof IDoct
+     */
+    descriptorToken?: string;
+    contextFactory?: (opts: IExecuteContext) => any;
+    autoRun?: boolean;
+    methodExecuting?: (opts: IExecuteContext) => any;
+    methodExecuted?: (section: IFragment, opts: IExecuteContext) => any;
+    classExecuting?: (cls: TestClass) => any;
+    classExecuted?: (section: IFragment, cls: TestClass) => any;
+    testClasses?: TestClass[];
+}
+export declare function doct(descriptor?: IDescriptor): (subject: any, propname?: string) => void;
+export declare let Doct: IDoct;

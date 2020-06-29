@@ -1,221 +1,313 @@
 
-export interface IInfo{
-
-    /**
-     * 方法名，在ClassInfo.method参数中使用
-     *
-     * @type {string}
-     * @memberof IInfo
-     */
-    name?:string;
-    title?:string;
-    descriptions?:string|any[];
-    notices?:string|string[];
-    debugging?:string;
-}
-
-export type TAssert = (expected:any,actual:any,message?:string)=>any;
-export type TAssertStatement = (assert:TAssert,container?:any)=>any;
-export type TUsageStatement = (assert_statement:TAssertStatement)=>any;
-
-export interface IDoct{
-    (info:IInfo,target?:any):any;
-    createDemoElement?:(immediate:boolean)=>any;
-    disposeDemoElement?:(elem:any)=>any;
-    hasDemo?:(demoElement:any)=>boolean;
-    logger?:ILogger;
-    debugging?:boolean;
-    autoRun?:boolean;
-
-    /**
-     * true/false/immediate,如果是immediate字符串，就会在logger输出的时候直接插入到dom中
-     *
-     * @type {(boolean|string)}
-     * @memberof IDoct
-     */
-    useDemo?:boolean|string;
-}
-
-
 
 /**
- * unittest类或unittest方法的装饰器
- *
- * @param {string} name
+ * 文档片段
+ * 可能就是一个文本，也可能是别的什么
+ * @export
+ * @interface IFragment
  */
-export function doct(info:IInfo,target?:any):any{//ClassInfo| {(target:any,name?:string):BasInfo}
-    let callAsDecorator = target===undefined;
-    let decorator = function(target:any,propname?:string):BasInfo{
-        if(propname===undefined){
-            //定义测试类/测试对象
-            let cls:Function;
-            if(typeof target==='object') {
-                cls = function(){};
-                cls.prototype = target;  
-            }else cls = target;
-            let clsInfo = new ClassInfo(cls,info);
-            if(Doct.autoRun) {
-                setTimeout(()=>{
-                    let logger = Doct.logger || new HtmlLogger();
-                    executeClass(clsInfo,logger,info);
-                },0);
-            }
-            if(!callAsDecorator)return clsInfo;
-        }else {
-            
-            let clsInfo:ClassInfo = target.$__doctClass__;
-            if(!clsInfo) {
-                let members = target.$__doctMethods__;
-                if(!members) Object.defineProperty(target,"$__doctMethods__",{enumerable:false,writable:false,configurable:false,value:members={}});
-                members[propname]=info;
-            }else {
-                let methodInfo = new MethodInfo(propname,clsInfo,info);
-                clsInfo.methods[propname] = methodInfo;
-                if(!callAsDecorator)return methodInfo;
-            }
-            
-        }
-    }; 
-    //被当作装饰器使用
-    if(target===undefined) return decorator;
-    return decorator(target) as ClassInfo;
-}
-export let Doct:IDoct = doct;
-
-Doct.createDemoElement = (immediate:boolean)=>{ 
-    let elem = document.createElement("div");
-    if(!immediate)elem.style.cssText="position:absolute;visibility:hidden;z-index:-1000;";
-    document.body.appendChild(elem);
-    return elem;
-
-}
-Doct.disposeDemoElement=(elem:any):any=>{
-    if(elem) {
-        elem.style.cssText="";
-        if(!elem.$__doctCustomDispose__)elem.parentNode.removeChild(elem);
-        
-    }
-    return elem;
-}
-Doct.hasDemo = (demoElement:any) =>demoElement?demoElement.hasChildNodes():false;
-
-Doct.debugging =true;
-Doct.useDemo =true;
-Doct.autoRun= true;
-
-
-
-
-export class BasInfo{
-       
+export interface IFragment{
+    
     /**
-     * 用于文档生成的标题,由装饰器给出
+     * 内容类型
+     * 程序用该字段确定如何呈现内容
+     * @type {string}
+     * @memberof IDocFragment
+     */
+    contentType?:string|string[];
+    
+    /**
+     * 片段内容
+     * 如果是数组,其contentType自动是 section
+     * @type {string}
+     * @memberof IDocFragment
+     */
+    content?:string|ISectionContent[];
+}
+export type ISectionContent = string | IFragment;
+
+
+ /**
+  * 特征化的文档片段
+  *
+  * @export
+  * @interface ISpecifiedDocFragment
+  * @extends {IFragment}
+  */
+ export interface ISpecifiedFragment extends IFragment{
+
+    /**
+     * 标题
      *
      * @type {string}
-     * @memberof MethodInfo
+     * @memberof ISpecifiedDocFragment
      */
     title:string;
 
     /**
-     * 用于文档生成的描述信息，由装饰器给出
-     *
-     * @type {string}
-     * @memberof BasInfo
-     */
-    descriptions:string[];
-
-
-    /**
-     * 描述中的注意事项,由装饰器给出
+     * 关键字
      *
      * @type {string[]}
-     * @memberof BasInfo
+     * @memberof ISpecifiedDocFragment
      */
-    notices:string[];
+    keywords:string[]
+ }
 
-    constructor(info:IInfo){
-        this.title = info.title;
-        this.descriptions = (typeof info.descriptions ==="string"?[info.descriptions as string]:info.descriptions)||[];
-        this.notices = (typeof info.notices==="string"?[info.notices as string]:info.notices)||[];
-        
-    }
-
+/**
+ * 组织为一颗树的文档片段
+ *
+ * @export
+ * @interface ITreeNodeFragment
+ */
+export interface ITreeNodeFragment extends IFragment{
+    //节点类型
+    nodeType:string;
+    parent?:ITreeNodeFragment;
+    children?:ITreeNodeFragment[];
 }
-export class ClassInfo extends BasInfo{
-    ctor:{new(...args):any};
-    methods:{[name:string]:MethodInfo};
-    methodCount:number;
-    successCount:number;
-    currentMethodName:string;
-    constructor(ctor:Function,info:IInfo){
-        super(info);
-        this.methodCount=0;
-        this.successCount=0;
-        this.ctor = ctor as any;
-        let existed = this.ctor.prototype.$__meta__;
-        if(existed){
-            if(existed instanceof ClassInfo) throw new Error("重复调用了doct??");
-            this.methods = existed.methods;
-        }
-        if(!this.methods) this.methods = {};
-        Object.defineProperty(this.ctor.prototype,"$__meta__",{enumerable:false,configurable:false,writable:false,value:this});
-        let members = this.ctor.prototype.$__doctMethods__;
-        if(members) 
-            for(const n in members){
-                
-                let methodInfo = new MethodInfo(n,this,members[n]);
-                this.methods[n] = methodInfo;
-            }
-    }
 
+export interface ICodeFragment extends IFragment{
+    //代码类型主要说明语言
+    //可以根据该字段调用不同的语言编译/执行程序
+    language:string;
     
     /**
-     * 手动添加某些方法为测试方法
-     *
-     * @param {(string|string[])} methodname
-     * @memberof BasInfo
+     * 代码类型，是函数？类还是别的
+     * execution，表示可执行片段，根据language调用该片段
+     * @type {string}
+     * @memberof ICodeFragment
      */
-    method(info:IInfo):ClassInfo{
-        this.methods[info.name] = new MethodInfo(info.name,this,info);
-        
-        return this;
+    codeKind:string;
+    
+    /**
+     * 执行该代码所需的上下文信息，作为参数传递给编译器/执行器
+     * 
+     * @type {*}
+     * @memberof ICodeFragment
+     */
+    executeContext:any;
+
+}
+
+export interface IAssert{
+    eq(actual,expected,message?:string):IAssert;
+    neq(actual,expected,message?:string):IAssert;
+    hasKey(actual,expected,message?:string):IAssert;
+    hasValue(actual,expected,message?:string):IAssert;
+    contains(actual,expected,message?:string):IAssert;
+    True(value,message?:string):IAssert;
+    False(value,message?:string):IAssert;
+    Null(value,message?:string):IAssert;
+    Undefined(value,message?:string):IAssert;
+    isset(value,message?:string):IAssert;
+    unset(value,message?:string):IAssert;
+    empty(value,message?:string):IAssert;
+    notEmpty(value,message?:string):IAssert;
+}
+/**
+ * 断言结果
+ *
+ * @export
+ * @interface IAssertResult
+ */
+export interface IAssertResult{
+    
+    /**
+     * 断言类型
+     *
+     * @type {string}
+     * @memberof IAssertResult
+     */
+    type:string;
+
+    /**
+     * 结果
+     *
+     * @type {boolean}
+     * @memberof IAssertResult
+     */
+    result:boolean;
+
+    /**
+     * 消息
+     *
+     * @type {string}
+     * @memberof IAssertResult
+     */
+    message:string;
+    
+    /**
+     * 断言参数
+     *
+     * @type {*}
+     * @memberof IAssertResult
+     */
+    params?:any;
+}
+export class AssertException extends Error implements IAssertResult{
+    result:boolean;
+    constructor(public type:string,message:string,public params?:any){
+        super(buildMessage(message,params));
+        this.result = false;
     }
 }
 
-export class MethodInfo extends BasInfo{
-    method:TUsageStatement;
-    name:string;
-    codes:string[];
-    classInfo:ClassInfo;
-    constructor(name:string,clsInfo:ClassInfo,info:IInfo){
-        super(info);
-        this.name = name;
-        this.classInfo = clsInfo;
-        this.method = clsInfo.ctor.prototype[name];
-        if(typeof this.method!=='function') throw new Error(`无法在类/对象上找到方法${name}`);
-        this.codes = this._makeCodes(this.method);
-        if(!clsInfo.methods[name])clsInfo.methodCount++;
-    }    
 
-    private _makeCodes(func:Function):string[]{
-        let trimRegx = /(^\s+)|(\s+$)/g;
-        //assert是用function开头
-        let assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
+class Assert implements IAssert{
+    constructor(){
+        this.outputs = [];
+    }
+    
+    eq(actual,expected,message?:string):IAssert{
+        return this._checkAndRecord("eq",message,{actual,expected},(p)=>actual===expected);
+    }
+    neq(actual,expected,message?:string):IAssert{
+        return this._checkAndRecord("neq",message,{actual,expected},(p)=>actual!==expected);
+    }
+    hasKey(key:any,assoc:any,message?:string):IAssert{
+        return this._checkAndRecord("hasKey",message,{key,assoc},(p)=>{
+            for(let n in assoc) if(n===key)return true;
+            return false;
+        });
+    }
+    hasValue(value:any,assoc:any,message?:string):IAssert{
+        return this._checkAndRecord("hasValue",message,{value,assoc},(p)=>{
+            for(let n in assoc) if(assoc[n]===value)return true;
+            return false;
+        });
+    }
+    contains(key:any,subject:any,message?:string):IAssert{
+        return this._checkAndRecord("neq",message,{key,subject},(p)=>{
+            if(!subject)return false;
+            if(typeof subject==="string") return subject.indexOf(key)>=0;
+            if(subject[key]!==undefined) return true;
+            return false;
+        });
+    }
+    True(value,message?:string):IAssert{
+        return this._checkAndRecord("True",message,{value},(p)=>value===true);
+    }
+    False(value,message?:string):IAssert{
+        return this._checkAndRecord("False",message,{value},(p)=>value===false);
+    }
+    Null(value,message?:string):IAssert{
+        return this._checkAndRecord("Null",message,{value},(p)=>value===null);
+    }
+    Undefined(value,message?:string):IAssert{
+        return this._checkAndRecord("Undefined",message,{value},(p)=>value===undefined);
+    }
+    isset(value,message?:string):IAssert{
+        return this._checkAndRecord("isset",message,{value},(p)=>value);
+    }
+    unset(value,message?:string):IAssert{
+        return this._checkAndRecord("unset",message,{value},(p)=>!value);
+    }
+    empty(value,message?:string):IAssert{
+        return this._checkAndRecord("empty",message,{value},(p)=>empty(value));
+    }
+    notEmpty(value,message?:string):IAssert{
+        return this._checkAndRecord("notEmpty",message,{value},(p)=>!empty(value));
+    }
 
-        let statement_proc = func.toString();
+    private _checkAndRecord(type:string,message:string,params:any,checker:(params:any)=>boolean):Assert{
+        let rs :IAssertResult;
+        if(!checker(params)){
+            rs = new AssertException(type,message,params);
+            if(this._debugging()) throw rs;
+        }else {
+            rs = {type,message:buildMessage(message,params),result:true,params};
+        }
+        
+        if(rs.result && this._recordSuccessInfo()){
+            this.outputs.push({
+                contentType:"text/assert-pass",
+                content:rs.message
+            });
+        }else{
+            this.outputs.push({
+                contentType:"text/assert-fail",
+                content:rs.message
+            });
+        }
+        return this;
+    }
+
+    outputs:IFragment[];
+    /**
+     * 是否是调试状态，如果是，断言不通过会抛出异常
+     *
+     * @private
+     * @returns {boolean}
+     * @memberof Assert
+     */
+    private _debugging():boolean{
+        return Doct.debugging as any;
+    }
+
+    /**
+     * 是否会记录成功的断言
+     *
+     * @private
+     * @returns {boolean}
+     * @memberof Assert
+     */
+    private _recordSuccessInfo():boolean{return true;}
+}
+
+function buildMessage(message,params?:any):string{
+    if(!params)return message;
+    return message.replace(branceRegx,(match)=>{
+        let name =  match[1].replace(trimRegx,"");
+        let val= params[name];
+        return val;
+    });
+}
+function empty(value){
+    if(value===null||value===undefined) return true;
+    let t = typeof value;
+    if(t==="function" || t==="object"){
+        for(let n in value){return false;}
+        return true;
+    }
+    return false;
+}
+const branceRegx = /\{\s*([a-zA-Z0-9_\-\$]+)\s*\}/;
+
+
+
+//断言函数的签名
+
+export type TTestStatement = (statement:(assert:IAssert)=>void)=>void;
+export type TTestMethod= (test:TTestStatement,context?:any)=>any;
+
+
+
+export class TestMethod{
+    private _codes:string[];
+    private _wrappedMethod:(self:any,context:any)=>IFragment;
+    public descriptor:IDescriptor;
+    constructor(public raw:TestMethod,public name?:string){
+        this.descriptor = raw[Doct.descriptorToken] ||{};
+    }  
+    
+    private _initCodes(){
+        if(this._codes) return this._codes;
+        let statement_proc = this.raw.toString();
         let assert_proc_name_match = statement_proc.match(assert_proc_name_regx);
         let assert_proce_name = assert_proc_name_match[1];
-        if(!assert_proce_name) return  [statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1)];
+        if(!assert_proce_name){
+            this._codes =  [statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1)];
+            return;
+        } 
 
-        let codes = [];
+        let codes =this._codes = [];
         
         let assert_proc_regx = new RegExp(`[;\\s]?${assert_proce_name.split(',')[0].replace(trimRegx,"")}\\s?\\(`);
         statement_proc = statement_proc.substring(assert_proc_name_match[0].length,statement_proc.length-1);
         let stateBeginAt = 0;
-        //let codes = "";
         let c = 0;
         while(true){
-            if(c++===10){debugger;break;}
+            if(c++===10){console.error("已经进入无穷循环了，代码有问题。");debugger;break;}
             //let match = assert_proc_regx.exec(statement_proc);
             let match = statement_proc.match(assert_proc_regx);
             if(match){
@@ -250,349 +342,200 @@ export class MethodInfo extends BasInfo{
                 break;
             }
         }
-
-        return codes;
+        return this._codes;
     }
-}
 
-
-///////
-// 执行阶段
-
-export interface ILogger{
-    beginClass(clsInfo:ClassInfo):ILogger;
-    beginMethod(record:IExecuteRecord):ILogger;
-    endMethod(record:IExecuteRecord):ILogger;
-    endClass(clsInfo:ClassInfo):ILogger;
-}
-
-export class AssertException extends Error{
-    outerMessage:string;
-    constructor(msg:string,outerMessage?:string){
-        super(msg);
-        this.outerMessage=outerMessage;
-    }
-    toString(){
-        if(this.outerMessage) return this.outerMessage;
-        return super.toString();
-    }
-}
-
-
-
-/**
- * 执行记录
- *
- * @export
- * @interface IExecuteRecord
- */
-export interface IExecuteRecord{
-    methodInfo:MethodInfo;
-
-    /**
-     * 测试开始时间
-     *
-     * @type {Date}
-     * @memberof IExecuteResult
-     */
-    beginTime:Date;
-
-    /**
-     * 测试结束时间
-     *
-     * @type {Date}
-     * @memberof IExecuteResult
-     */
-    endTime?:Date;
-    
-    /**
-     * 测试耗时
-     *
-     * @type {number}
-     * @memberof IExecuteResult
-     */
-    ellapse?:number;
-
-    errorDetail?:any;    
-
-
-    /**
-     *
-     *
-     * @type {IUsageAssertInfo[]}
-     * @memberof IExecuteRecord
-     */
-    executeInfos?:IExecuteInfo[];
-
-    demoElement?:any;
-
-}
-
-
-export interface IExecuteInfo{
-    code:string;
-    asserts?:string[];
-}
-
-function executeClass(clsInfo:ClassInfo ,logger:ILogger,des:IInfo):{[name:string]:IExecuteRecord}{
-    logger.beginClass(clsInfo);
-    try{
-        let instance = new clsInfo.ctor();
-        let rs = {};
-        
-        for(let n in clsInfo.methods){
-            if(des.debugging && n.indexOf(des.debugging)<0) continue;
-            clsInfo.currentMethodName = n;
-            rs[n] = executeMethod(instance,clsInfo.methods[n],logger);
-            clsInfo.successCount++;
-        }
-        return rs;
-    }finally{
-        logger.endClass(clsInfo);
-    }
-    
-}
-
-function executeMethod(instance:any,methodInfo:MethodInfo,logger:ILogger):IExecuteRecord{
-    let record :IExecuteRecord = {methodInfo:methodInfo,beginTime:new Date(),executeInfos:[]};
-    let end:Date;
-    let index:number = 0;
-    let assert_proc = (assert_statement:(assert:(expected,actual,message)=>any)=>any)=>{
-        end = record.endTime = new Date();
-        record.ellapse = record.endTime.valueOf()-record.beginTime.valueOf();
-        
-        assert_statement(makeAssert(methodInfo,index,record));
-        index++;
-        
-    };
-    for(const i in methodInfo.codes){
-        record.executeInfos[i] = {code:methodInfo.codes[i],asserts:[]};
-    }
-    let demoElement =Doct.useDemo && Doct.createDemoElement? Doct.createDemoElement(Doct.useDemo==="immediate"):null;
-    record.demoElement = demoElement;
-    logger.beginMethod(record);
-    try{
-        if((doct as any).debugging){
-            
-            methodInfo.method.call(instance,assert_proc,demoElement);
-        }else {
-            try{
-                this.statement.call(this,assert_proc,demoElement);
-            }catch(ex){
-                record.errorDetail=ex;
-                
-            }
-        }
-    }finally{
-        if(end===undefined){
-            end = record.endTime = new Date();
-            record.ellapse = record.endTime.valueOf()-record.beginTime.valueOf();
-        }
-
-        if(demoElement && Doct.useDemo){
-            Doct.disposeDemoElement(demoElement);
-            if(!Doct.hasDemo(demoElement)){
-                record.demoElement = null;
-                if(demoElement.parentNode) demoElement.parentNode.removeChild(demoElement);
-            } 
-        } 
-        logger.endMethod(record);
-        
-    }
-    
-            
-    return record;
-}
-
-function makeAssert(doc:MethodInfo,codeIndex:number,record:IExecuteRecord){
-    let code = doc.codes[codeIndex];
-    let assert= (expected:any,actual:any,msg:string,paths?:string[])=>{
-        //if(!record.executeInfos) record.executeInfos = [];
-        let assertInfo = record.executeInfos[codeIndex] ;
-        //if(!assertInfo) assertInfo = record.executeInfos[codeIndex]= {code:code,asserts:[]};
-        let asserts :string[] = assertInfo.asserts;
-        if(msg===undefined && typeof expected==="boolean" && typeof actual==="string"){
-            msg = actual;
-            actual = expected;
-            expected = true;
-        }
-        if(!paths && msg) msg = msg.replace(/\{actual\}/g,JSON.stringify(actual)).replace(/\{expected\}/g,JSON.stringify(expected));
-        if(actual===expected) {
-            if(msg)asserts.push(msg);
-            return;
-        }
-        let t = typeof(expected);
-        
-        if(t==="object"){
-            paths||(paths=[]);
-            //let nullMsg = msg || "期望有值";
-            if(!actual) throw new AssertException(paths.join(".")+"不应为空.",msg);
-    
-            for(let n in expected){
-                paths.push(n);
-                let expectedValue = expected[n];
-                let actualValue = actual[n];
-                if(typeof expectedValue==="object"){
-                    assert(actualValue,expectedValue,msg,paths);
-                }else {
-                    if(actualValue!==expectedValue){
-                        throw new AssertException(`${paths?paths.join("."):""}期望值为${expectedValue},实际为${actualValue}`,msg);
-                    }
+    build():TTestMethod{
+        if(this._wrappedMethod) return this._wrappedMethod;
+        this._initCodes();
+        let wrapped=  (self,context):IFragment=>{
+            let step = 0;
+            let fragments:ISectionContent[] = [];
+            let assert :Assert;
+            let test:TTestStatement = (statement:(assert:IAssert)=>any):any=>{
+                //上次调用的test产生的assert
+                if(assert && assert.outputs.length){
+                    fragments.push({
+                        contentType:"asserts"
+                        ,content:assert.outputs
+                    } as any);
                 }
-                paths.pop();
-            }
-            if(msg && !paths.length){
-                asserts.push(msg);
-            }
-        }else if(actual!==expected){
-            throw new AssertException(`${paths?paths.join("."):""}期望值为${expected},实际为${actual}`,msg);
-        }else {
-            if( msg && !paths){
-                asserts.push(msg);
-            }
-        }
-    };
-    return assert;
+                assert = new Assert();
+                fragments.push({
+                    language:"js",
+                    content:this._codes[step]
+                } as ICodeFragment);
+                step++;
+            };
+            (this.raw as any as Function).call(self,test,context);
+            fragments.push({
+                language:"js",
+                content:this._codes[step]
+            } as ICodeFragment);
+            return {contentType:"test-method-return",content:fragments};
+        };
+        return this._wrappedMethod = wrapped;
+    }
+    call(context:any,self?:any){
+        return this.build().call(self,self,context);
+    }
+}
+let trimRegx = /(^\s+)|(\s+$)/g;
+//assert是用function开头
+let assert_proc_name_regx = /^function\s*\(([^\)]+)\s*\)\s*\{/;
+
+export interface IDescriptor{
+    title?:string;
+    description?:any;
+    notice?:any;
 }
 
-////////////////////
-// 日志
+export interface IExecuteContext{
+    testMethod:TestMethod;
+    testClass:TestClass;
+    instance:any;
+    context?:any;
+}
 
-
-
-export class HtmlLogger implements ILogger{
-    container:any;
-    private _usagesElement;
-    private _usageElement;
-    private _clsElement;
-    constructor(container?:any){
-        if(!container){
-            try{
-                container = document.body;
-            }catch(ex){}
-        }
-        this.container = container;
+export class TestClass{
+    methods:{[name:string]:TestMethod};
+    descriptor:IDescriptor;
+    constructor(public ctor:{new():any}){
+        this.methods={};
+        this.descriptor = (this.ctor as any)[Doct.descriptorToken]||{};
+        Doct.testClasses.push(this);
+        tryDeferExecute();
     }
-    beginClass(clsInfo:ClassInfo):ILogger{
-        if(this._clsElement)throw new Error("错误的使用了beginClass,class不能嵌套");
-        let rs = makeBas(clsInfo,"doct",this.container);
-        let dlist = rs.dlist;
-        this._clsElement = rs.element;
-        let dt = createElement("dt","usages",dlist,"用法说明");
-        let dd = createElement("dd","usages",dlist);
-        this._usagesElement = createElement("ul","usages",dd);
-        return this;
-    }
-    beginMethod(record:IExecuteRecord):ILogger{
-        let li = createElement("li","usage",this._usagesElement);
-        this._usageElement = makeBas(record.methodInfo,"usage",li).dlist;
+
+    run():IFragment{
         
-        return this;
-    }
-    endMethod(record:IExecuteRecord):ILogger{
-        if(record.executeInfos.length>0){
-            let dt = createElement("dt","codes",this._usageElement);
-            dt.innerHTML = "代码";
-            let dd = createElement("dd","codes",this._usageElement);
-            let codes = createElement("ul","codes",dd);
-            for(const i in record.executeInfos){
-                let execuetInfo = record.executeInfos[i];
-                let codeli = createElement("li","code",codes);
-                let cd = createElement("code","code",codeli);
-                let pre= createElement("pre","code",cd);
-                pre.innerHTML = execuetInfo.code.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-                if(execuetInfo.asserts.length){
-                    let comment = createElement("div","comments",codeli);
-                    createElement("ins","comment",comment,"/*");
-                    let asserts = createElement("ol","asserts",comment);
-                    
-                    for(const j in execuetInfo.asserts){
-                        let assertLi = createElement("li","assert",asserts,execuetInfo.asserts[j]);
-                    }
-                    createElement("ins","comment",comment,"*/");
-                }
+        let docClass= this.buildDescriptor(this.descriptor);
+        if(Doct.classExecuting) Doct.classExecuting(this);
+        let instance = new this.ctor();
+        let docMembers = {
+            contentType:"test-methods",
+            content:[]
+        };
+        (docClass.content as ISectionContent[]).push(docMembers);
+
+        let debugging = typeof Doct.debugging==="string"?(Doct.debugging as string).replace(trimRegx,""):null;
+        for(let n in instance){
+            if(debugging && n.indexOf(debugging)<0) continue;
+            let method = instance[n];
+            let methodDescriptor:IDescriptor;
+            if(method && (methodDescriptor = method[Doct.descriptorToken])){
+                let docMethod = this.buildDescriptor(methodDescriptor) as ISpecifiedFragment;
+                if(!docMethod.title)  docMethod.title = n;
+                let testMethod = this.methods[n] = new TestMethod(method as any);
+                let opts:IExecuteContext = {
+                    testMethod:testMethod,
+                    testClass:this,
+                    instance:instance
+                };
+                let context =opts.context = Doct.methodExecuting?Doct.methodExecuting(opts):undefined;
+                let methodSection = testMethod.call(instance,context);
+                if(Doct.methodExecuted) Doct.methodExecuted(methodSection,opts);
+                docMembers.content.push(methodSection);
             }
         }
+        if(Doct.classExecuted) Doct.classExecuted(docClass,this);
+        return docClass;
+    }
+    buildDescriptor(descriptor :IDescriptor):IFragment{
+
+        let fragment = {
+            title:descriptor.title
+            ,content:[]
+        };
+
+        if(descriptor.description ){
+            let section:IFragment = {contentType:"description"};
+            this.buildSectionContents(section,descriptor.description);
+        }
+        if(descriptor.notice ){
+            let section:IFragment = {contentType:"description",content:[]};
+            this.buildSectionContents(section,descriptor.notice);
+        }
+        return fragment;
+    }
+    buildSectionContents(section:IFragment,desContent:any){
         
+        if(desContent && desContent.push && desContent.pop){
+            let subs:ISectionContent[];
+            if(!section.content) subs = section.content = [];
+            if(!(section.content as ISectionContent[]).push) subs = section.content = [section.content as string];
+            else subs = section.content as ISectionContent[];
 
-        if(record.demoElement){
-            let dt = createElement("dt","demo",this._usageElement);
-            dt.innerHTML = "运行效果";
-            let dd = createElement("dd","demo",this._usageElement);
-            dd.appendChild(record.demoElement);
-            (record.demoElement as any).$__doctCustomDispose__=true;
-        }
-
-        let ins = createElement("dt","perf",this._usageElement,"性能");
-        let dd = createElement("dd","demo",this._usageElement,record.ellapse.toString());
-
-        return this;
-    }
-    endClass(clsInfo:ClassInfo):ILogger{
-        if(!this._usagesElement.hasChildNodes()) this._usagesElement.parentNode.removeChild(this._usagesElement);
-        
-        if(clsInfo.methodCount===clsInfo.successCount){
-            this._clsElement.className+= " successful";
-        }else {
-            this._clsElement.className+= " failed";
-        }
-        this._clsElement = undefined;
-        return this;
-    }
-}
-
-function createElement(tag:string,cls?:string,parent?:any,content?:string):any{
-    let elem = document.createElement(tag);
-    if(cls) elem.className = cls;
-    if(parent) parent.appendChild(elem);
-    if(content) elem.innerHTML = content;
-    return elem;
-};
-
-function makeBas(basInfo:BasInfo,cls:string,p:any){
-    let fs = createElement("fieldset",cls,p);
-    let legend = createElement("legend",cls,fs,basInfo.title);
-    let dlist= createElement("dl",cls,fs);
-    if(basInfo.descriptions.length){
-        let dt = createElement("dt","descriptions",dlist,"说明");
-        let dd = createElement("dd","descriptions",dlist);
-        makeDescList(basInfo.descriptions,dd);
-    }
-    if(basInfo.notices.length){
-        let dt = createElement("dt","notices",dlist,"注意");
-        let dd = createElement("dd","notices",dlist);
-        let ol = createElement("ol","notices",dd);
-        for(const i in basInfo.notices){
-            let content = basInfo.notices[i];
-            if(content && (content = htmlEncode(content.replace(/(^\s+)|(\s+$)/g,""))))
-                createElement("li","",ol).innerHTML = content ;
-        }
-    }
-    return {dlist,element:fs};
-}
-function makeDescList(arr:any[],p:any){
-    let ul;
-    for(const i in arr){
-        let item = arr[i];
-        if(typeof item==="string"){
-            item = item.replace(/(^\s+)|(\s+$)/g,"");
-            if(!item) continue;
-            if(!ul) ul = createElement("ul","description-list",p);
-            let li = createElement("li","description-paragraph",ul);
-            li.innerHTML = "<p>" + item.replace(/\n/g,"</p><p>") + "</p>";
-        }else {
-            let sub = makeDescList(item,null);
-            if(sub){
-                if(!ul) ul = createElement("ul","description-list",p);
-                let li = createElement("li","description-paragraph",ul);
-                li.appendChild(sub);
+            for(let c of desContent){
+                if(c===undefined || c===null) continue;
+                if(c.push && c.pop){
+                    let sub = {};
+                    subs.push(sub);
+                    this.buildSectionContents(sub,c);
+                }else subs.push(c);
             }
         }
     }
-    return ul;
 }
 
-function htmlEncode(content:string){
-    if(content===undefined||content===null) return "";
-    return content.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br />");
+export interface IDoct{
+    (descriptor:IDescriptor):any;
+    
+    /**
+     * 是否处于调试状态，调试什么
+     *
+     * @type {string}
+     * @memberof IDoct
+     */
+    debugging?:string|boolean;
+
+    /**
+     * 源数据的属性
+     *
+     * @type {string}
+     * @memberof IDoct
+     */
+    descriptorToken?:string;
+
+    contextFactory?:(opts:IExecuteContext)=>any;
+
+    autoRun?:boolean;
+    methodExecuting?:(opts:IExecuteContext)=>any;
+
+    methodExecuted?:(section:IFragment,opts:IExecuteContext)=>any;
+    classExecuting?:(cls:TestClass)=>any;
+    classExecuted?:(section:IFragment,cls:TestClass)=>any;
+
+    testClasses?:TestClass[];
+}
+
+export function doct(descriptor?:IDescriptor){
+    return function(subject:any,propname?:string){
+        if(propname===undefined){
+            subject[Doct.descriptorToken] = descriptor||{};
+        }else{
+            let method = subject[propname];
+            method[Doct.descriptorToken] = descriptor ||{};
+        }
+    }
+}
+export let Doct:IDoct = doct;
+Doct.debugging = true;
+Doct.descriptorToken="$__doct_descriptor__";
+Doct.autoRun = true;
+Doct.testClasses = [];
+
+let tick;
+function tryDeferExecute(){
+    if(Doct.autoRun){
+        if(!tick) tick = setTimeout(() => {
+            for(let cls of Doct.testClasses){
+                let rs = cls.run();
+            }
+        }, 0);
+    }else {
+        if(tick){
+            clearTimeout(tick); tick = 0;
+        }
+    }
 }
